@@ -1,0 +1,75 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínicas Love</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script>
+        function toggleMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+    </script>
+</head>
+
+<body class="relative">
+    <!-- Background Image -->
+    <div class="relative h-screen bg-cover bg-center" style="background-image: url('https://placehold.co/1920x1080');">
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+
+        <!-- Navbar -->
+        <nav class="absolute top-0 left-0 w-full flex items-center justify-between px-6 py-5 text-white">
+            <!-- Logo -->
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-heart text-white text-2xl"></i>
+                <span class="font-serif text-lg">CLÍNICAS LOVE</span>
+            </div>
+            <!-- Desktop Navigation -->
+            <ul class="hidden md:flex space-x-8 text-sm font-light">
+                <li><a href="#" class="hover:underline">Home</a></li>
+                <li><a href="#" class="hover:underline">Nosotros</a></li>
+                <li><a href="#" class="hover:underline">Medicina Estética Facial</a></li>
+                <li><a href="#" class="hover:underline">Cirugía Estética Facial</a></li>
+                <li><a href="#" class="hover:underline">Cirugía Corporal</a></li>
+                <li><a href="#" class="hover:underline">Contacto</a></li>
+            </ul>
+            <!-- Mobile Menu Button -->
+            <button class="md:hidden text-white text-2xl" onclick="toggleMenu()">
+                <i class="fas fa-bars"></i>
+            </button>
+        </nav>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden absolute top-16 left-0 w-full bg-black bg-opacity-90 text-white">
+            <ul class="flex flex-col items-center space-y-4 py-4 text-sm font-light">
+                <li><a href="#" class="hover:underline">Home</a></li>
+                <li><a href="#" class="hover:underline">Nosotros</a></li>
+                <li><a href="#" class="hover:underline">Medicina Estética Facial</a></li>
+                <li><a href="#" class="hover:underline">Cirugía Estética Facial</a></li>
+                <li><a href="#" class="hover:underline">Cirugía Corporal</a></li>
+                <li><a href="#" class="hover:underline">Contacto</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
+            <p class="text-sm uppercase tracking-widest font-light mb-2">
+                Clínica N°1 en Tratamientos Estéticos de España
+            </p>
+            <h1 class="text-5xl font-serif font-bold mb-4">Clínicas Love</h1>
+            <a href="#" class="px-6 py-2 border border-white text-sm uppercase tracking-widest font-light hover:bg-white hover:text-black transition">
+                Conoce Nuestras Promociones
+            </a>
+        </div>
+    </div>
+
+    <!-- WhatsApp Button -->
+    <a href="#" class="fixed bottom-5 right-5 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition">
+        <i class="fab fa-whatsapp text-2xl"></i>
+    </a>
+</body>
+
+</html>

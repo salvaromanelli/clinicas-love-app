@@ -17,14 +17,14 @@ class RecomendacionesPage extends StatelessWidget {
                 children: [
                   // Botón atrás
                   IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                  icon: const Icon(
+                    Icons.arrow_back_ios,
+                    color: Colors.white,
                   ),
+                  onPressed: () {
+                    Navigator.pushReplacementNamed(context, '/login');  // Changed from pop to pushReplacementNamed
+                    },
+                 ),
                   // Logo en el centro
                   Expanded(
                     child: Center(

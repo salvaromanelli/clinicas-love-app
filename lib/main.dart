@@ -6,6 +6,7 @@ import 'educacion_contenido_page.dart';
 import 'main_navigation.dart';
 import 'profile_page.dart';
 import 'integracion_redes_page.dart';
+import 'login_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -30,7 +31,9 @@ return MaterialApp(
     '/educacion-contenido': (context) => const EducacionContenidoPage(),
     '/profile': (context) => const ProfilePage(),
     '/integracion-redes': (context) => const IntegracionRedesPage(),
+     '/login': (context) => LoginPage(child: MainNavigation()),
   },
+   initialRoute: '/',
 );
   }
 }

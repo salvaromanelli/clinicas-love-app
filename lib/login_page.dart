@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -13,6 +14,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
+  final _storage = FlutterSecureStorage();
   bool _isLoading = false;
 
   @override
@@ -175,9 +177,11 @@ class _LoginPageState extends State<LoginPage> {
         throw Exception('Por favor complete todos los campos');
       }
 
-      // TODO: Implement login with backend
-      // final token = await _authService.login(email, password);
-      // await _authService.saveToken(token);
+      // Implement login with backend
+      final token = await _authService.login(email, password);
+      
+      // Store the token securely
+      await _storage.write(key: 'auth_token', value: token);
       
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/profile');

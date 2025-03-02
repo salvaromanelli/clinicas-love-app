@@ -77,14 +77,14 @@ class RecomendacionesPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
-                children: [
-                  _buildButton('Continuar con Google', const Color(0xFF293038)),
+                    children: [
+                  _buildButton(context, 'Continuar con Google', const Color(0xFF293038)),
                   const SizedBox(height: 8.0),
-                  _buildButton('Continuar con Facebook', const Color(0xFF293038)),
+                  _buildButton(context, 'Continuar con Facebook', const Color(0xFF293038)),
                   const SizedBox(height: 8.0),
-                  _buildButton('Continuar con Apple', const Color(0xFF293038)),
+                  _buildButton(context, 'Continuar con Apple', const Color(0xFF293038)),
                   const SizedBox(height: 8.0),
-                  _buildButton('Crear cuenta', Colors.transparent),
+                  _buildButton(context, 'Crear cuenta', Colors.transparent),
                 ],
               ),
             ),
@@ -109,9 +109,15 @@ class RecomendacionesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildButton(String text, Color color) {
+  Widget _buildButton(BuildContext context, String text, Color color) {
     return ElevatedButton(
-      onPressed: () {},
+      onPressed: () {
+        if (text == 'Crear cuenta') {
+          Navigator.pushNamed(context, '/register');
+        } else {
+          // Aquí puedes manejar otras acciones de los botones si es necesario
+        }
+      },
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         padding: const EdgeInsets.symmetric(vertical: 16.0),

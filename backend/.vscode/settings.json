@@ -1,0 +1,10 @@
+{
+    "python.defaultInterpreterPath": "/Users/salvaromanelli/Desktop/PROYECTOS PROGRAMACION 2025/app-clinicas-love/flutter_application_1/backend/.venv/bin/python",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.pythonPath": "/Users/salvaromanelli/Desktop/PROYECTOS PROGRAMACION 2025/app-clinicas-love/flutter_application_1/backend/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "/Users/salvaromanelli/Desktop/PROYECTOS PROGRAMACION 2025/app-clinicas-love/flutter_application_1/backend",
+      ]
+      
+      
+}

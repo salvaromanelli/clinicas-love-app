@@ -6,7 +6,8 @@ import 'educacion_contenido_page.dart';
 import 'main_navigation.dart';
 import 'profile_page.dart';
 import 'integracion_redes_page.dart';
-import 'login_page.dart';
+import 'login_page.dart'; // Asegúrate de importar la página de login
+import 'register_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -31,9 +32,9 @@ return MaterialApp(
     '/educacion-contenido': (context) => const EducacionContenidoPage(),
     '/profile': (context) => const ProfilePage(),
     '/integracion-redes': (context) => const IntegracionRedesPage(),
-     '/login': (context) => LoginPage(child: MainNavigation()),
+    '/login': (context) => LoginPage(child: MainNavigation()), 
+    '/register': (context) => RegisterPage(),
   },
-   initialRoute: '/',
 );
   }
 }
@@ -98,7 +99,8 @@ class HomePage extends StatelessWidget {
           ),
             // Dark overlay for better text readability
           Container(
-            color: const Color.fromRGBO(0, 0, 0, 0.5),  // Replace withOpacity with fromRGBO
+            color: const Color.fromRGBO(0, 0, 0, 0.5),  // Replace withOpacity with fromRG
+
           ),
           // Main Content
           SafeArea(

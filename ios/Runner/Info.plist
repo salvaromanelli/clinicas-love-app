@@ -44,6 +44,17 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<key>CFBundleURLTypes</key>
+	<array>
+	<dict>
+		<key>CFBundleURLSchemes</key>
+		<array>
+		<string>io.supabase.flutterquickstart</string>
+		</array>
+		<key>CFBundleURLName</key>
+		<string>login-callback</string>
+	</dict>
+	</array>
 	<true/>
 </dict>
 </plist>

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'main.dart';
 import 'recomendaciones_page.dart';
 import 'ofertas_promo_page.dart';
-import 'profile_page.dart';
+import 'profile_page.dart' as profile; 
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -15,10 +15,10 @@ class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
   
   final List<Widget> _pages = [
-    HomePage(),
-    OfertasPromosPage(),
-    RecomendacionesPage(),
-    ProfilePage(),
+    const HomePage(),
+    const OfertasPromosPage(),
+    const RecomendacionesPage(),
+    const profile.ProfilePage(),
   ];
 
   void _onItemTapped(int index) {

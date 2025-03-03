@@ -4,4 +4,31 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <meta-data
+      android:name="com.google.android.geo.API_KEY"
+      android:value="TU_API_KEY_DE_GOOGLE_MAPS"/>
+
+      <activity
+    android:name="com.yalantis.ucrop.UCropActivity"
+    android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+<activity
+    android:name=".MainActivity"
+    android:launchMode="singleTop"
+    android:exported="true">
+    <!-- ... otras configuraciones existentes ... -->
+
+    <!-- Configuración para deep links -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:scheme="io.supabase.flutterquickstart"
+            android:host="login-callback" />
+    </intent-filter>
+</activity>
 </manifest>

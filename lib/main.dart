@@ -11,8 +11,8 @@ import 'register_page.dart';
 import 'virtual_assistant_chat.dart';
 import 'boton_asistente.dart';
 import 'simulacion_resultados.dart';
-import 'nuestras_clinicas.dart';
 import 'services/supabase.dart';
+import 'clinicas_cerca.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 

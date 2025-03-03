@@ -19,7 +19,7 @@ class SupabaseService {
 static Future<void> initialize() async {
   await Supabase.initialize(
     url: 'https://xlrutqwvlowzntnjgmwa.supabase.co',
-    anonKey: 'pOGyYEyFokwNcz8R',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscnV0cXd2bG93em50bmpnbXdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5NjM2NDAsImV4cCI6MjA1NjUzOTY0MH0.RpmMKYSYEAXZLzCWgd7AP0pclgvXhVZmo14XXqdpBtE',
     debug: false,
   );
 }
@@ -151,36 +151,22 @@ static Future<void> initialize() async {
   Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
   // CLÍNICAS
-  Future<List<Clinic>> getClinics() async {
-    final response = await client
-        .from('clinics')
-        .select('*, clinic_services(service_name)');
-    
-    List<Clinic> clinicsList = [];
-    
-    for (var item in response) {
-      List<String> services = [];
-      if (item['clinic_services'] != null) {
-        for (var service in item['clinic_services']) {
-          services.add(service['service_name']);
-        }
+  Future<List<Clinica>> getClinicas() async {
+    try {
+      // Cambia 'clinicas' a 'clinics' para que coincida con el nombre de la tabla
+      final response = await client.from('clinics').select();
+      
+      if (response == null) {
+        print('Error al obtener clínicas: respuesta nula');
+        return [];
       }
       
-      clinicsList.add(Clinic(
-        id: item['id'],
-        name: item['name'],
-        address: item['address'],
-        latitude: item['latitude'],
-        longitude: item['longitude'],
-        phoneNumber: item['phone_number'],
-        imageUrl: item['image_url'],
-        services: services,
-        schedule: item['schedule'],
-        rating: item['rating'] ?? 4.5,
-      ));
+      final data = response as List;
+      return data.map((json) => Clinica.fromJson(json)).toList();
+    } catch (e) {
+      print('Error al obtener clínicas: $e');
+      return [];
     }
-    
-    return clinicsList;
   }
 
   // TRATAMIENTOS Y SIMULACIONES

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'models/profile_model.dart';
 import 'services/profile_service.dart';
 import 'services/auth_service.dart';
+import 'edit_profile_page.dart';
 
 
 class ProfilePage extends StatefulWidget {
@@ -25,24 +26,52 @@ class _ProfilePageState extends State<ProfilePage> {
 
 Future<void> _loadProfile() async {
   try {
+    print("Cargando perfil de usuario...");
+    setState(() {
+      _isLoading = true;
+    });
+    
     final token = await _authService.getToken();
+    print("Token obtenido: ${token != null ? 'Sí' : 'No'}");
+    
     if (token == null) {
+      print("No hay token, redirigiendo a login...");
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
     
+    // Usar ProfileService para obtener el perfil usando Supabase
     final profile = await _profileService.getProfile(token);
-    setState(() {
-      _profile = profile;
-      _isLoading = false;
-    });
+    
+    if (profile != null) {
+      print("Perfil cargado: ${profile.name}");
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    } else {
+      print("No se encontró perfil, redirigiendo a login");
+      if (!mounted) return;
+      // Opcional: mostrar un mensaje antes de redirigir
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se encontró tu perfil. Por favor vuelve a iniciar sesión.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // Permitir que el usuario vea el mensaje antes de redirigir
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   } catch (e) {
+    print("Error al cargar perfil: $e");
     setState(() => _isLoading = false);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error loading profile: ${e.toString()}'),
+        content: Text('Error al cargar perfil: ${e.toString()}'),
         backgroundColor: Colors.red,
       ),
     );
@@ -69,7 +98,8 @@ Future<void> _loadProfile() async {
                       color: Colors.white,
                     ),
                     onPressed: () {
-                      Navigator.pop(context);
+                      // Navegar a la pantalla principal con la pestaña de productos seleccionada
+                      Navigator.pushReplacementNamed(context, '/home', arguments: {'tabIndex': 1}); // Asume que 'productos' es la pestaña índice 1
                     },
                   ),
                   const Text(
@@ -197,10 +227,21 @@ Future<void> _loadProfile() async {
 // Replace the existing _buildMenuItem method
 Widget _buildMenuItem(String title) {
   return GestureDetector(
-    onTap: () {
+    onTap: () async {
       switch (title) {
         case 'Contact Information':
-          Navigator.pushNamed(context, '/contact-info');
+          final updatedProfile = await Navigator.push(
+            context, 
+            MaterialPageRoute(
+              builder: (context) => EditProfilePage(profile: _profile!),
+            )
+          );
+          
+          if (updatedProfile != null) {
+            setState(() {
+              _profile = updatedProfile;
+            });
+          }
           break;
         case 'Payment methods':
           Navigator.pushNamed(context, '/payment-methods');

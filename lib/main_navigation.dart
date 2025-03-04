@@ -5,7 +5,7 @@ import 'ofertas_promo_page.dart';
 import 'profile_page.dart' as profile; 
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  const MainNavigation({Key? key}) : super(key: key);
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -13,6 +13,23 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Obtener argumentos de navegación si existen
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args != null && args is Map<String, dynamic>) {
+      // Si recibimos un índice de pestaña, lo usamos
+      final tabIndex = args['tabIndex'];
+      if (tabIndex != null && tabIndex is int) {
+        setState(() {
+          _selectedIndex = tabIndex;
+        });
+      }
+    }
+  }
   
   final List<Widget> _pages = [
     const HomePage(),
@@ -90,3 +107,4 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 }
+

@@ -1,7 +1,9 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase.dart';
+import 'services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   final Widget child;
@@ -12,13 +14,94 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _supabaseService = SupabaseService();
   final _storage = const FlutterSecureStorage();
+  final _authService = AuthService();
   bool _isLoading = false;
   bool _passwordVisible = false;
   String? _errorMessage;
+
+  // Método de login principal - corregido
+  Future<void> _handleLogin() async {
+    // Validación del formulario
+    if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+      return;
+    }
+    
+    // Establecer estado de carga ANTES de iniciar el proceso
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      // Iniciar sesión con Supabase
+      final response = await _supabaseService.signIn(
+        email: email,
+        password: password,
+      );
+      
+      if (response.user != null) {
+        // Obtener y guardar token
+        final token = await _supabaseService.getToken();
+        if (token != null) {
+          await _authService.saveToken(token);
+          
+          if (!mounted) return;
+          
+          // Logs para depuración
+          print("Inicio de sesión exitoso, token: ${token.substring(0, min(10, token.length))}...");
+          print("Redirigiendo a página de perfil...");
+          
+          // Navegar a la página de perfil y eliminar historial de navegación
+          Navigator.pushNamedAndRemoveUntil(
+            context, 
+            '/profile', 
+            (route) => false
+          );
+        } else {
+          throw Exception('No se pudo obtener el token de autenticación');
+        }
+      } else {
+        throw Exception('Error de autenticación');
+      }
+    } on AuthException catch (e) {
+      setState(() {
+        _errorMessage = e.message;
+      });
+      print("Error de autenticación: ${e.message}");
+    } catch (e) {
+      // Manejo más amigable de errores comunes
+      String errorMsg;
+      
+      if (e.toString().contains('Invalid login credentials')) {
+        errorMsg = 'Email o contraseña incorrectos';
+      } else if (e.toString().contains('Email not confirmed')) {
+        errorMsg = 'Por favor confirma tu email antes de iniciar sesión';
+      } else if (e.toString().contains('network')) {
+        errorMsg = 'Error de conexión. Verifica tu internet';
+      } else {
+        errorMsg = 'Error: ${e.toString()}';
+      }
+      
+      setState(() {
+        _errorMessage = errorMsg;
+      });
+      print("Error de login: $errorMsg");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,191 +153,209 @@ class _LoginPageState extends State<LoginPage> {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 32.0),
-                          const Text(
-                            'Iniciar Sesión',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8.0),
-                          const Text(
-                            'Bienvenido a Clínicas Love',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 32.0),
-                          
-                          // Email field with icon
-                          TextField(
-                            controller: _emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              prefixIcon: Icon(Icons.email, color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white),
+                      child: Form( // Añadido Form
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 32.0),
+                            const Text(
+                              'Iniciar Sesión',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            style: const TextStyle(color: Colors.white),
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-                          const SizedBox(height: 16.0),
-                          
-                          // Password field with toggle visibility
-                          TextField(
-                            controller: _passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Contraseña',
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              prefixIcon: const Icon(Icons.lock, color: Colors.white70),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _passwordVisible ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.white70,
+                            const SizedBox(height: 8.0),
+                            const Text(
+                              'Bienvenido a Clínicas Love',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 32.0),
+                            
+                            // Email field with icon - cambiado a TextFormField
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: const InputDecoration(
+                                labelText: 'Email',
+                                labelStyle: TextStyle(color: Colors.white70),
+                                prefixIcon: Icon(Icons.email, color: Colors.white70),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white24),
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _passwordVisible = !_passwordVisible;
-                                  });
-                                },
-                              ),
-                              enabledBorder: const UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: const UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white),
-                              ),
-                            ),
-                            obscureText: !_passwordVisible,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          
-                          // Forgot password link
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _showForgotPasswordDialog,
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            ),
-                          ),
-                          
-                          // Error message
-                          if (_errorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                _errorMessage!,
-                                style: const TextStyle(color: Colors.redAccent),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          
-                          const SizedBox(height: 24.0),
-                          
-                          // Login button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1980E6),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                ),
-                                disabledBackgroundColor: Colors.grey,
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Iniciar Sesión',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16.0,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 24.0),
-                          
-                          // Or divider
-                          Row(
-                            children: const [
-                              Expanded(child: Divider(color: Colors.white24)),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                                child: Text(
-                                  'O continúa con',
-                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white),
                                 ),
                               ),
-                              Expanded(child: Divider(color: Colors.white24)),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 24.0),
-                          
-                          // Social login buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildSocialButton(
-                                onPressed: () => _handleSocialLogin('google'),
-                                iconPath: 'assets/images/google_icon.png',
-                                label: 'Google',
-                              ),
-                              _buildSocialButton(
-                                onPressed: () => _handleSocialLogin('facebook'),
-                                iconPath: 'assets/images/facebook_icon.png',
-                                label: 'Facebook',
-                              ),
-                              _buildSocialButton(
-                                onPressed: () => _handleSocialLogin('apple'),
-                                iconPath: 'assets/images/apple_icon.png',
-                                label: 'Apple',
-                              ),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 24.0),
-                          
-                          // Register link
-                          Center(
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.pushReplacementNamed(context, '/register');
+                              style: const TextStyle(color: Colors.white),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu email';
+                                }
+                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                  return 'Ingresa un email válido';
+                                }
+                                return null;
                               },
-                              child: const Text(
-                                '¿No tienes cuenta? Regístrate',
-                                style: TextStyle(color: Colors.white70),
+                            ),
+                            const SizedBox(height: 16.0),
+                            
+                            // Password field with toggle visibility - cambiado a TextFormField
+                            TextFormField(
+                              controller: _passwordController,
+                              decoration: InputDecoration(
+                                labelText: 'Contraseña',
+                                labelStyle: const TextStyle(color: Colors.white70),
+                                prefixIcon: const Icon(Icons.lock, color: Colors.white70),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                                    color: Colors.white70,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _passwordVisible = !_passwordVisible;
+                                    });
+                                  },
+                                ),
+                                enabledBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white24),
+                                ),
+                                focusedBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingresa tu contraseña';
+                                }
+                                return null;
+                              },
+                              obscureText: !_passwordVisible,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            
+                            // Forgot password link
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _showForgotPasswordDialog,
+                                child: const Text(
+                                  '¿Olvidaste tu contraseña?',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            
+                            // Error message
+                            if (_errorMessage != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: Colors.redAccent),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            
+                            const SizedBox(height: 24.0),
+                            
+                            // Login button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1980E6),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12.0),
+                                  ),
+                                  disabledBackgroundColor: Colors.grey,
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Iniciar Sesión',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16.0,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 24.0),
+                            
+                            // Or divider
+                            Row(
+                              children: const [
+                                Expanded(child: Divider(color: Colors.white24)),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                                  child: Text(
+                                    'O continúa con',
+                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                                ),
+                                Expanded(child: Divider(color: Colors.white24)),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 24.0),
+                            
+                            // Social login buttons
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildSocialButton(
+                                  onPressed: () => _handleSocialLogin('google'),
+                                  iconPath: 'assets/images/google_icon.png',
+                                  label: 'Google',
+                                ),
+                                _buildSocialButton(
+                                  onPressed: () => _handleSocialLogin('facebook'),
+                                  iconPath: 'assets/images/facebook_icon.png',
+                                  label: 'Facebook',
+                                ),
+                                _buildSocialButton(
+                                  onPressed: () => _handleSocialLogin('apple'),
+                                  iconPath: 'assets/images/apple_icon.png',
+                                  label: 'Apple',
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 24.0),
+                            
+                            // Register link
+                            Center(
+                              child: TextButton(
+                                onPressed: () {
+                                  Navigator.pushReplacementNamed(context, '/register');
+                                },
+                                child: const Text(
+                                  '¿No tienes cuenta? Regístrate',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -313,59 +414,69 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Login with email and password
-  Future<void> _handleLogin() async {
+  // Social login handling
+  Future<void> _handleSocialLogin(String provider) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
-    try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
-      
-      // Validación básica
-      if (email.isEmpty || password.isEmpty) {
-        throw Exception('Por favor complete todos los campos');
-      }
 
-      // Iniciar sesión con Supabase
-      final response = await _supabaseService.signIn(
-        email: email,
-        password: password,
-      );
+    try {
+      bool success = false;
+      OAuthProvider oauthProvider;
       
-      if (response.user != null) {
-        // Guardar el token de sesión
-        final token = await _supabaseService.getToken();
-        await _storage.write(key: 'auth_token', value: token);
-        
+      // Determinar el proveedor OAuth
+      switch (provider) {
+        case 'google':
+          oauthProvider = OAuthProvider.google;
+          break;
+          
+        case 'facebook':
+          oauthProvider = OAuthProvider.facebook;
+          break;
+          
+        case 'apple':
+          oauthProvider = OAuthProvider.apple;
+          break;
+          
+        default:
+          throw Exception('Proveedor no soportado');
+      }
+      
+      // Iniciar el flujo OAuth
+      success = await _supabaseService.client.auth.signInWithOAuth(
+        oauthProvider,
+        redirectTo: 'io.supabase.flutterquickstart://login-callback/',
+      );
+
+      // Verificar si el proceso de redirección OAuth comenzó correctamente
+      if (success) {
         if (!mounted) return;
         
-        // Navegar a la página principal
-        Navigator.pushReplacementNamed(context, '/home');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Serás redirigido para completar el inicio de sesión'),
+            backgroundColor: Colors.blue,
+          ),
+        );
       } else {
         setState(() {
-          _errorMessage = 'Error de autenticación. Por favor verifique sus credenciales.';
+          _errorMessage = 'No se pudo iniciar el proceso de autenticación con $provider';
         });
       }
     } catch (e) {
-      // Manejo más amigable de errores comunes de Supabase
-      String errorMsg;
-      
-      if (e.toString().contains('Invalid login credentials')) {
-        errorMsg = 'Email o contraseña incorrectos';
-      } else if (e.toString().contains('Email not confirmed')) {
-        errorMsg = 'Por favor confirma tu email antes de iniciar sesión';
-      } else if (e.toString().contains('network')) {
-        errorMsg = 'Error de conexión. Verifica tu internet';
-      } else {
-        errorMsg = 'Error: ${e.toString()}';
-      }
-      
       setState(() {
-        _errorMessage = errorMsg;
+        _errorMessage = 'Error al iniciar sesión con $provider: ${e.toString()}';
       });
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -374,79 +485,6 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
-
-// Reemplaza el método _handleSocialLogin completo
-
-Future<void> _handleSocialLogin(String provider) async {
-  setState(() {
-    _isLoading = true;
-    _errorMessage = null;
-  });
-
-  try {
-    bool success = false;
-    OAuthProvider oauthProvider;
-    
-    // Determinar el proveedor OAuth
-    switch (provider) {
-      case 'google':
-        oauthProvider = OAuthProvider.google;
-        break;
-        
-      case 'facebook':
-        oauthProvider = OAuthProvider.facebook;
-        break;
-        
-      case 'apple':
-        oauthProvider = OAuthProvider.apple;
-        break;
-        
-      default:
-        throw Exception('Proveedor no soportado');
-    }
-    
-    // Iniciar el flujo OAuth
-    success = await _supabaseService.client.auth.signInWithOAuth(
-      oauthProvider,
-      redirectTo: 'io.supabase.flutterquickstart://login-callback/',
-    );
-
-    // Verificar si el proceso de redirección OAuth comenzó correctamente
-    if (success) {
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Serás redirigido para completar el inicio de sesión'),
-          backgroundColor: Colors.blue,
-        ),
-      );
-    } else {
-      setState(() {
-        _errorMessage = 'No se pudo iniciar el proceso de autenticación con $provider';
-      });
-    }
-  } catch (e) {
-    setState(() {
-      _errorMessage = 'Error al iniciar sesión con $provider: ${e.toString()}';
-    });
-    
-    if (!mounted) return;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-}
 
   // Diálogo para recuperar contraseña
   void _showForgotPasswordDialog() {

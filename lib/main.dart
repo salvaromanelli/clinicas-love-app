@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const MainNavigation(),
         '/recomendaciones': (context) => const RecomendacionesPage(),
         '/post-tratamiento': (context) => const PostTratamientoPage(),
-        '/ofertas-promos': (context) => const OfertasPromosPage(),
+        '/ofertas-promo': (context) => const OfertasPromosPage(),
         '/educacion-contenido': (context) => const EducacionContenidoPage(),
         '/profile': (context) => const profile.ProfilePage(),
         '/integracion-redes': (context) => const IntegracionRedesPage(),

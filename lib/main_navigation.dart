@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'main.dart';
 import 'recomendaciones_page.dart';
 import 'ofertas_promo_page.dart';
-import 'profile_page.dart' as profile; 
+import 'profile_page.dart' as profile;
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -13,23 +13,6 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    
-    // Obtener argumentos de navegación si existen
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args != null && args is Map<String, dynamic>) {
-      // Si recibimos un índice de pestaña, lo usamos
-      final tabIndex = args['tabIndex'];
-      if (tabIndex != null && tabIndex is int) {
-        setState(() {
-          _selectedIndex = tabIndex;
-        });
-      }
-    }
-  }
   
   final List<Widget> _pages = [
     const HomePage(),
@@ -50,7 +33,6 @@ class _MainNavigationState extends State<MainNavigation> {
       backgroundColor: const Color(0xFF111418),
       body: _pages[_selectedIndex],
       bottomNavigationBar: SafeArea(
-       
         child: Container(
           height: 65,
           decoration: BoxDecoration(
@@ -90,14 +72,14 @@ class _MainNavigationState extends State<MainNavigation> {
             Icon(
               icon,
               color: isActive ? Colors.white : const Color(0xFF9DABB8),
-              size: 24.0, // Reduced size
+              size: 24.0,
             ),
-            const SizedBox(height: 4.0), // Reduced spacing
+            const SizedBox(height: 4.0),
             Text(
               label,
               style: TextStyle(
                 color: isActive ? Colors.white : const Color(0xFF9DABB8),
-                fontSize: 13.0, // Reduced font size
+                fontSize: 13.0,
                 fontWeight: FontWeight.w500,
               ),
             ),

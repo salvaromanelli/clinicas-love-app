@@ -146,6 +146,33 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
   }
 
   @override
+  
+  Widget _buildImageButton({
+  required IconData icon,
+  required String label,
+  required VoidCallback onPressed,
+  bool isFullWidth = false,
+}) {
+  return ElevatedButton.icon(
+    onPressed: onPressed,
+    icon: Icon(icon, size: 18), // Tamaño de icono más pequeño
+    label: Text(
+      label,
+      style: const TextStyle(fontSize: 13), // Texto más pequeño
+    ),
+    style: ElevatedButton.styleFrom(
+      foregroundColor: Colors.white,
+      backgroundColor: const Color(0xFF1980E6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12, 
+        vertical: 8,
+      ),
+      minimumSize: isFullWidth ? const Size(double.infinity, 40) : null,
+    ),
+  );
+}
+  
+  
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -256,28 +283,47 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _pickImage(ImageSource.camera),
-                              icon: const Icon(Icons.camera_alt),
-                              label: const Text('Tomar foto'),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: const Color(0xFF1980E6),
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () => _pickImage(ImageSource.gallery),
-                              icon: const Icon(Icons.photo_library),
-                              label: const Text('Galería'),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: const Color(0xFF1980E6),
-                              ),
-                            ),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Determinar si hay suficiente espacio para botones horizontales
+                            final isNarrow = constraints.maxWidth < 340;
+                            
+                            // Si el espacio es reducido, usar columna; de lo contrario, usar fila
+                            return isNarrow
+                              ? Column(
+                                  children: [
+                                    _buildImageButton(
+                                      icon: Icons.camera_alt,
+                                      label: 'Tomar foto',
+                                      onPressed: () => _pickImage(ImageSource.camera),
+                                      isFullWidth: true,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildImageButton(
+                                      icon: Icons.photo_library,
+                                      label: 'Galería',
+                                      onPressed: () => _pickImage(ImageSource.gallery),
+                                      isFullWidth: true,
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildImageButton(
+                                      icon: Icons.camera_alt,
+                                      label: 'Tomar foto',
+                                      onPressed: () => _pickImage(ImageSource.camera),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _buildImageButton(
+                                      icon: Icons.photo_library,
+                                      label: 'Galería',
+                                      onPressed: () => _pickImage(ImageSource.gallery),
+                                    ),
+                                  ],
+                                );
+                          },
                         ),
                         
                         if (_imageFile != null) ...[

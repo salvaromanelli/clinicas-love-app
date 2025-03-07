@@ -177,32 +177,32 @@ class _SplashScreenState extends State<SplashScreen> {
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Background Image
-          Container(
-            width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.height,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Clinicas_love_fondo.jpg'),
-                fit: BoxFit.cover,
-              ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Stack(
+      children: [
+        // Background Image (sin cambios)
+        Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/Clinicas_love_fondo.jpg'),
+              fit: BoxFit.cover,
             ),
           ),
-            // Dark overlay for better text readability
-          Container(
-            color: const Color.fromRGBO(0, 0, 0, 0.5),  // Replace withOpacity with fromRG
-
-          ),
-          // Main Content
-          SafeArea(
+        ),
+        // Dark overlay (sin cambios)
+        Container(
+          color: const Color.fromRGBO(0, 0, 0, 0.5),
+        ),
+        // Main Content - AQUÍ ESTÁN LOS CAMBIOS
+        SafeArea(
+          child: SingleChildScrollView( // Añadimos SingleChildScrollView para permitir scroll vertical
             child: Column(
               children: [
-                // Logo in center top
+                // Logo (sin cambios)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Center(
@@ -218,72 +218,76 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 
-            // Título
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'Hable con nuestro asistente virtual',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28.0,
-                  fontWeight: FontWeight.bold,
+                // Título (sin cambios)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Hable con nuestro asistente virtual',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 8.0),
-            // Descripción
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'Responda a preguntas sobre tratamientos, precios y disponibilidad',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.0,
+                const SizedBox(height: 8.0),
+                
+                // Descripción (sin cambios)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Responda a preguntas sobre tratamientos, precios y disponibilidad',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            // Grid de opciones
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                padding: const EdgeInsets.all(16.0),
-                children: [
-                  _buildOption(
-                    context,
-                    'Simulación de resultados',
-                     'https://cdn.usegalileo.ai/sdxl10/5413b550-9ddd-4735-a640-8c153c8d010f.png',
-                  ),
-                  _buildOption(
-                    context,
-                    'Conecta tus redes sociales y obten descuentos',
-                    'assets/images/walomeca.jpg',
-                  ),
-                  _buildOption(
-                    context,
-                    'Educación y contenido',
-                    'https://cdn.usegalileo.ai/sdxl10/95b8b74e-1725-4e02-9556-9871b471a3aa.png',
-                  ),
-                  _buildOption(
-                    context,
-                    'Conozca nuestras clínicas',
-                    'https://cdn.usegalileo.ai/sdxl10/fbf4fb0e-c6f7-4cf0-b034-82fb42940f56.png',
-                  ),
+                const SizedBox(height: 16.0),
+                
+                // Grid de opciones - CAMBIOS AQUÍ
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.45, // Altura fija
+                  child: GridView.count(
+                    physics: const NeverScrollableScrollPhysics(), // Evita scroll interno
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16.0,
+                    mainAxisSpacing: 16.0,
+                    padding: const EdgeInsets.all(16.0),
+                    children: [
+                      _buildOption(
+                        context,
+                        'Simulación de resultados',
+                        'https://cdn.usegalileo.ai/sdxl10/5413b550-9ddd-4735-a640-8c153c8d010f.png',
+                      ),
+                      _buildOption(
+                        context,
+                        'Conecta tus redes',
+                        'assets/images/walomeca.jpg',
+                      ),
+                      _buildOption(
+                        context,
+                        'Educación y contenido',
+                        'https://cdn.usegalileo.ai/sdxl10/95b8b74e-1725-4e02-9556-9871b471a3aa.png',
+                      ),
+                      _buildOption(
+                        context,
+                        'Nuestras clínicas',
+                        'https://cdn.usegalileo.ai/sdxl10/fbf4fb0e-c6f7-4cf0-b034-82fb42940f56.png',
+                      ),
                     ],
                   ),
                 ),
-            // Botón
+                
+                // Botón (sin cambios)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: SizedBox(
                     width: double.infinity,
-                    height: 56.0, // Altura similar al botón anterior
+                    height: 56.0,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pushNamed(context, '/assistant');
@@ -313,29 +317,31 @@ class HomePage extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-// En la clase HomePage, modifica el método build para hacer el _buildOption clickeable
+        ),
+      ],
+    ),
+  );
+}
+
 Widget _buildOption(BuildContext context, String title, String imageUrl) {
   return GestureDetector(
     onTap: () {
-      if (title == 'Simulación de resultados') {
+      if (title.contains('Simulación')) {
         Navigator.pushNamed(context, '/simulation');
-      } else if (title == 'Educación y contenido') {  // Add this condition
+      } else if (title.contains('Educación')) {
         Navigator.pushNamed(context, '/educacion-contenido');
-      } else if (title == 'Conecta tus redes sociales y obten descuentos') {  // Add this condition
+      } else if (title.contains('Conecta')) {
         Navigator.pushNamed(context, '/integracion-redes');
-      } else if (title == 'Conozca nuestras clínicas') {  // Añade esta condición
+      } else if (title.contains('clínicas')) {
         Navigator.pushNamed(context, '/clinicas');
       }
     },
     child: Column(
+      mainAxisSize: MainAxisSize.min, // Importante: minimiza el espacio vertical
       children: [
         Container(
-          width: 100.0,
-          height: 100.0,
+          width: 80.0, // Reducido de 100.0
+          height: 80.0, // Reducido de 100.0
           decoration: BoxDecoration(
             image: DecorationImage(
               image: imageUrl.startsWith('http') 
@@ -346,15 +352,18 @@ Widget _buildOption(BuildContext context, String title, String imageUrl) {
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(height: 8.0),
+        const SizedBox(height: 4.0), // Reducido de 8.0
+        // Texto más corto y con límite de líneas
         Text(
           title,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 16.0,
+            fontSize: 14.0, // Reducido de 16.0
             fontWeight: FontWeight.bold,
           ),
           textAlign: TextAlign.center,
+          maxLines: 2, // Limita a 2 líneas
+          overflow: TextOverflow.ellipsis, // Añade ... si se corta
         ),
       ],
     ),

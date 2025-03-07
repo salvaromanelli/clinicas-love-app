@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'booking_page.dart';
 
 class VirtualAssistantChat extends StatefulWidget {
   const VirtualAssistantChat({super.key});
@@ -232,6 +233,21 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> {
       // Desplazar hacia abajo después de recibir una respuesta
     _scrollToBottom();
   }
+
+  void _bookAppointmentFromChat(
+    {String? treatmentId, String? clinicId, DateTime? date, String? notes}) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => AppointmentBookingPage(
+        preSelectedTreatmentId: treatmentId,
+        preSelectedClinicId: clinicId,
+        preSelectedDate: date,
+        prefilledNotes: notes,
+      ),
+    ),
+  );
+}
 
   @override
   void dispose() {

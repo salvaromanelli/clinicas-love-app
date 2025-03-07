@@ -1,0 +1,252 @@
+[
+  {
+    "id": "a6eed09b-141e-4bc2-9f92-39f976f72678",
+    "name": "Aumento de Labios",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:04.684158"
+  },
+  {
+    "id": "c44c883d-bbc6-445e-a6ce-7a0cc94671a4",
+    "name": "K-Láser",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:05.856888"
+  },
+  {
+    "id": "f6fba02c-4792-44a3-9620-845ebb64c28b",
+    "name": "Eliminación de Arrugas",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:07.039935"
+  },
+  {
+    "id": "ac64c487-7228-42d2-8e82-69eb2630806f",
+    "name": "Rinomodelación",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:08.352127"
+  },
+  {
+    "id": "75775a5e-4ddd-479d-acc5-0e6e7da90cde",
+    "name": "Láser CO2",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:09.534652"
+  },
+  {
+    "id": "c77a77a4-3155-4c33-9b28-7852189c953f",
+    "name": "Eliminación de ojeras",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:10.826123"
+  },
+  {
+    "id": "af47d85a-1b22-4a99-aa75-3541415da41b",
+    "name": "Aumento de Mentón",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:12.108076"
+  },
+  {
+    "id": "7de3f719-bb9c-423d-8d06-0fa749f5c1dd",
+    "name": "Armonización Facial",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:13.356960"
+  },
+  {
+    "id": "5a739555-9077-48da-bb31-978128380483",
+    "name": "Aumento de Pómulos",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:14.665879"
+  },
+  {
+    "id": "13e62d27-d214-49a7-a88e-a535859bc626",
+    "name": "Marcación Mandibular",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:15.845324"
+  },
+  {
+    "id": "bf11fee5-9798-4944-b183-31bb41d0671a",
+    "name": "Masculinización facial",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:17.015115"
+  },
+  {
+    "id": "8e706d9f-d023-4c48-b03a-4073353e6ffb",
+    "name": "Dermapen",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:18.188707"
+  },
+  {
+    "id": "efb15fc5-0fde-440f-958a-04e1d36ade47",
+    "name": "Surco Nasogeniano",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Medicina Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:19.374343"
+  },
+  {
+    "id": "3669e4dd-dc60-4b4e-aae7-e4a91dcbfcfa",
+    "name": "Rinoseptoplastia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:20.543681"
+  },
+  {
+    "id": "ffe56417-065c-46be-ac47-52848a3bfa8d",
+    "name": "Lipopapada",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:21.788262"
+  },
+  {
+    "id": "aea36750-9557-439d-9d18-f2ec3c3ce2eb",
+    "name": "Otoplastia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:23.038356"
+  },
+  {
+    "id": "2625312e-3c7f-47ae-83ea-0d6951f10cf7",
+    "name": "Blefaroplastia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:24.335647"
+  },
+  {
+    "id": "56b29f23-3f27-4495-b753-e73557ede3ec",
+    "name": "Lóbulos rasgados",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:25.480971"
+  },
+  {
+    "id": "4046ea8f-d34d-4535-8d78-3dca779fea05",
+    "name": "Bichectomia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Estética Facial",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:26.803613"
+  },
+  {
+    "id": "d46d7d62-6dfc-446f-b816-daf26b8abc5a",
+    "name": "Aumento de Pecho",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Corporal",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:27.982217"
+  },
+  {
+    "id": "735cd558-b201-4f07-be90-7f62111489e6",
+    "name": "Abdominoplastia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Corporal",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:29.176229"
+  },
+  {
+    "id": "b417384b-da84-4bbd-85f9-db5e577745e3",
+    "name": "Mastopexia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Corporal",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:30.421542"
+  },
+  {
+    "id": "2107d54d-7456-4fdc-ab1b-0ee5ad6b0e1b",
+    "name": "Lipovaser",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Corporal",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:31.592743"
+  },
+  {
+    "id": "6c9141fb-b923-4b58-9631-ea04e15bd0a1",
+    "name": "Ginecomastia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Corporal",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:32.830195"
+  },
+  {
+    "id": "77db3183-4a2d-4a45-9370-bf75c90dea9d",
+    "name": "Braquioplastia",
+    "description": "Teléfono: +34919993515 Calle Edgar Neville, 16. 28020 Teléfono: +34938526533",
+    "price": 0.0,
+    "duration": 60,
+    "category": "Cirugía Corporal",
+    "image_url": null,
+    "created_at": "2025-03-06T19:15:34.918775"
+  }
+]

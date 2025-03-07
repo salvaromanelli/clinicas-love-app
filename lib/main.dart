@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';  // Asegúrate de que esta importación esté correcta
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'recomendaciones_page.dart';
 import 'post_tratamiento_page.dart';
 import 'ofertas_promo_page.dart';
@@ -13,15 +16,24 @@ import 'boton_asistente.dart';
 import 'simulacion_resultados.dart';
 import 'services/supabase.dart';
 import 'clinicas_cerca.dart';
+import 'booking_page.dart';
+import 'services/notificaciones.dart';
+
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // Asegúrate de que los widgets están inicializados
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar datos de formato de fecha para locale 'es'
+  await initializeDateFormatting('es', null);
   
   // Inicializar Supabase
   await SupabaseService.initialize();
+  
+  // Inicializar servicio de notificaciones
+  await NotificationService().initialize();
   
   runApp(const MyApp());
 }
@@ -39,6 +51,17 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const SplashScreen(),
+      
+      localizationsDelegates: [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es'),
+        Locale('en'),
+      ],
+      locale: const Locale('es'),
      
       
       routes: {
@@ -55,6 +78,7 @@ class MyApp extends StatelessWidget {
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
         '/simulation': (context) => const TreatmentSimulationPage(),
         '/clinicas': (context) => const ClinicasPage(),
+        '/book-appointment': (context) => const AppointmentBookingPage(),
 
         },
         builder: (context, child) {

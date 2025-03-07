@@ -1,0 +1,252 @@
+[
+  {
+    "id": "a6eed09b-141e-4bc2-9f92-39f976f72678",
+    "name": "Aumento de Labios",
+    "description": "Tratamiento para aumentar el volumen y mejorar la forma de los labios mediante el uso de ácido hialurónico, logrando un aspecto más voluminoso y definido de forma natural.",
+    "price": 350,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/aumento_de_labios.jpg",
+    "created_at": "2025-03-06T19:15:04.684158"
+  },
+  {
+    "id": "c44c883d-bbc6-445e-a6ce-7a0cc94671a4",
+    "name": "K-Láser",
+    "description": "Tratamiento láser avanzado que rejuvenece la piel, reduce imperfecciones y mejora la textura cutánea con mínima invasión y rápida recuperación.",
+    "price": 280,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/k-laser.jpg",
+    "created_at": "2025-03-06T19:15:05.856888"
+  },
+  {
+    "id": "f6fba02c-4792-44a3-9620-845ebb64c28b",
+    "name": "Eliminación de Arrugas",
+    "description": "Tratamiento para suavizar líneas de expresión y arrugas mediante técnicas como toxina botulínica o rellenos dérmicos, devolviendo juventud al rostro.",
+    "price": 400,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/eliminacion_de_arrugas.jpg",
+    "created_at": "2025-03-06T19:15:07.039935"
+  },
+  {
+    "id": "ac64c487-7228-42d2-8e82-69eb2630806f",
+    "name": "Rinomodelación",
+    "description": "Procedimiento no quirúrgico que permite modificar la forma de la nariz usando ácido hialurónico, corrigiendo imperfecciones sin cirugía.",
+    "price": 600,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/rinomodelacion.jpg",
+    "created_at": "2025-03-06T19:15:08.352127"
+  },
+  {
+    "id": "75775a5e-4ddd-479d-acc5-0e6e7da90cde",
+    "name": "Láser CO2",
+    "description": "Tratamiento láser fraccionado que renueva la piel, reduciendo arrugas, cicatrices y manchas mediante la estimulación del colágeno.",
+    "price": 450,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/laser_co2.jpg",
+    "created_at": "2025-03-06T19:15:09.534652"
+  },
+  {
+    "id": "c77a77a4-3155-4c33-9b28-7852189c953f",
+    "name": "Eliminación de ojeras",
+    "description": "Tratamiento especializado para reducir la apariencia de ojeras y bolsas mediante rellenos dérmicos o técnicas específicas para el contorno de ojos.",
+    "price": 380,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/eliminacion_de_ojeras.jpg",
+    "created_at": "2025-03-06T19:15:10.826123"
+  },
+  {
+    "id": "af47d85a-1b22-4a99-aa75-3541415da41b",
+    "name": "Aumento de Mentón",
+    "description": "Procedimiento para definir y proyectar el mentón usando rellenos dérmicos o implantes, mejorando el perfil facial y equilibrando las facciones.",
+    "price": 500,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/aumento_de_menton.jpg",
+    "created_at": "2025-03-06T19:15:12.108076"
+  },
+  {
+    "id": "7de3f719-bb9c-423d-8d06-0fa749f5c1dd",
+    "name": "Armonización Facial",
+    "description": "Conjunto de técnicas estéticas que buscan equilibrar y proporcionar armonía a los rasgos faciales, mejorando la estética global del rostro.",
+    "price": 1200,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/armonizacion_facial.jpg",
+    "created_at": "2025-03-06T19:15:13.356960"
+  },
+  {
+    "id": "5a739555-9077-48da-bb31-978128380483",
+    "name": "Aumento de Pómulos",
+    "description": "Tratamiento para realzar y definir los pómulos mediante rellenos dérmicos, dando mayor estructura y definición al rostro.",
+    "price": 550,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/aumento_de_pomulos.jpg",
+    "created_at": "2025-03-06T19:15:14.665879"
+  },
+  {
+    "id": "13e62d27-d214-49a7-a88e-a535859bc626",
+    "name": "Marcación Mandibular",
+    "description": "Procedimiento para definir y esculpir el contorno mandibular, creando un aspecto más definido y estéticamente atractivo.",
+    "price": 580,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/marcacion_mandibular.jpg",
+    "created_at": "2025-03-06T19:15:15.845324"
+  },
+  {
+    "id": "bf11fee5-9798-4944-b183-31bb41d0671a",
+    "name": "Masculinización facial",
+    "description": "Conjunto de técnicas estéticas diseñadas para acentuar rasgos masculinos en el rostro como mandíbula definida, mentón prominente y pómulos marcados.",
+    "price": 1500,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/masculinizacion_facial.jpg",
+    "created_at": "2025-03-06T19:15:17.015115"
+  },
+  {
+    "id": "8e706d9f-d023-4c48-b03a-4073353e6ffb",
+    "name": "Dermapen",
+    "description": "Técnica de microagujas que estimula la producción natural de colágeno, mejorando la textura de la piel y reduciendo cicatrices, arrugas y estrías.",
+    "price": 250,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/dermapen.jpg",
+    "created_at": "2025-03-06T19:15:18.188707"
+  },
+  {
+    "id": "efb15fc5-0fde-440f-958a-04e1d36ade47",
+    "name": "Surco Nasogeniano",
+    "description": "Tratamiento específico para suavizar las líneas que van desde las aletas de la nariz hasta las comisuras de los labios mediante rellenos dérmicos.",
+    "price": 480,
+    "duration": 45,
+    "category": "Medicina Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/medicina_estetica_facial/surco_nasogeniano.jpg",
+    "created_at": "2025-03-06T19:15:19.374343"
+  },
+  {
+    "id": "3669e4dd-dc60-4b4e-aae7-e4a91dcbfcfa",
+    "name": "Rinoseptoplastia",
+    "description": "Cirugía que corrige tanto la estética de la nariz como problemas funcionales del tabique nasal, mejorando la apariencia y la respiración.",
+    "price": 4500,
+    "duration": 120,
+    "category": "Cirugía Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_estetica_facial/rinoseptoplastia.jpg",
+    "created_at": "2025-03-06T19:15:20.543681"
+  },
+  {
+    "id": "ffe56417-065c-46be-ac47-52848a3bfa8d",
+    "name": "Lipopapada",
+    "description": "Procedimiento quirúrgico para eliminar la grasa acumulada en la zona submentoniana, definiendo el contorno entre el cuello y la mandíbula.",
+    "price": 2200,
+    "duration": 120,
+    "category": "Cirugía Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_estetica_facial/lipopapada.jpg",
+    "created_at": "2025-03-06T19:15:21.788262"
+  },
+  {
+    "id": "aea36750-9557-439d-9d18-f2ec3c3ce2eb",
+    "name": "Otoplastia",
+    "description": "Cirugía para corregir la forma, posición o proporción de las orejas, acercándolas a la cabeza en casos de orejas prominentes.",
+    "price": 1800,
+    "duration": 120,
+    "category": "Cirugía Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_estetica_facial/otoplastia.jpg",
+    "created_at": "2025-03-06T19:15:23.038356"
+  },
+  {
+    "id": "2625312e-3c7f-47ae-83ea-0d6951f10cf7",
+    "name": "Blefaroplastia",
+    "description": "Cirugía de los párpados que elimina el exceso de piel y bolsas, rejuveneciendo la mirada y mejorando el campo visual en casos necesarios.",
+    "price": 2500,
+    "duration": 120,
+    "category": "Cirugía Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_estetica_facial/blefaroplastia.jpg",
+    "created_at": "2025-03-06T19:15:24.335647"
+  },
+  {
+    "id": "56b29f23-3f27-4495-b753-e73557ede3ec",
+    "name": "Lóbulos rasgados",
+    "description": "Reparación quirúrgica de lóbulos de las orejas estirados o rasgados por traumas o uso prolongado de pendientes pesados.",
+    "price": 550,
+    "duration": 120,
+    "category": "Cirugía Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_estetica_facial/lobulos_rasgados.jpg",
+    "created_at": "2025-03-06T19:15:25.480971"
+  },
+  {
+    "id": "4046ea8f-d34d-4535-8d78-3dca779fea05",
+    "name": "Bichectomia",
+    "description": "Cirugía que reduce las bolas de Bichat para estilizar el rostro, definiendo los pómulos y afinando la cara.",
+    "price": 1750,
+    "duration": 120,
+    "category": "Cirugía Estética Facial",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_estetica_facial/bichectomia.jpg",
+    "created_at": "2025-03-06T19:15:26.803613"
+  },
+  {
+    "id": "d46d7d62-6dfc-446f-b816-daf26b8abc5a",
+    "name": "Aumento de Pecho",
+    "description": "Cirugía de aumento mamario mediante implantes o grasa autóloga para mejorar el volumen y forma del busto.",
+    "price": 5500,
+    "duration": 120,
+    "category": "Cirugía Corporal",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_corporal/aumento_de_pecho.jpg",
+    "created_at": "2025-03-06T19:15:27.982217"
+  },
+  {
+    "id": "735cd558-b201-4f07-be90-7f62111489e6",
+    "name": "Abdominoplastia",
+    "description": "Cirugía para eliminar el exceso de piel y grasa del abdomen, reparando también la musculatura abdominal para un vientre más plano y tonificado.",
+    "price": 6000,
+    "duration": 120,
+    "category": "Cirugía Corporal",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_corporal/abdominoplastia.jpg",
+    "created_at": "2025-03-06T19:15:29.176229"
+  },
+  {
+    "id": "b417384b-da84-4bbd-85f9-db5e577745e3",
+    "name": "Mastopexia",
+    "description": "Cirugía de elevación de los senos que corrige la caída y mejora la forma del busto sin necesariamente aumentar su volumen.",
+    "price": 5000,
+    "duration": 120,
+    "category": "Cirugía Corporal",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_corporal/mastopexia.jpg",
+    "created_at": "2025-03-06T19:15:30.421542"
+  },
+  {
+    "id": "2107d54d-7456-4fdc-ab1b-0ee5ad6b0e1b",
+    "name": "Lipovaser",
+    "description": "Técnica avanzada de liposucción asistida por ultrasonido que elimina grasa localizada con mayor precisión y menor trauma.",
+    "price": 3200,
+    "duration": 120,
+    "category": "Cirugía Corporal",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_corporal/lipovaser.jpg",
+    "created_at": "2025-03-06T19:15:31.592743"
+  },
+  {
+    "id": "6c9141fb-b923-4b58-9631-ea04e15bd0a1",
+    "name": "Ginecomastia",
+    "description": "Cirugía para reducir el tejido mamario excesivo en hombres, restaurando un contorno torácico masculino más definido.",
+    "price": 3800,
+    "duration": 120,
+    "category": "Cirugía Corporal",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_corporal/ginecomastia.jpg",
+    "created_at": "2025-03-06T19:15:32.830195"
+  },
+  {
+    "id": "77db3183-4a2d-4a45-9370-bf75c90dea9d",
+    "name": "Braquioplastia",
+    "description": "Cirugía para eliminar el exceso de piel y grasa de los brazos, mejorando su contorno y apariencia tras pérdidas de peso importantes.",
+    "price": 4200,
+    "duration": 120,
+    "category": "Cirugía Corporal",
+    "image_url": "https://clinicaslove.com/img/tratamientos/cirugía_corporal/braquioplastia.jpg",
+    "created_at": "2025-03-06T19:15:34.918775"
+  }
+]

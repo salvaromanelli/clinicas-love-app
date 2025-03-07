@@ -91,18 +91,23 @@ class _AnimatedAssistantButtonState extends State<AnimatedAssistantButton> with 
                         ),
                       ],
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          "¿Necesitas ayuda? ¡Chatea conmigo!",
-                          style: TextStyle(
-                            color: Color(0xFF1980E6),
-                            fontWeight: FontWeight.bold,
+                        // Envuelve el texto en un Flexible para permitir que se ajuste al espacio disponible
+                        Flexible(
+                          child: const Text(
+                            "¿Necesitas ayuda? ¡Chatea conmigo!",
+                            style: TextStyle(
+                              color: Color(0xFF1980E6),
+                              fontWeight: FontWeight.bold,
+                            ),
+                            // Añade ellipsis si el texto no cabe
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        SizedBox(width: 8),
-                        Icon(
+                        const SizedBox(width: 8),
+                        const Icon(
                           Icons.chat_bubble_outline,
                           color: Color(0xFF1980E6),
                           size: 16,

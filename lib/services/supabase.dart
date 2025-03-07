@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 import '/models/clinicas.dart';
-
+import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
+import 'notificaciones.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -40,7 +42,80 @@ static Future<void> initialize() async {
       password: password,
     );
   }
-  
+
+    // Almacenamiento de imagenes en supabase
+  Future<void> createStorageBucketIfNotExists() async {
+    try {
+      await client.storage.createBucket('tratamientos', 
+        const BucketOptions(public: true));
+      print('Bucket "tratamientos" creado');
+    } catch (e) {
+      // Probablemente el bucket ya existe
+      print('El bucket puede que ya exista: $e');
+    }
+  }
+
+  // Carga imagenes de reemplazo
+  Future<void> uploadPlaceholderImages() async {
+    final categories = ['medicina_estetica_facial', 'cirugía_estetica_facial', 'cirugía_corporal'];
+    
+    for (String category in categories) {
+      try {
+        // Usa una imagen predeterminada por categoría
+        String imageAssetPath;
+        switch(category) {
+          case 'medicina_estetica_facial':
+            imageAssetPath = 'assets/placeholders/facial_estetica.jpg';
+            break;
+          case 'cirugía_estetica_facial':
+            imageAssetPath = 'assets/placeholders/facial_cirugia.jpg';
+            break;
+          default:
+            imageAssetPath = 'assets/placeholders/corporal.jpg';
+            break;
+        }
+        
+        // Load the image asset as bytes
+        final ByteData bytes = await rootBundle.load(imageAssetPath);
+        final Uint8List imageData = bytes.buffer.asUint8List();
+        
+        // Create the folder structure and upload file
+        await client.storage.from('tratamientos')
+          .uploadBinary('$category/default.jpg', imageData);
+          
+        print('Uploaded placeholder image for $category');
+      } catch (e) {
+        print('Error uploading placeholder for $category: $e');
+      }
+    }
+  }
+
+  // Actualizar URL de imagen en la tabla de tratamientos
+  Future<void> updateImageUrls() async {
+    // Get the Supabase URL directly from the initialization value
+    final supabaseUrl = 'https://xlrutqwvlowzntnjgmwa.supabase.co';
+    
+    final treatments = await client.from('treatments').select();
+    
+    for (final treatment in treatments) {
+      final category = treatment['category']
+          .toString()
+          .toLowerCase()
+          .replaceAll(' ', '_')
+          .replaceAll('é', 'e');
+      
+      // URL a una imagen de marcador de posición por categoría
+      final newImageUrl = 
+          '$supabaseUrl/storage/v1/object/public/tratamientos/$category/default.jpg';
+      
+      await client.from('treatments')
+        .update({'image_url': newImageUrl})
+        .eq('id', treatment['id']);
+        
+      print('Updated image URL for ${treatment['name']}: $newImageUrl');
+    }
+  }
+
   // Registro de nuevo usuario
   Future<AuthResponse> signUp({
     required String email,
@@ -167,18 +242,41 @@ static Future<void> initialize() async {
       print('Error al obtener clínicas: $e');
       return [];
     }
+    
   }
 
   // TRATAMIENTOS Y SIMULACIONES
   Future<List<Map<String, dynamic>>> getTreatments() async {
-    final response = await client
-        .from('treatments')
-        .select('*')
-        .order('name');
-
-    return response;
+    try {
+      print('Fetching treatments from Supabase...'); // Debug log
+      
+      final response = await client
+          .from('treatments')
+          .select('*')
+          .order('name');
+      
+      print('Raw treatments response: $response'); // Debug the raw response
+      
+      if (response == null) {
+        print('Error: Null response when fetching treatments');
+        return [];
+      }
+      
+      final treatments = List<Map<String, dynamic>>.from(response);
+      print('Parsed ${treatments.length} treatments'); // Log the count
+      
+      // Log the first treatment to check structure
+      if (treatments.isNotEmpty) {
+        print('Sample treatment: ${treatments[0]}');
+      }
+      
+      return treatments;
+    } catch (e) {
+      print('Exception when fetching treatments: $e');
+      print('Stack trace: ${StackTrace.current}');
+      return [];
+    }
   }
-
   Future<String> saveSimulationResult({
     required String treatmentId,
     required File beforeImage,
@@ -235,6 +333,7 @@ static Future<void> initialize() async {
   }
 
   // CITAS
+
   Future<void> bookAppointment({
     required String treatmentId,
     required String clinicId,
@@ -243,29 +342,69 @@ static Future<void> initialize() async {
   }) async {
     final user = currentUser;
     if (user == null) throw Exception('Usuario no autenticado');
-
-    await client.from('appointments').insert({
+    
+    // Usar createAppointment para aprovechar toda su funcionalidad
+    await createAppointment({
       'patient_id': user.id,
       'treatment_id': treatmentId,
       'clinic_id': clinicId,
       'appointment_date': date.toIso8601String(),
-      'status': 'pending',
       'notes': notes,
       'created_at': DateTime.now().toIso8601String(),
     });
   }
 
+// Modifica el método getUserAppointments para mejorar el manejo de errores
+
   Future<List<Map<String, dynamic>>> getUserAppointments() async {
-    final user = currentUser;
-    if (user == null) throw Exception('Usuario no autenticado');
-
-    final response = await client
+    try {
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Usuario no autenticado');
+      }
+      
+      print('Obteniendo citas para usuario: $userId');
+      
+      // Usar el nombre correcto de columna: 'patient_id'
+      final response = await client
         .from('appointments')
-        .select('*, treatments(*), clinics(*)')
-        .eq('patient_id', user.id)
-        .order('appointment_date');
-
-    return response;
+        .select('''
+          *,
+          treatment:treatments(*),
+          clinic:clinics(*)
+        ''')
+        .eq('patient_id', userId) // Nombre correcto de la columna
+        .order('appointment_date', ascending: true);
+        
+      print('Respuesta de citas: $response');
+      
+      if (response == null) {
+        return [];
+      }
+      
+      final appointments = List<Map<String, dynamic>>.from(response);
+      
+      // Verificar que cada cita tenga los campos requeridos
+      for (var appointment in appointments) {
+        if (appointment['treatment'] == null) {
+          print('Advertencia: Cita sin tratamiento: ${appointment['id']}');
+        }
+        if (appointment['clinic'] == null) {
+          print('Advertencia: Cita sin clínica: ${appointment['id']}');
+        }
+      }
+      
+      print('Citas recuperadas: ${appointments.length}');
+      if (appointments.isNotEmpty) {
+        print('Primera cita - ID clínica: ${appointments[0]['clinic_id']}');
+        print('Datos de clínica en cita: ${appointments[0]['clinic']}');
+      }
+      
+      return appointments;
+    } catch (e) {
+      print('Error obteniendo citas: $e');
+      rethrow;
+    }
   }
 
   // REDES SOCIALES
@@ -318,4 +457,94 @@ static Future<void> initialize() async {
 
     return response;
   }
+
+  // Método para actualizar el estado de una cita
+  Future<void> updateAppointmentStatus(String appointmentId, String status) async {
+    try {
+      await client
+          .from('appointments')
+          .update({'status': status})
+          .eq('id', appointmentId);
+      
+      // Si la cita se cancela o reprograma, cancelar las notificaciones
+      if (status == 'Cancelada' || status == 'Reprogramada') {
+        await NotificationService().cancelAppointmentNotifications(appointmentId);
+      }
+          
+      print('Appointment $appointmentId status updated to $status');
+    } catch (e) {
+      print('Error updating appointment status: $e');
+      throw e;
+    }
+  }
+
+  // Método para eliminar una cita (alternativa a cancelar)
+  Future<void> deleteAppointment(String appointmentId) async {
+    try {
+      await client
+          .from('appointments')
+          .delete()
+          .eq('id', appointmentId);
+          
+      print('Appointment $appointmentId deleted');
+    } catch (e) {
+      print('Error deleting appointment: $e');
+      throw e;
+    }
+  }
+
+  Future<String> createAppointment(Map<String, dynamic> appointmentData) async {
+    try {
+      // Establecer el estado como "Confirmada" por defecto
+      appointmentData['status'] = 'Confirmada';
+      
+      final response = await client
+          .from('appointments')
+          .insert(appointmentData)
+          .select()
+          .single();
+      
+      // Obtener detalles para la notificación
+      final appointmentId = response['id'] as String;
+      final treatmentId = response['treatment_id'] as String;
+      final clinicId = response['clinic_id'] as String;
+      final appointmentDate = DateTime.parse(response['appointment_date']);
+      
+      // Obtener nombre del tratamiento
+      final treatmentResponse = await client
+          .from('treatments')
+          .select('name')
+          .eq('id', treatmentId)
+          .single();
+          
+      // Obtener nombre de la clínica
+      final clinicResponse = await client
+          .from('clinics')
+          .select('name')
+          .eq('id', clinicId)
+          .single();
+      
+      // Añadir logs para depuración
+      print('Programando notificaciones para cita: $appointmentId');
+      print('Tratamiento: ${treatmentResponse['name']}, Clínica: ${clinicResponse['name']}');
+      print('Fecha: $appointmentDate, Estado: ${response['status']}');
+      
+      // Programar notificaciones
+      await NotificationService().scheduleAppointmentNotifications(
+        appointmentId,
+        treatmentResponse['name'],
+        clinicResponse['name'],
+        appointmentDate,
+      );
+      
+      return appointmentId;
+    } catch (e) {
+      print('Error creating appointment: $e');
+      throw e;
+    }
+  }
 }
+
+
+
+

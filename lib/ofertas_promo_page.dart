@@ -1,8 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'dart:io';
 
-
-class OfertasPromosPage extends StatelessWidget {
+class OfertasPromosPage extends StatefulWidget {
   const OfertasPromosPage({super.key});
+
+  @override
+  State<OfertasPromosPage> createState() => _OfertasPromosPageState();
+}
+
+class _OfertasPromosPageState extends State<OfertasPromosPage> {
+  bool _isLoading = true;
+  String _currentUrl = 'https://clinicasloveshop.com/66-promociones-del-mes';
+  late WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar el controlador de WebView
+    _initWebView();
+  }
+
+  void _initWebView() {
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF111418))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            // Actualizar indicador de progreso
+            if (progress == 100) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          },
+          onPageStarted: (String url) {
+            setState(() {
+              _isLoading = true;
+              _currentUrl = url;
+            });
+          },
+          onPageFinished: (String url) {
+            setState(() {
+              _isLoading = false;
+            });
+            
+            // Ocultar elementos no deseados de la web con JavaScript
+            _removeUnnecessaryElements();
+          },
+          onWebResourceError: (WebResourceError error) {
+            print('Error en WebView: ${error.description}');
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            // Permitir navegación dentro del dominio de la clínica
+            if (request.url.startsWith('https://clinicasloveshop.com')) {
+              return NavigationDecision.navigate;
+            }
+            // Para enlaces externos, abrirlos en el navegador externo
+            return NavigationDecision.navigate; // También se puede usar .prevent
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(_currentUrl));
+  }
+
+  void _removeUnnecessaryElements() {
+    // Inyectar CSS para adaptar mejor el sitio web al móvil si es necesario
+    _controller.runJavaScript('''
+      try {
+        // Intentar eliminar elementos que distraigan como banners, publicidad, etc.
+        // Esto dependerá de la estructura del sitio web
+        const elementsToHide = [
+          '.cookie-banner',
+          '#newsletter-popup',
+          '.mobile-nav',
+          '.promo-bar',
+          // Ajusta según la estructura del sitio
+        ];
+        
+        elementsToHide.forEach(selector => {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(el => el.style.display = 'none');
+        });
+        
+        // Ajustar estilos si es necesario
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
+          .page-content { padding-top: 0 !important; }
+          .mobile-menu { display: none !important; }
+          body { padding-bottom: 70px !important; } /* Para dejar espacio para los botones de la app */
+        `;
+        document.head.appendChild(styleElement);
+      } catch(e) {
+        console.error('Error al ajustar estilos:', e);
+      }
+    ''');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,23 +105,16 @@ class OfertasPromosPage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-                       Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Back button
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                // Logo in center
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+            // Header con botón de retroceso y logo
+            Container(
+              color: const Color(0xFF111418),
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  const SizedBox(width: 95),
+                  
+                  // Logo
+                  Expanded(
                     child: Center(
                       child: ColorFiltered(
                         colorFilter: const ColorFilter.mode(
@@ -36,155 +123,171 @@ class OfertasPromosPage extends StatelessWidget {
                         ),
                         child: Image.asset(
                           'assets/images/logo.png',
-                          height: 80.0,
+                          height: 40.0,
                         ),
                       ),
                     ),
                   ),
-                ),
-                // Empty space to balance the layout
-                const SizedBox(width: 48.0),
-              ],
-            ),
-        
-            // Header
-            const Text(
-              'Clínica estética',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14.0,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8.0),
-            const Text(
-              'Ofertas exclusivas para ti',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            // Treatments
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
+                  
+                  // Botones de navegación
+                  Row(
                     children: [
-                      _buildTreatmentCard(
-                        'Cavitación',
-                        'Pierde grasa localizada',
-                        'Hasta 40% de descuento',
-                        'https://oaidalleapiprodscus.blob.core.windows.net/private/org-JsMmTpMTupl8qQOeSP9nxnyl/user-Z8HSZWg342MFjGWDLCusJSCE/img-raX4JexTUomrbBsjBa7LwmHH.png',
+                      IconButton(
+                        icon: const Icon(
+                          Icons.refresh,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          _controller.reload();
+                        },
                       ),
-                      const SizedBox(height: 16.0),
-                      _buildTreatmentCard(
-                        'Radiofrecuencia',
-                        'Reafirma tu piel',
-                        'Hasta 50% de descuento',
-                        'https://placehold.co/600x300',
-                      ),
-                      const SizedBox(height: 16.0),
-                      _buildTreatmentCard(
-                        'Limpieza facial',
-                        'Elimina impurezas de la piel',
-                        'Hasta 60% de descuento',
-                        'https://oaidalleapiprodscus.blob.core.windows.net/private/org-JsMmTpMTupl8qQOeSP9nxnyl/user-Z8HSZWg342MFjGWDLCusJSCE/img-EELWEaKQLTOZh9OowhiDUYSy.png',
+                      IconButton(
+                        icon: const Icon(
+                          Icons.home,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          _controller.loadRequest(Uri.parse('https://clinicasloveshop.com/66-promociones-del-mes'));
+                        },
                       ),
                     ],
-                  ),
-                ),
-              ),
-            ),
-            // Buttons
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    child: const Text('Ver todos los tratamientos'),
-                  ),
-                  const SizedBox(height: 8.0),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF293038),
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    child: const Text('Comprar'),
                   ),
                 ],
               ),
             ),
-            // Navigation Bar
-
+            
+            // Barra de navegación con información y botones
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              color: const Color(0xFF1980E6),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Promociones y Tienda Online',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // Botones de navegación web
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    onPressed: () async {
+                      if (await _controller.canGoBack()) {
+                        _controller.goBack();
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_forward,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    onPressed: () async {
+                      if (await _controller.canGoForward()) {
+                        _controller.goForward();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            
+            // WebView principal
+            Expanded(
+              child: Stack(
+                children: [
+                  // WebView - AQUÍ ESTÁ EL CAMBIO PRINCIPAL
+                  WebViewWidget(controller: _controller),
+                  
+                  // Indicador de carga
+                  if (_isLoading)
+                    Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF1980E6),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            
+            // Botones de acción inferiores
+            Container(
+              padding: const EdgeInsets.all(12.0),
+              color: const Color(0xFF293038),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildBottomButton(
+                    icon: Icons.shopping_cart,
+                    label: 'Carrito',
+                    onPressed: () {
+                      _controller.loadRequest(Uri.parse('https://clinicasloveshop.com/carrito'));
+                    },
+                  ),
+                  _buildBottomButton(
+                    icon: Icons.category,
+                    label: 'Categorías',
+                    onPressed: () {
+                      _controller.loadRequest(Uri.parse('https://clinicasloveshop.com/'));
+                    },
+                  ),
+                  _buildBottomButton(
+                    icon: Icons.person,
+                    label: 'Mi Cuenta',
+                    onPressed: () {
+                      _controller.loadRequest(Uri.parse('https://clinicasloveshop.com/mi-cuenta'));
+                    },
+                  ),
+                  _buildBottomButton(
+                    icon: Icons.search,
+                    label: 'Buscar',
+                    onPressed: () {
+                      _controller.runJavaScript('''
+                        document.querySelector('.search-toggle').click();
+                      ''');
+                    },
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTreatmentCard(String title, String subtitle, String discount, String imageUrl) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF293038),
-        borderRadius: BorderRadius.circular(12.0),
-      ),
+  Widget _buildBottomButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12.0)),
-            child: Image.network(
-              imageUrl,
-              width: double.infinity,
-              height: 200.0,
-              fit: BoxFit.cover,
-            ),
+          Icon(
+            icon,
+            color: Colors.white,
+            size: 24,
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4.0),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14.0,
-                  ),
-                ),
-                const SizedBox(height: 4.0),
-                Text(
-                  discount,
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 14.0,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
             ),
           ),
         ],

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';  // Asegúrate de que esta importación esté correcta
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'recomendaciones_page.dart';
 import 'post_tratamiento_page.dart';
 import 'ofertas_promo_page.dart';
 import 'educacion_contenido_page.dart';
@@ -18,21 +17,21 @@ import 'services/supabase.dart';
 import 'clinicas_cerca.dart';
 import 'booking_page.dart';
 import 'services/notificaciones.dart';
-
-
+import 'recomendaciones_page.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+
+
 void main() async {
+  // Asegurar que los widgets estén inicializados antes de cualquier operación
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar datos de formato de fecha para locale 'es'
+  // Inicializar formato de fechas
   await initializeDateFormatting('es', null);
   
-  // Inicializar Supabase
+  // Inicializar otros servicios
   await SupabaseService.initialize();
-  
-  // Inicializar servicio de notificaciones
   await NotificationService().initialize();
   
   runApp(const MyApp());

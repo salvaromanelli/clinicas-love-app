@@ -353,6 +353,53 @@ static Future<void> initialize() async {
       'created_at': DateTime.now().toIso8601String(),
     });
   }
+  // Promociones
+
+  Future<List<Map<String, dynamic>>> getMonthlyPromotions() async {
+    try {
+      // Obtener promociones de la tabla 'promotions' en Supabase
+      // que estén activas este mes
+      final now = DateTime.now();
+      final firstDayOfMonth = DateTime(now.year, now.month, 1);
+      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+      
+      final response = await client
+        .from('promotions')
+        .select('''
+          *,
+          treatment:treatments(*)
+        ''')
+        .gte('start_date', firstDayOfMonth.toIso8601String())
+        .lte('end_date', lastDayOfMonth.toIso8601String())
+        .eq('is_active', true)
+        .order('discount_percentage', ascending: false);
+        
+      if (response == null) {
+        return [];
+      }
+      
+      // Convertir los datos a formato compatible para mostrar en UI
+      return List<Map<String, dynamic>>.from(response).map((promo) {
+        final treatment = promo['treatment'] as Map<String, dynamic>?;
+        
+        return {
+          'id': promo['id'],
+          'title': treatment?['name'] ?? 'Promoción Especial',
+          'description': treatment?['description'] ?? promo['description'] ?? '',
+          'discount': '${promo['discount_percentage']}% de descuento',
+          'image_url': promo['image_url'] ?? treatment?['image_url'] ?? 'https://placehold.co/600x300',
+          'treatment_id': treatment?['id'],
+          'original_price': treatment?['price'],
+          'discounted_price': treatment != null && treatment['price'] != null && promo['discount_percentage'] != null
+            ? (treatment['price'] * (100 - promo['discount_percentage']) / 100).toStringAsFixed(2)
+            : null,
+        };
+      }).toList();
+    } catch (e) {
+      print('Error obteniendo promociones mensuales: $e');
+      rethrow;
+    }
+  }
 
 // Modifica el método getUserAppointments para mejorar el manejo de errores
 
@@ -542,6 +589,76 @@ static Future<void> initialize() async {
       print('Error creating appointment: $e');
       throw e;
     }
+  }
+
+  // Obtener el ID de usuario actual
+  String? getCurrentUserId() {
+    return client.auth.currentUser?.id;
+  }
+
+  // Verificar si el usuario ha iniciado sesión
+  bool isUserLoggedIn() {
+    return client.auth.currentUser != null;
+  }
+
+  // Guardar un nuevo descuento
+  Future<void> saveDiscount({
+    required String code,
+    required int percentage,
+    required String source,
+    int validityDays = 90,
+  }) async {
+    final userId = getCurrentUserId();
+    if (userId == null) {
+      throw Exception('No hay usuario logueado');
+    }
+    
+    final now = DateTime.now();
+    final expiryDate = now.add(Duration(days: validityDays));
+    
+    final discountData = {
+      'user_id': userId,
+      'code': code,
+      'percentage': percentage,
+      'is_used': false,
+      'created_at': now.toIso8601String(),
+      'expires_at': expiryDate.toIso8601String(),
+      'source': source
+    };
+    
+    await client.from('discounts').insert(discountData);
+  }
+
+  // Obtener descuentos no usados del usuario
+  Future<List<Map<String, dynamic>>> getUserActiveDiscounts() async {
+    final userId = getCurrentUserId();
+    if (userId == null) {
+      return [];
+    }
+    
+    final now = DateTime.now().toIso8601String();
+    
+    final response = await client
+      .from('discounts')
+      .select()
+      .eq('user_id', userId)
+      .eq('is_used', false)
+      .gt('expires_at', now)
+      .order('created_at', ascending: false);
+      
+    if (response == null) {
+      return [];
+    }
+    
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  // Marcar un descuento como usado
+  Future<void> useDiscount(String discountId) async {
+    await client
+      .from('discounts')
+      .update({'is_used': true, 'used_at': DateTime.now().toIso8601String()})
+      .eq('id', discountId);
   }
 }
 

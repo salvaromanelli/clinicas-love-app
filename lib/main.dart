@@ -18,6 +18,7 @@ import 'clinicas_cerca.dart';
 import 'booking_page.dart';
 import 'services/notificaciones.dart';
 import 'recomendaciones_page.dart';
+import 'reviews_page.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -78,6 +79,7 @@ class MyApp extends StatelessWidget {
         '/simulation': (context) => const TreatmentSimulationPage(),
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
+        '/reviews': (context) => const ReviewsPage(),
 
         },
         builder: (context, child) {
@@ -176,196 +178,324 @@ class _SplashScreenState extends State<SplashScreen> {
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    body: Stack(
-      children: [
-        // Background Image (sin cambios)
-        Container(
-          width: MediaQuery.of(context).size.width,
-          height: MediaQuery.of(context).size.height,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/Clinicas_love_fondo.jpg'),
-              fit: BoxFit.cover,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Fondo con gradiente elegante en lugar de imagen oscurecida
+          Container(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF0A2647), Color(0xFF144272)],
+              ),
             ),
           ),
+          // Patrón decorativo sutil
+          Opacity(
+            opacity: 0.05,
+            child: Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/Clinicas_love_fondo.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          // Contenido principal
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Logo con efecto de elevación
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24.0, bottom: 16.0),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: ColorFiltered(
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            ),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              height: 70.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Título principal con estilo mejorado
+                    const Text(
+                      '¿Cómo podemos ayudarte hoy?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26.0,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 16.0),
+                    
+                    // Tarjeta del asistente virtual destacada
+                    _buildAssistantCard(context),
+                    
+                    const SizedBox(height: 24.0),
+                    
+                    // Sección de servicios principales
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Nuestros Servicios',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16.0),
+                    
+                    // Grid de opciones con diseño mejorado
+                    GridView.count(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16.0,
+                      mainAxisSpacing: 16.0,
+                      childAspectRatio: 0.85,
+                      children: [
+                        _buildServiceCard(
+                          context,
+                          'Simulación de Resultados',
+                          'https://cdn.usegalileo.ai/sdxl10/5413b550-9ddd-4735-a640-8c153c8d010f.png',
+                          Icons.photo_filter,
+                          '/simulation',
+                        ),
+                        _buildServiceCard(
+                          context,
+                          'Conecta tus Redes',
+                          'assets/images/walomeca.jpg',
+                          Icons.share,
+                          '/integracion-redes',
+                        ),
+                        _buildServiceCard(
+                          context,
+                          'Educación y Contenido',
+                          'https://cdn.usegalileo.ai/sdxl10/95b8b74e-1725-4e02-9556-9871b471a3aa.png',
+                          Icons.menu_book,
+                          '/educacion-contenido',
+                        ),
+                        _buildServiceCard(
+                          context,
+                          'Nuestras Clínicas',
+                          'https://cdn.usegalileo.ai/sdxl10/fbf4fb0e-c6f7-4cf0-b034-82fb42940f56.png',
+                          Icons.location_on,
+                          '/clinicas',
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 24.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssistantCard(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1980E6), Color(0xFF0077CC)],
         ),
-        // Dark overlay (sin cambios)
-        Container(
-          color: const Color.fromRGBO(0, 0, 0, 0.5),
-        ),
-        // Main Content - AQUÍ ESTÁN LOS CAMBIOS
-        SafeArea(
-          child: SingleChildScrollView( // Añadimos SingleChildScrollView para permitir scroll vertical
-            child: Column(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1980E6).withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.pushNamed(context, '/assistant'),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
               children: [
-                // Logo (sin cambios)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(
-                    child: ColorFiltered(
-                      colorFilter: const ColorFilter.mode(
-                        Colors.white,
-                        BlendMode.srcIn,
-                      ),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        height: 80.0,
-                      ),
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.support_agent,
+                    color: Colors.white,
+                    size: 28,
                   ),
                 ),
-                
-                // Título (sin cambios)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    'Hable con nuestro asistente virtual',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 8.0),
-                
-                // Descripción (sin cambios)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    'Responda a preguntas sobre tratamientos, precios y disponibilidad',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.0,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-                
-                // Grid de opciones - CAMBIOS AQUÍ
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.45, // Altura fija
-                  child: GridView.count(
-                    physics: const NeverScrollableScrollPhysics(), // Evita scroll interno
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16.0,
-                    mainAxisSpacing: 16.0,
-                    padding: const EdgeInsets.all(16.0),
-                    children: [
-                      _buildOption(
-                        context,
-                        'Simulación de resultados',
-                        'https://cdn.usegalileo.ai/sdxl10/5413b550-9ddd-4735-a640-8c153c8d010f.png',
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Asistente Virtual',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      _buildOption(
-                        context,
-                        'Conecta tus redes',
-                        'assets/images/walomeca.jpg',
-                      ),
-                      _buildOption(
-                        context,
-                        'Educación y contenido',
-                        'https://cdn.usegalileo.ai/sdxl10/95b8b74e-1725-4e02-9556-9871b471a3aa.png',
-                      ),
-                      _buildOption(
-                        context,
-                        'Nuestras clínicas',
-                        'https://cdn.usegalileo.ai/sdxl10/fbf4fb0e-c6f7-4cf0-b034-82fb42940f56.png',
+                      SizedBox(height: 4),
+                      Text(
+                        'Consulta sobre tratamientos, precios y disponibilidad',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                
-                // Botón (sin cambios)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56.0,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/assistant');
-                      },
-                      icon: const Icon(
-                        Icons.support_agent,
-                        color: Colors.white,
-                        size: 28.0,
-                      ),
-                      label: const Text(
-                        'Consulta con nuestro asistente virtual',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1980E6),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                        ),
-                      ),
-                    ),
-                  ),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white,
+                  size: 16,
                 ),
               ],
             ),
           ),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
+
+  Widget _buildServiceCard(BuildContext context, String title, String imageUrl, IconData icon, String route) {
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.pushNamed(context, route),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Imagen de fondo con overlay
+            Expanded(
+              flex: 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Imagen
+                  imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(child: CircularProgressIndicator());
+                          },
+                        )
+                      : Image.asset(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                        ),
+                  // Overlay gradiente
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.5),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Icono en esquina
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1980E6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Título
+            Expanded(
+              flex: 1,
+              child: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Center(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-Widget _buildOption(BuildContext context, String title, String imageUrl) {
-  return GestureDetector(
-    onTap: () {
-      if (title.contains('Simulación')) {
-        Navigator.pushNamed(context, '/simulation');
-      } else if (title.contains('Educación')) {
-        Navigator.pushNamed(context, '/educacion-contenido');
-      } else if (title.contains('Conecta')) {
-        Navigator.pushNamed(context, '/integracion-redes');
-      } else if (title.contains('clínicas')) {
-        Navigator.pushNamed(context, '/clinicas');
-      }
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min, // Importante: minimiza el espacio vertical
-      children: [
-        Container(
-          width: 80.0, // Reducido de 100.0
-          height: 80.0, // Reducido de 100.0
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: imageUrl.startsWith('http') 
-                ? NetworkImage(imageUrl) 
-                : AssetImage(imageUrl) as ImageProvider,
-              fit: BoxFit.cover,
-            ),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(height: 4.0), // Reducido de 8.0
-        // Texto más corto y con límite de líneas
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14.0, // Reducido de 16.0
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 2, // Limita a 2 líneas
-          overflow: TextOverflow.ellipsis, // Añade ... si se corta
-        ),
-      ],
-    ),
-  );
-}
-}
+

@@ -224,69 +224,95 @@ Future<void> _loadProfile() async {
   if (!mounted) return;
   Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
 }
-// Replace the existing _buildMenuItem method
-Widget _buildMenuItem(String title) {
-  return GestureDetector(
-    onTap: () async {
-      switch (title) {
-        case 'Contact Information':
-          final updatedProfile = await Navigator.push(
-            context, 
-            MaterialPageRoute(
-              builder: (context) => EditProfilePage(profile: _profile!),
-            )
-          );
-          
-          if (updatedProfile != null) {
-            setState(() {
-              _profile = updatedProfile;
-            });
-          }
-          break;
-        case 'Payment methods':
-          Navigator.pushNamed(context, '/payment-methods');
-          break;
-        case 'My Wishlist':
-          Navigator.pushNamed(context, '/wishlist');
-          break;
-        case 'Favorites':
-          Navigator.pushNamed(context, '/favorites');
-          break;
-        case 'My Reviews':
-          Navigator.pushNamed(context, '/reviews');
-          break;
-        case 'Gift Cards':
-          Navigator.pushNamed(context, '/gift-cards');
-          break;
-      }
-    },
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF2A2F37),
-            width: 1.0,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16.0,
+  // _buildMenuItem method
+  Widget _buildMenuItem(String title) {
+    return GestureDetector(
+      onTap: () async {
+        switch (title) {
+          case 'Contact Information':
+            final updatedProfile = await Navigator.push(
+              context, 
+              MaterialPageRoute(
+                builder: (context) => EditProfilePage(profile: _profile!),
+              )
+            );
+            
+            if (updatedProfile != null) {
+              setState(() {
+                _profile = updatedProfile;
+              });
+            }
+            break;
+          case 'Payment methods':
+            Navigator.pushNamed(context, '/payment-methods');
+            break;
+          case 'My Wishlist':
+            Navigator.pushNamed(context, '/wishlist');
+            break;
+          case 'Favorites':
+            Navigator.pushNamed(context, '/favorites');
+            break;
+          case 'My Reviews':
+            Navigator.pushNamed(context, '/reviews');
+            break;
+          case 'Gift Cards':
+            Navigator.pushNamed(context, '/gift-cards');
+            break;
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Color(0xFF2A2F37),
+              width: 1.0,
             ),
           ),
-          const Icon(
-            Icons.chevron_right,
-            color: Color(0xFF9DABB8),
-          ),
-        ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16.0,
+              ),
+            ),
+            title == 'My Reviews' 
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1980E6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        '15% OFF',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFF9DABB8),
+                    ),
+                  ],
+                )
+              : const Icon(
+                  Icons.chevron_right,
+                  color: Color(0xFF9DABB8),
+                ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

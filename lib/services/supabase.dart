@@ -8,6 +8,7 @@ import '/models/clinicas.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'notificaciones.dart';
+import 'package:path_provider/path_provider.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -89,7 +90,6 @@ static Future<void> initialize() async {
       }
     }
   }
-
   // Actualizar URL de imagen en la tabla de tratamientos
   Future<void> updateImageUrls() async {
     // Get the Supabase URL directly from the initialization value
@@ -282,56 +282,246 @@ static Future<void> initialize() async {
     required File beforeImage,
     required File afterImage,
   }) async {
-    final user = currentUser;
-    if (user == null) throw Exception('Usuario no autenticado');
-
-    final simulationId = const Uuid().v4();
-    final beforeImagePath = 'simulations/${user.id}/${simulationId}_before${path.extension(beforeImage.path)}';
-    final afterImagePath = 'simulations/${user.id}/${simulationId}_after${path.extension(afterImage.path)}';
-
-    // Subir imagen "antes"
-    await client.storage.from('simulations').upload(
-          beforeImagePath,
-          beforeImage,
-          fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
-        );
-
-    // Subir imagen "después"
-    await client.storage.from('simulations').upload(
-          afterImagePath,
-          afterImage,
-          fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
-        );
-
-    final beforeImageUrl = client.storage.from('simulations').getPublicUrl(beforeImagePath);
-    final afterImageUrl = client.storage.from('simulations').getPublicUrl(afterImagePath);
-
-    // Guardar registros de simulación
-    await client.from('treatment_simulations').insert({
-      'id': simulationId,
-      'patient_id': user.id,
-      'treatment_id': treatmentId,
-      'before_image_url': beforeImageUrl,
-      'after_image_url': afterImageUrl,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-
-    return simulationId;
+    try {
+      // Nombre del bucket
+      const String bucketName = 'simulations';
+      
+      // Verificar si el bucket existe, si no, crearlo (para desarrollo)
+      try {
+        await client.storage.getBucket(bucketName);
+      } catch (e) {
+        if (e.toString().contains('Bucket not found')) {
+          print('El bucket no existe, intentando crearlo...');
+          try {
+            await client.storage.createBucket(bucketName, const BucketOptions(
+              public: true, // Para desarrollo
+            ));
+            print('Bucket creado correctamente');
+          } catch (createError) {
+            print('Error al crear bucket: $createError');
+            // Si no se puede crear, intentar con otro nombre o usar modo de desarrollo
+            return _saveSimulationToLocal(treatmentId, beforeImage, afterImage);
+          }
+        } else {
+          // Si es un error diferente a "Bucket not found"
+          print('Error al verificar bucket: $e');
+          return _saveSimulationToLocal(treatmentId, beforeImage, afterImage);
+        }
+      }
+      
+      // Continuar con la subida de archivos si el bucket existe o se creó correctamente
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Usuario no autenticado');
+      }
+      
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final beforeFileName = 'before_${userId}_$timestamp.jpg';
+      final afterFileName = 'after_${userId}_$timestamp.jpg';
+      
+      // Subir imagen "antes"
+      await client.storage.from(bucketName).upload(
+        'before/$beforeFileName',
+        beforeImage,
+        fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+      );
+      
+      // Subir imagen "después"
+      await client.storage.from(bucketName).upload(
+        'after/$afterFileName',
+        afterImage,
+        fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+      );
+      
+      // Obtener URLs públicas
+      final beforeUrl = client.storage.from(bucketName).getPublicUrl('before/$beforeFileName');
+      final afterUrl = client.storage.from(bucketName).getPublicUrl('after/$afterFileName');
+      
+      // Guardar registro en la base de datos
+      final simulationData = {
+        'patient_id': userId,
+        'treatment_id': treatmentId,
+        'before_image_url': beforeUrl,
+        'after_image_url': afterUrl,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+      
+      final response = await client
+          .from('treatment_simulations')
+          .insert(simulationData)
+          .select('id')
+          .single();
+      
+      return response['id'] as String;
+      
+    } catch (e) {
+      print('Error guardando simulación: $e');
+      return _saveSimulationToLocal(treatmentId, beforeImage, afterImage);
+    }
   }
 
+  Future<String> _saveSimulationToLocal(
+    String treatmentId, 
+    File beforeImage, 
+    File afterImage
+  ) async {
+    try {
+      // Generar un ID único para la simulación
+      final simulationId = 'local_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // Guardar copias locales de las imágenes en el directorio temporal
+      final tempDir = await getTemporaryDirectory();
+      
+      // Crear directorio para simulaciones si no existe
+      final simDir = Directory('${tempDir.path}/simulations');
+      if (!await simDir.exists()) {
+        await simDir.create(recursive: true);
+      }
+      
+      // Copiar imágenes con nombres que incluyen el ID de simulación
+      final localBeforeImage = File('${simDir.path}/${simulationId}_before.jpg');
+      final localAfterImage = File('${simDir.path}/${simulationId}_after.jpg');
+      
+      await beforeImage.copy(localBeforeImage.path);
+      await afterImage.copy(localAfterImage.path);
+      
+      // Añadir la simulación a una lista local simulada en modo offline
+      final Map<String, dynamic> simulationData = {
+        'id': simulationId,
+        'treatment_id': treatmentId,
+        'patient_id': client.auth.currentUser?.id ?? 'guest',
+        'before_image_url': 'file://${localBeforeImage.path}',
+        'after_image_url': 'file://${localAfterImage.path}',
+        'created_at': DateTime.now().toIso8601String(),
+        'is_local': true,
+      };
+      
+      // Podrías guardar en SharedPreferences para persistencia entre sesiones
+      
+      print('Simulación guardada localmente con ID: $simulationId');
+      print('Imágenes guardadas en: ${simDir.path}');
+      print('URLs locales: ${simulationData['before_image_url']} y ${simulationData['after_image_url']}');
+      
+      return simulationId;
+    } catch (e) {
+      print('Error en modo de respaldo: $e');
+      throw Exception('No se pudo guardar la simulación: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _getLocalSimulations() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final simDir = Directory('${tempDir.path}/simulations');
+      
+      if (!await simDir.exists()) {
+        return [];
+      }
+      
+      // Validar que el directorio tiene archivos
+      final List<FileSystemEntity> files = await simDir.list().toList();
+      print('Archivos encontrados: ${files.length}');
+      
+      final Map<String, Map<String, dynamic>> simulationsMap = {};
+      
+      // Procesar los archivos para encontrar pares before/after
+      for (var file in files) {
+        if (file is File) {
+          final filename = path.basename(file.path);
+          print('Analizando archivo: $filename');
+          
+          final match = RegExp(r'local_(\d+)_(before|after)\.jpg').firstMatch(filename);
+          
+          if (match != null) {
+            final simId = 'local_${match.group(1)}';
+            final type = match.group(2);
+            print('Match encontrado - ID: $simId, Tipo: $type');
+            
+            // Si el ID no existe en el mapa, crearlo
+            if (!simulationsMap.containsKey(simId)) {
+              simulationsMap[simId] = {
+                'id': simId,
+                'treatment_id': 'local_treatment',
+                'created_at': DateTime.fromMillisecondsSinceEpoch(
+                  int.parse(match.group(1)!)
+                ).toIso8601String(),
+                'is_local': true,
+              };
+            }
+            
+            // Agregar URL de la imagen según tipo
+            if (type == 'before') {
+              simulationsMap[simId]!['before_image_url'] = 'file://${file.path}';
+            } else {
+              simulationsMap[simId]!['after_image_url'] = 'file://${file.path}';
+            }
+          }
+        }
+      }
+      
+      // Verificar que cada simulación tenga ambas imágenes (before y after)
+      simulationsMap.values.forEach((sim) {
+        print('Simulación: ${sim['id']}');
+        print('  Before URL: ${sim['before_image_url'] ?? 'FALTA'}');
+        print('  After URL: ${sim['after_image_url'] ?? 'FALTA'}');
+      });
+      
+      // Convertir a lista y ordenar por fecha de creación (más reciente primero)
+      final simulations = simulationsMap.values.where((sim) {
+        // Solo incluir simulaciones que tengan ambas imágenes
+        return sim.containsKey('before_image_url') && 
+              sim.containsKey('after_image_url');
+      }).toList();
+      
+      simulations.sort((a, b) => b['created_at'].compareTo(a['created_at']));
+      print('Simulaciones locales encontradas: ${simulations.length}');
+      
+      return simulations;
+    } catch (e) {
+      print('Error recuperando simulaciones locales: $e');
+      return [];
+    }
+  }
+
+  // Método para obtener simulaciones del usuario actual
   Future<List<Map<String, dynamic>>> getUserSimulations() async {
-    final user = currentUser;
-    if (user == null) throw Exception('Usuario no autenticado');
-
-    final response = await client
-        .from('treatment_simulations')
-        .select('*, treatments(*)')
-        .eq('patient_id', user.id)
-        .order('created_at', ascending: false);
-
-    return response;
+    try {
+      final userId = client.auth.currentUser?.id;
+      
+      // Si hay usuario autenticado, intentamos obtener datos de Supabase
+      if (userId != null) {
+        try {
+          final response = await client
+            .from('treatment_simulations')
+            .select('''
+              *,
+              treatment:treatments(*)
+            ''')
+            .eq('patient_id', userId)
+            .order('created_at', ascending: false);
+            
+          if (response != null) {
+            final onlineSimulations = List<Map<String, dynamic>>.from(response);
+            
+            // También intentamos obtener simulaciones locales
+            final localSimulations = await _getLocalSimulations();
+            
+            // Combinar ambas listas
+            return [...onlineSimulations, ...localSimulations];
+          }
+        } catch (e) {
+          print('Error obteniendo simulaciones online, buscando solo locales: $e');
+        }
+      }
+      
+      // Si no hay usuario o falló la carga online, devolvemos solo locales
+      return await _getLocalSimulations();
+      
+    } catch (e) {
+      print('Error al recuperar simulaciones: $e');
+      return [];
+    }
   }
-
   // CITAS
 
   Future<void> bookAppointment({

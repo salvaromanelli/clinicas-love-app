@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'services/hugging_face.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'services/supabase.dart';
 
@@ -15,12 +13,14 @@ class TreatmentSimulationPage extends StatefulWidget {
 }
 
 class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
+  final HuggingFaceService _huggingFaceService = HuggingFaceService();
+  final SupabaseService _supabaseService = SupabaseService();
   File? _imageFile;
   String? _resultImageUrl;
   bool _isLoading = false;
+  bool _hasResult = false;
   String _selectedTreatment = 'Aumento de Labios'; // Tratamiento seleccionado
   double _intensityLevel = 0.5; // Nivel de intensidad del tratamiento (0.0 a 1.0)
-    final SupabaseService _supabaseService = SupabaseService();
   List<Map<String, dynamic>> _treatments = [];
   String _selectedTreatmentId = '';
   
@@ -47,27 +47,28 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-  try {
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
-      source: source,
-      imageQuality: 80, // Calidad de la imagen (0-100)
-      maxWidth: 1200,   // Ancho máximo para reducir tamaño del archivo
-      maxHeight: 1200,  // Alto máximo para reducir tamaño del archivo
-    );
-    
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-        _resultImageUrl = null; // Reset del resultado cuando se selecciona una nueva imagen
-      });
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        imageQuality: 80, // Calidad de la imagen (0-100)
+        maxWidth: 1200,   // Ancho máximo para reducir tamaño del archivo
+        maxHeight: 1200,  // Alto máximo para reducir tamaño del archivo
+      );
+      
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+          _resultImageUrl = null; // Reset del resultado cuando se selecciona una nueva imagen
+          _hasResult = false;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al seleccionar imagen: $e')),
+      );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al seleccionar imagen: $e')),
-    );
   }
-}
   
   final List<String> _treatmentOptions = [
     'Aumento de Labios',
@@ -77,7 +78,7 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
     'Botox',
     'Eliminacion de Ojeras',
   ];
-
+  
   Future<void> _processImage() async {
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,88 +92,240 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
     });
 
     try {
-      // Simular procesamiento de IA para generar la imagen "después"
-      // En una implementación real, aquí conectarías con un servicio de IA
-      await Future.delayed(const Duration(seconds: 2));
+      // 1. Preparar prompt según el tratamiento seleccionado
+      String prompt = _getPromptForTreatment();
       
-      // Por ahora, usaremos la misma imagen como "después" para simular
-      final File afterImageFile = _imageFile!;
+      // 2. Mostrar mensaje de procesamiento
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Procesando imagen con IA, por favor espera...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
       
-      // Guardar simulación en Supabase
+      // 3. Procesar imagen con Hugging Face
+      final File processedImage = await _huggingFaceService.processImageWithRetry(
+        inputImage: _imageFile!,
+        prompt: prompt,
+        strength: _intensityLevel,
+      );
+      
+      // 4. Guardar simulación en Supabase
       final simulationId = await _supabaseService.saveSimulationResult(
         treatmentId: _selectedTreatmentId,
         beforeImage: _imageFile!,
-        afterImage: afterImageFile,
+        afterImage: processedImage,
       );
       
-      // Obtener URL de la imagen procesada
+      // 5. Obtener URL de la imagen procesada
       final simulations = await _supabaseService.getUserSimulations();
       final thisSimulation = simulations.firstWhere((s) => s['id'] == simulationId);
       
       setState(() {
         _resultImageUrl = thisSimulation['after_image_url'];
+        _hasResult = true;
+        print('URL de resultado actualizada: $_resultImageUrl');
       });
+      
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error en el procesamiento: $e')),
-      );
+      print('Error: $e');
+      
+      // Manejo especial para errores de carga del modelo
+      if (e.toString().contains('está cargando')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El modelo de IA está cargando, por favor intenta nuevamente en unos segundos'),
+            duration: Duration(seconds: 5),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error en el procesamiento: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
-  
-  
-  String _getSimulatedResultUrl() {
-    // En una implementación real, esto vendría de tu API de IA
-    // Aquí simplemente devolvemos URLs según el tratamiento seleccionado
+
+  // Método para generar los prompts específicos según el tratamiento seleccionado
+  String _getPromptForTreatment() {
+    String intensityText = _intensityLevel < 0.3 ? 'muy sutil' 
+                        : _intensityLevel < 0.6 ? 'sutil'
+                        : _intensityLevel < 0.8 ? 'moderado'
+                        : 'notable';
+                      
+    // Base del prompt para todos los tratamientos
+    String basePrompt = 'Fotografía realista, CONSERVAR EXACTAMENTE LA MISMA IDENTIDAD, mismo peinado, mismo tono de piel, mismos ojos, misma iluminación,';
+    
+    // Prompt específico según tratamiento seleccionado
     switch (_selectedTreatment) {
       case 'Aumento de Labios':
-        return 'https://example.com/simulated_lip_augmentation.jpg';
+        return '$basePrompt modificar ÚNICAMENTE los labios: ${intensityText}mente más voluminosos y definidos. Conservar EXACTAMENTE todos los demás rasgos faciales sin cambios. No cambiar color de piel, no cambiar peinado, no cambiar ojos.';
+        
       case 'Rinomodelación':
-        return 'https://example.com/simulated_rhinomodeling.jpg';
+        return '$basePrompt la misma persona con cambio $intensityText sólo en su nariz: más refinada, simétrica y proporcional. Mantener todas las demás características faciales idénticas. Resultado natural, profesional, realista.';
+      
       case 'Masculinización Facial':
-        return 'https://example.com/simulated_masculinization.jpg';
+        return '$basePrompt la misma persona con cambios $intensityText de masculinización: mandíbula más angular y definida, mentón marcado, líneas faciales más fuertes. Mantener identidad reconocible. Resultado natural, profesional, realista.';
+      
       case 'Lifting Facial':
-        return 'https://example.com/simulated_facelift.jpg';
+        return '$basePrompt la misma persona con efecto $intensityText de lifting facial: piel más tersa, eliminación de flacidez, contorno facial más definido. Mantener todas las demás características faciales. Resultado natural, rejuvenecido, profesional, realista.';
+      
       case 'Botox':
-        return 'https://example.com/simulated_botox.jpg';
+        return '$basePrompt la misma persona con efecto $intensityText de aplicación de botox: arrugas de expresión y líneas faciales reducidas, especialmente en frente y entrecejo, aspecto rejuvenecido. Mantener expresividad natural. Resultado profesional, realista.';
+      
       case 'Eliminacion de Ojeras':
-        return 'https://example.com/simulated_dark_circles_removal.jpg';
+        return '$basePrompt la misma persona con eliminación $intensityText de ojeras y bolsas bajo los ojos, área infraorbital más tersa y luminosa, aspecto descansado. Mantener todas las demás características faciales. Resultado natural, profesional, realista.';
+      
       default:
-        return 'https://example.com/simulated_default.jpg';
+        return '$basePrompt la misma persona con mejora estética facial $intensityText general, aspecto más refinado pero manteniendo identidad y naturalidad. Resultado profesional, realista.';
+    }
+  }
+
+  // Método para optimizar tamaño de imagen
+  Future<File> _optimizeImageSize(File imageFile) async {
+    try {
+      // Implementación usando package:image
+      // ...
+      return imageFile; // Por ahora devolvemos la misma
+    } catch (e) {
+      print('Error optimizando imagen: $e');
+      return imageFile;
+    }
+  } 
+
+  Widget _buildImageButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+    bool isFullWidth = false,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18), // Tamaño de icono más pequeño
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 13), // Texto más pequeño
+      ),
+      style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFF1980E6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12, 
+          vertical: 8,
+        ),
+        minimumSize: isFullWidth ? const Size(double.infinity, 40) : null,
+      ),
+    );
+  }
+
+  // Método para mostrar la imagen de resultado correctamente (local o remota)
+  Widget _buildResultImage() {
+    if (_resultImageUrl == null) {
+      return Container(
+        height: 150, width: double.infinity,
+        color: Colors.grey.shade200,
+        child: const Center(child: Text('No hay resultado')),
+      );
+    }
+    
+    // Determinar si es una URL local o remota
+    final bool isLocalFile = _resultImageUrl!.startsWith('file://');
+    print('Tipo de URL: ${isLocalFile ? "Local" : "Remota"}: $_resultImageUrl');
+    
+    if (isLocalFile) {
+      // Para archivos locales, eliminar el prefijo 'file://' y usar Image.file
+      final String localPath = _resultImageUrl!.replaceFirst('file://', '');
+      print('Mostrando imagen local desde: $localPath');
+      
+      // Verificar que el archivo existe antes de mostrarlo
+      final file = File(localPath);
+      if (!file.existsSync()) {
+        print('¡ADVERTENCIA! El archivo no existe en la ruta: $localPath');
+        
+        // Intentar con ruta alternativa sin "file://"
+        final alternativeFile = File(_resultImageUrl!);
+        if (alternativeFile.existsSync()) {
+          print('El archivo existe usando la URL completa');
+          return Image.file(
+            alternativeFile,
+            height: 150,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          );
+        }
+        
+        return Container(
+          color: Colors.grey.shade200,
+          height: 150,
+          width: double.infinity,
+          child: const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error, color: Colors.red),
+                SizedBox(height: 8),
+                Text('Archivo no encontrado', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        );
+      }
+      
+      print('El archivo existe y su tamaño es: ${file.lengthSync()} bytes');
+      
+      return Image.file(
+        file,
+        height: 150,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Error al cargar imagen local: $error');
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error, color: Colors.red),
+                  SizedBox(height: 8),
+                  Text('Error al cargar imagen', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // Para URLs remotas, usar CachedNetworkImage
+      return CachedNetworkImage(
+        imageUrl: _resultImageUrl!,
+        height: 150,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey.shade200,
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+        errorWidget: (context, url, error) {
+          print('Error cargando imagen remota: $error');
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Center(child: Icon(Icons.error)),
+          );
+        },
+      );
     }
   }
 
   @override
-  
-  Widget _buildImageButton({
-  required IconData icon,
-  required String label,
-  required VoidCallback onPressed,
-  bool isFullWidth = false,
-}) {
-  return ElevatedButton.icon(
-    onPressed: onPressed,
-    icon: Icon(icon, size: 18), // Tamaño de icono más pequeño
-    label: Text(
-      label,
-      style: const TextStyle(fontSize: 13), // Texto más pequeño
-    ),
-    style: ElevatedButton.styleFrom(
-      foregroundColor: Colors.white,
-      backgroundColor: const Color(0xFF1980E6),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12, 
-        vertical: 8,
-      ),
-      minimumSize: isFullWidth ? const Size(double.infinity, 40) : null,
-    ),
-  );
-}
-  
-  
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -244,6 +397,7 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                             setState(() {
                               _selectedTreatment = newValue!;
                               _resultImageUrl = null; // Limpiar resultado al cambiar tratamiento
+                              _hasResult = false;
                             });
                           },
                         ),
@@ -258,6 +412,7 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                             setState(() {
                               _intensityLevel = newValue;
                               _resultImageUrl = null; // Limpiar resultado al cambiar intensidad
+                              _hasResult = false;
                             });
                           },
                           divisions: 10,
@@ -325,6 +480,18 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                                 );
                           },
                         ),
+
+                        const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: Text(
+                            'Para mejores resultados:\n'
+                            '• Usa una foto con buena iluminación\n'
+                            '• Mantén una posición frontal\n'
+                            '• Expresión neutral\n'
+                            '• Fondo claro',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
                         
                         if (_imageFile != null) ...[
                           const SizedBox(height: 16),
@@ -355,7 +522,7 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                     disabledBackgroundColor: Colors.grey,
                   ),
                   child: _isLoading
-                      ? const Row(
+                      ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
@@ -364,10 +531,12 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                               child: CircularProgressIndicator(
                                 color: Colors.white,
                                 strokeWidth: 2,
+                                // Animación más lenta para dar la sensación de procesamiento IA
+                                value: null, 
                               ),
                             ),
-                            SizedBox(width: 16),
-                            Text('Procesando imagen...'),
+                            const SizedBox(width: 16),
+                            const Text('Procesando con IA...'),
                           ],
                         )
                       : const Text('Ver resultado'),
@@ -376,7 +545,7 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                 const SizedBox(height: 24),
                 
                 // Resultado
-                if (_resultImageUrl != null)
+                if (_hasResult && _resultImageUrl != null)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -467,24 +636,7 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                                               padding: const EdgeInsets.all(8.0),
                                               child: ClipRRect(
                                                 borderRadius: BorderRadius.circular(8),
-                                                child: CachedNetworkImage(
-                                                  imageUrl: _resultImageUrl!,
-                                                  height: 150,
-                                                  width: double.infinity,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (context, url) => Container(
-                                                    color: Colors.grey.shade200,
-                                                    child: const Center(
-                                                      child: CircularProgressIndicator(),
-                                                    ),
-                                                  ),
-                                                  errorWidget: (context, url, error) => Container(
-                                                    color: Colors.grey.shade200,
-                                                    child: const Center(
-                                                      child: Icon(Icons.error),
-                                                    ),
-                                                  ),
-                                                ),
+                                                child: _buildResultImage(),
                                               ),
                                             ),
                                           ],
@@ -497,14 +649,16 @@ class _TreatmentSimulationPageState extends State<TreatmentSimulationPage> {
                             ),
                           ),
                           
+                          
                           const SizedBox(height: 16),
                           
-                          const Text(
-                            'NOTA: Este es un resultado simulado generado por IA. El resultado real puede variar. Consulta con nuestros especialistas para más información.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.grey,
+                          
+                          const AlertDialog(
+                            title: Text('Nota Importante'),
+                            content: Text(
+                              'Esta simulación utiliza IA generativa y ofrece una aproximación estética. '
+                              'Los cambios reales variarán y siempre serán más sutiles y naturales. '
+                              'Consulta con un especialista para conocer los resultados reales.',
                             ),
                           ),
                           

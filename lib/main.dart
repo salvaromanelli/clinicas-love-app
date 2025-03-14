@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';  // Asegúrate de que esta importación esté correcta
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -19,11 +20,10 @@ import 'booking_page.dart';
 import 'services/notificaciones.dart';
 import 'recomendaciones_page.dart';
 import 'reviews_page.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_application_1/services/ml_kit_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-
-
 void main() async {
   // Asegurar que los widgets estén inicializados antes de cualquier operación
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +35,16 @@ void main() async {
   await SupabaseService.initialize();
   await NotificationService().initialize();
   
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider<MLKitService>(
+          create: (_) => MLKitService(),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -76,7 +85,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => RegisterPage(),
         '/assistant': (context) => const VirtualAssistantChat(),
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
-        '/simulation': (context) => const TreatmentSimulationPage(),
+        '/simulation': (context) => TreatmentSimulationScreen(),
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
         '/reviews': (context) => const ReviewsPage(),

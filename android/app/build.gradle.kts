@@ -7,7 +7,7 @@ plugins {
 
 android {
     defaultConfig {
-    minSdkVersion 19
+    minSdkVersion 21
     }
     namespace = "com.example.flutter_application_1"
     compileSdk = flutter.compileSdkVersion

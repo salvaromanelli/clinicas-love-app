@@ -1,817 +1,491 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_application_1/services/ml_kit_service.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:typed_data';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'providers/youcam_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart'; // Añadir esta importación
+import 'package:path_provider/path_provider.dart'; // Añadir esta importación
+import 'package:path/path.dart' as path; 
 
-class TreatmentSimulationScreen extends StatefulWidget {
+class SimulacionResultadosPage extends StatefulWidget {
+  const SimulacionResultadosPage({Key? key}) : super(key: key);
+
   @override
-  _TreatmentSimulationScreenState createState() => _TreatmentSimulationScreenState();
+  State<SimulacionResultadosPage> createState() => _SimulacionResultadosPageState();
 }
 
-class _TreatmentSimulationScreenState extends State<TreatmentSimulationScreen> with SingleTickerProviderStateMixin {
-  File? _imageFile;
-  File? _processedImageFile;
-  String _selectedTreatment = 'aumento de labios';
+class _SimulacionResultadosPageState extends State<SimulacionResultadosPage> {
+  File? _selectedImage;
+  File? _resultImage;
+  String _selectedTreatment = 'lips';
   double _intensity = 0.5;
-  bool _isProcessing = false;
-  String? _errorMessage;
-  bool _showBeforeAfter = false;
-  late TabController _tabController;
-  bool _showInfoPanel = false;
-  
-  // Textos descriptivos para cada tratamiento
-  Map<String, String> _treatmentDescriptions = {
-    'aumento de labios': 'Simula el resultado de un aumento de labios que proporciona mayor volumen y definición utilizando ácido hialurónico.',
-    'rinomodelación': 'Visualiza el posible resultado de un procedimiento no quirúrgico para redefinir la forma de la nariz.',
-    'rejuvenecimiento': 'Previsualiza el efecto de tratamientos para reducir arrugas y mejorar la textura de la piel.',
-    'botox': 'Observa el posible resultado del botox para suavizar líneas de expresión en frente, entrecejo y patas de gallo.',
+  final ImagePicker _picker = ImagePicker();
+
+  final Map<String, String> _treatmentTypes = {
+    'lips': 'Aumento de labios',
+    'nose': 'Rinomodelación',
+    'botox': 'Botox',
+    'fillers': 'Rellenos faciales',
+    'skincare': 'Tratamiento de piel',
+    'lifting': 'Lifting facial'
   };
 
-  final List<String> _availableTreatments = [
-    'aumento de labios',
-    'rinomodelación',
-    'rejuvenecimiento',
-    'botox'
-  ];
-
-  // Posición para el comparador visual
-  double _comparePosition = 0.5;
-  
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _loadDemoImage();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-  
-  // Carga una imagen de demostración
-  Future<void> _loadDemoImage() async {
+  Future<void> _pickImage(ImageSource source) async {
     try {
-      final ByteData data = await rootBundle.load('assets/demo_face.jpg');
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/demo_face.jpg');
-      await file.writeAsBytes(data.buffer.asUint8List());
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 90,
+        maxHeight: 1200, // Limitar altura para optimizar
+        maxWidth: 1200,  // Limitar ancho para optimizar
+      );
       
-      setState(() {
-        _imageFile = file;
-      });
+      if (pickedFile != null) {
+        File imageFile = File(pickedFile.path);
+        
+        // Verificar si es una imagen HEIC (formato común en iPhone)
+        final extension = path.extension(pickedFile.path).toLowerCase();
+        if (extension == '.heic' || extension == '.heif') {
+          // Convertir HEIC a JPEG
+          final tempDir = await getTemporaryDirectory();
+          final targetPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+          
+          try {
+            // Convertir y comprimir la imagen
+            final result = await FlutterImageCompress.compressAndGetFile(
+              imageFile.path,
+              targetPath,
+              quality: 90,
+              format: CompressFormat.jpeg,
+            );
+            
+            if (result != null) {
+              imageFile = File(result.path);
+              debugPrint('Imagen HEIC convertida exitosamente a JPEG');
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No se pudo convertir la imagen. Intenta con otra.')),
+              );
+              return;
+            }
+          } catch (e) {
+            debugPrint('Error al convertir imagen HEIC: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error al procesar la imagen: $e')),
+            );
+            return;
+          }
+        }
+        
+        // Siempre optimizar la imagen para mejorar compatibilidad
+        try {
+          final tempDir = await getTemporaryDirectory();
+          final targetPath = '${tempDir.path}/optimized_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          
+          final result = await FlutterImageCompress.compressAndGetFile(
+            imageFile.path,
+            targetPath,
+            quality: 85,
+            format: CompressFormat.jpeg,
+          );
+          
+          if (result != null) {
+            imageFile = File(result.path);
+            debugPrint('Imagen optimizada: ${await imageFile.length()} bytes');
+          }
+        } catch (e) {
+          debugPrint('Error al optimizar imagen: $e');
+          // Continuar con la imagen original si falla la optimización
+        }
+
+        setState(() {
+          _selectedImage = imageFile;
+          _resultImage = null;
+        });
+
+        // Mostrar mensaje de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imagen seleccionada correctamente')),
+        );
+      }
     } catch (e) {
-      print('Error cargando imagen demo: $e');
+      debugPrint('Error al seleccionar imagen: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al seleccionar imagen: $e')),
+      );
     }
   }
-  
+
+  Future<File> _optimizeImageForApi(File imageFile) async {
+    // Verificar el tamaño del archivo
+    final fileSize = await imageFile.length();
+    
+    // Si la imagen es demasiado grande, comprimirla
+    if (fileSize > 2 * 1024 * 1024) { // 2MB
+      final tempDir = await getTemporaryDirectory();
+      final targetPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_optimized.jpg';
+      
+      final result = await FlutterImageCompress.compressAndGetFile(
+        imageFile.path,
+        targetPath,
+        quality: 80,
+        minWidth: 1080, // Ancho mínimo adecuado para reconocimiento facial
+        minHeight: 1080, // Alto mínimo adecuado para reconocimiento facial
+        format: CompressFormat.jpeg,
+      );
+      
+      return result != null ? File(result.path) : imageFile;
+    }
+    
+    return imageFile;
+  }
+
+  Future<void> _processTreatment() async {
+    if (_selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor selecciona una imagen primero')),
+      );
+      return;
+    }
+
+    // Mostrar un indicador de progreso
+    final loadingDialog = _showLoadingDialog(context, 'Procesando imagen...');
+
+    try {
+      final youCamProvider = Provider.of<YouCamProvider>(context, listen: false);
+      
+      // Procesar la imagen con el tratamiento seleccionado
+      final result = await youCamProvider.simulateTreatment(
+        imageFile: _selectedImage!,
+        treatmentType: _selectedTreatment,
+        intensity: _intensity,
+      );
+
+      // Cerrar diálogo de carga
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (result != null) {
+        setState(() {
+          _resultImage = result;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo aplicar el tratamiento. Por favor intenta de nuevo.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Cerrar diálogo de carga si hay error
+      Navigator.of(context, rootNavigator: true).pop();
+      
+      debugPrint('Error en procesamiento: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Método auxiliar para mostrar el diálogo de carga
+  Dialog _showLoadingDialog(BuildContext context, String message) {
+    final dialog = Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(message),
+          ],
+        ),
+      ),
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => dialog,
+    );
+
+    return dialog;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Simulador de Tratamientos'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.info_outline),
-            onPressed: () {
-              setState(() {
-                _showInfoPanel = !_showInfoPanel;
-              });
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(icon: Icon(Icons.photo_camera), text: 'Simular'),
-            Tab(icon: Icon(Icons.history), text: 'Historial'),
-          ],
-        ),
+        title: const Text('Simulación de Tratamientos'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildSimulationTab(),
-          _buildHistoryTab(),
-        ],
-      ),
-      floatingActionButton: _imageFile != null && !_isProcessing ? FloatingActionButton(
-        onPressed: () => _processImage(),
-        child: Icon(Icons.auto_awesome),
-        tooltip: 'Simular Tratamiento',
-      ) : null,
-    );
-  }
-  
-  Widget _buildSimulationTab() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_showInfoPanel) _buildInfoPanel(),
-          
-          // Selector de imagen mejorado
-          _buildImageSelector(),
-          
-          if (_imageFile != null) ...[
-            // Panel de controles
-            _buildControlPanel(),
-            
-            SizedBox(height: 20),
-            
-            // Resultado del procesamiento con modo comparativo
-            if (_processedImageFile != null) _buildResultView(),
-            
-            // Indicador de progreso
-            if (_isProcessing) 
-              Container(
-                padding: EdgeInsets.symmetric(vertical: 30),
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 15),
-                    Text('Procesando imagen...\nEsto puede tardar unos segundos.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontStyle: FontStyle.italic)),
-                  ],
-                ),
-              ),
-            
-            // Mensaje de error
-            if (_errorMessage != null)
-              Container(
-                margin: EdgeInsets.all(16),
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[300]!),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red, size: 36),
-                    SizedBox(height: 8),
-                    Text(_errorMessage!,
-                      style: TextStyle(color: Colors.red[900]),
-                      textAlign: TextAlign.center),
-                  ],
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoPanel() {
-    return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('¿Cómo funciona?', 
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: Icon(Icons.close),
-                onPressed: () {
-                  setState(() {
-                    _showInfoPanel = false;
-                  });
-                },
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Text('1. Selecciona o toma una foto frontal de tu rostro'),
-          Text('2. Elige el tratamiento que deseas simular'),
-          Text('3. Ajusta la intensidad del efecto'),
-          Text('4. Presiona el botón para generar la simulación'),
-          SizedBox(height: 8),
-          Text('Nota: Los resultados son aproximados y pueden variar de los resultados reales del tratamiento.',
-            style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildImageSelector() {
-    return Card(
-      margin: EdgeInsets.all(16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text('Foto para Simulación', 
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            
-            if (_imageFile == null) ...[
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_a_photo, size: 64, color: Colors.grey[600]),
-                      SizedBox(height: 10),
-                      Text('Selecciona una fotografía',
-                        style: TextStyle(color: Colors.grey[600])),
-                    ],
-                  ),
-                ),
-              ),
-            ] else ...[
-              Stack(
+      body: Consumer<YouCamProvider>(
+        builder: (context, youCamProvider, child) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      _imageFile!,
-                      height: 300,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
+                  // Mensaje de error si existe
+                  if (youCamProvider.errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        shape: BoxShape.circle,
+                        color: Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: IconButton(
-                        icon: Icon(Icons.refresh, color: Colors.white),
-                        onPressed: () {
-                          setState(() {
-                            _imageFile = null;
-                            _processedImageFile = null;
-                            _errorMessage = null;
-                          });
-                        },
-                        tooltip: 'Cambiar imagen',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              youCamProvider.errorMessage!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => youCamProvider.clearError(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  // Sección de selección de imagen
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Paso 1: Selecciona una foto',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _pickImage(ImageSource.camera),
+                                icon: const Icon(Icons.camera_alt),
+                                label: const Text('Cámara'),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () => _pickImage(ImageSource.gallery),
+                                icon: const Icon(Icons.photo_library),
+                                label: const Text('Galería'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (_selectedImage != null)
+                            Center(
+                              child: Container(
+                                height: 200,
+                                width: 200,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                ),
+                                child: Image.file(
+                                  _selectedImage!,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Sección de configuración de tratamiento
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Paso 2: Configura el tratamiento',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Tipo de tratamiento
+                          const Text('Tipo de tratamiento:'),
+                          DropdownButtonFormField<String>(
+                            value: _selectedTreatment,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _treatmentTypes.entries.map((entry) {
+                              return DropdownMenuItem(
+                                value: entry.key,
+                                child: Text(entry.value),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedTreatment = value!;
+                              });
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Intensidad del tratamiento
+                          Text('Intensidad: ${(_intensity * 100).toInt()}%'),
+                          Slider(
+                            value: _intensity,
+                            min: 0.1,
+                            max: 1.0,
+                            divisions: 9,
+                            label: '${(_intensity * 100).toInt()}%',
+                            onChanged: (value) {
+                              setState(() {
+                                _intensity = value;
+                              });
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Botón para procesar
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                backgroundColor: Theme.of(context).primaryColor,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: _selectedImage != null && !youCamProvider.isProcessing
+                                  ? _processTreatment
+                                  : null,
+                              child: youCamProvider.isProcessing
+                                  ? const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text('Procesando...'),
+                                      ],
+                                    )
+                                  : const Text('Simular Tratamiento'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Sección de resultados
+                  if (_resultImage != null)
+                    Card(
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Resultado:',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Column(
+                                  children: [
+                                    const Text('Original'),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      height: 150,
+                                      width: 150,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey),
+                                      ),
+                                      child: Image.file(
+                                        _selectedImage!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  children: [
+                                    const Text('Con tratamiento'),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      height: 150,
+                                      width: 150,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey),
+                                      ),
+                                      child: Image.file(
+                                        _resultImage!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: () {
+                                  // Implementar lógica para compartir el resultado
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Compartiendo resultado...')),
+                                  );
+                                },
+                                icon: const Icon(Icons.share),
+                                label: const Text('Compartir resultado'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ],
-            
-            SizedBox(height: 16),
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.camera_alt),
-                    label: Text('Cámara'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => _getImage(ImageSource.camera),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.photo_library),
-                    label: Text('Galería'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => _getImage(ImageSource.gallery),
-                  ),
-                ),
-              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
-  }
-  
-  Widget _buildControlPanel() {
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Opciones de Tratamiento', 
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            
-            SizedBox(height: 16),
-            
-            // Selector de tratamiento con íconos
-            _buildTreatmentButtons(),
-            
-            SizedBox(height: 16),
-            Divider(),
-            SizedBox(height: 16),
-            
-            // Descripción del tratamiento
-            Text(_treatmentDescriptions[_selectedTreatment] ?? '',
-                style: TextStyle(fontStyle: FontStyle.italic)),
-            
-            SizedBox(height: 20),
-            
-            // Control de intensidad
-            Text('Intensidad del efecto', 
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            
-            Row(
-              children: [
-                Icon(Icons.opacity_outlined, size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Slider(
-                    value: _intensity,
-                    min: 0.1,
-                    max: 1.0,
-                    divisions: 9,
-                    label: _intensity.toStringAsFixed(1),
-                    onChanged: (value) {
-                      setState(() {
-                        _intensity = value;
-                        _processedImageFile = null;
-                      });
-                    },
-                  ),
-                ),
-                Icon(Icons.opacity, size: 24),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTreatmentButtons() {
-    return Container(
-      height: 100,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _buildTreatmentButton('aumento de labios', Icons.face, Colors.pink[100]!),
-          _buildTreatmentButton('rinomodelación', Icons.face_retouching_natural, Colors.blue[100]!),
-          _buildTreatmentButton('rejuvenecimiento', Icons.face_retouching_natural, Colors.green[100]!),
-          _buildTreatmentButton('botox', Icons.healing, Colors.purple[100]!),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreatmentButton(String treatment, IconData icon, Color bgColor) {
-    final isSelected = _selectedTreatment == treatment;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedTreatment = treatment;
-          _processedImageFile = null;
-        });
-      },
-      child: Container(
-        width: 100,
-        margin: EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? bgColor : Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon, 
-              size: 32,
-              color: isSelected ? Theme.of(context).primaryColor : Colors.grey[600],
-            ),
-            SizedBox(height: 8),
-            Text(
-              treatment.split(' ').map((word) => word[0].toUpperCase() + word.substring(1)).join('\n'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Theme.of(context).primaryColor : Colors.grey[800],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildResultView() {
-    return Card(
-      margin: EdgeInsets.all(16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Resultado de la Simulación', 
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Switch(
-                  value: _showBeforeAfter,
-                  onChanged: (value) {
-                    setState(() {
-                      _showBeforeAfter = value;
-                    });
-                  },
-                  activeColor: Theme.of(context).primaryColor,
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(_showBeforeAfter ? 'Antes/Después' : 'Resultado'),
-              ],
-            ),
-            
-            SizedBox(height: 16),
-            
-            // Vista antes/después o resultado
-            _showBeforeAfter ? _buildBeforeAfterView() : _buildSimpleResultView(),
-            
-            SizedBox(height: 16),
-            
-            // Botones de acción
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.share),
-                    label: Text('Compartir'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: _shareResult,
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: Icon(Icons.save_alt),
-                    label: Text('Guardar'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: _saveResult,
-                  ),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: 16),
-            
-            // Botones adicionales
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                OutlinedButton.icon(
-                  icon: Icon(Icons.calendar_today),
-                  label: Text('Agendar Cita'),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/book-appointment');
-                  },
-                ),
-                OutlinedButton.icon(
-                  icon: Icon(Icons.info_outline),
-                  label: Text('Más Info'),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  onPressed: () {
-                    _showTreatmentInfo(context);
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBeforeAfterView() {
-    return Container(
-      height: 350,
-      child: Stack(
-        children: [
-          // Original Image (Before)
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                _imageFile!,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          
-          // Processed Image with slider (After)
-          Positioned.fill(
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.centerRight,
-                widthFactor: _comparePosition,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    _processedImageFile!,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          
-          // Slider handle
-          Positioned(
-            top: 0,
-            bottom: 0,
-            left: MediaQuery.of(context).size.width * _comparePosition * 0.7, // Ajuste para el padding
-            child: GestureDetector(
-              onHorizontalDragUpdate: (details) {
-                setState(() {
-                  _comparePosition = (_comparePosition + details.delta.dx / 250).clamp(0.0, 1.0);
-                });
-              },
-              child: Container(
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  border: Border.symmetric(
-                    vertical: BorderSide(width: 4, color: Theme.of(context).primaryColor),
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_back, color: Theme.of(context).primaryColor),
-                    SizedBox(height: 8),
-                    RotatedBox(
-                      quarterTurns: 3,
-                      child: Text('ANTES',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    RotatedBox(
-                      quarterTurns: 3,
-                      child: Text('DESPUÉS',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Icon(Icons.arrow_forward, color: Theme.of(context).primaryColor),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSimpleResultView() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.file(
-        _processedImageFile!,
-        height: 350,
-        width: double.infinity,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-  
-  Widget _buildHistoryTab() {
-    // Aquí implementaríamos el historial de simulaciones
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.history, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('Tu historial de simulaciones aparecerá aquí',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-        ],
-      ),
-    );
-  }
-
-  void _showTreatmentInfo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_selectedTreatment.toUpperCase()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_treatmentDescriptions[_selectedTreatment] ?? ''),
-            SizedBox(height: 16),
-            Text('Detalles del procedimiento:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('• Duración aproximada: 30-45 minutos'),
-            Text('• Recuperación: Mínima'),
-            Text('• Resultados visibles: Inmediatos'),
-            Text('• Duración del efecto: 6-12 meses'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: Text('Cerrar'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          ElevatedButton(
-            child: Text('Agendar Consulta'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.pushNamed(context, '/book-appointment');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Future<void> _getImage(ImageSource source) async {
-    try {
-      final pickedImage = await ImagePicker().pickImage(source: source);
-      
-      if (pickedImage != null) {
-        setState(() {
-          _imageFile = File(pickedImage.path);
-          _processedImageFile = null;
-          _errorMessage = null;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error al seleccionar la imagen: $e';
-      });
-      print('Error al seleccionar imagen: $e');
-    }
-  }
-  
-  Future<void> _processImage() async {
-    if (_imageFile == null) return;
-    
-    setState(() {
-      _isProcessing = true;
-      _errorMessage = null;
-    });
-    
-    try {
-      // Validar que la imagen existe y tiene contenido
-      if (!await _imageFile!.exists()) {
-        throw Exception('El archivo de imagen no existe');
-      }
-      
-      final fileSize = await _imageFile!.length();
-      if (fileSize == 0) {
-        throw Exception('El archivo de imagen está vacío');
-      }
-      
-      print('Procesando imagen: ${_imageFile!.path}');
-      print('Tamaño del archivo: ${fileSize} bytes');
-      
-      final mlKitService = Provider.of<MLKitService>(context, listen: false);
-      
-      // Agregar depuración adicional
-      final debugImage = await mlKitService.debugFaceDetection(_imageFile!);
-      
-      // Guardar imagen de depuración (opcional)
-      final debugResult = await ImageGallerySaver.saveFile(debugImage.path);
-      print('Imagen de depuración guardada: $debugResult');
-      
-      // Continuar con la simulación
-      final processedFile = await mlKitService.simulateTreatment(
-        imageFile: _imageFile!,
-        treatmentType: _selectedTreatment,
-        intensity: _intensity,
-      );
-      
-      setState(() {
-        _processedImageFile = processedFile;
-        _isProcessing = false;
-        _showBeforeAfter = true;  // Mostrar comparación automáticamente
-      });
-    } catch (e) {
-      print('Error detallado en la simulación: $e');
-      
-      setState(() {
-        _errorMessage = 'Error en la simulación: $e';
-        _isProcessing = false;
-      });
-    }
-  }
-  
-  Future<void> _shareResult() async {
-    if (_processedImageFile == null) return;
-    
-    try {
-      await Share.shareXFiles([XFile(_processedImageFile!.path)],
-        subject: 'Mi simulación de ${ _selectedTreatment}',
-        text: 'Mira el resultado de mi simulación de $_selectedTreatment en Clínica Virtual');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al compartir: $e')),
-      );
-    }
-  }
-    
-  Future<void> _saveResult() async {
-    if (_processedImageFile == null) return;
-    
-    try {
-      final Uint8List bytes = await _processedImageFile!.readAsBytes();
-      
-      // Añadir información de depuración
-      print('Guardando imagen con tamaño: ${bytes.length} bytes');
-      
-      final result = await ImageGallerySaver.saveImage(
-        bytes,
-        quality: 95,
-        name: "simulacion_${_selectedTreatment.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}"
-      );
-      
-      print('Resultado del guardado: $result');
-      
-      if (result['isSuccess'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Imagen guardada en la galería'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo guardar la imagen: ${result['errorMessage'] ?? 'Error desconocido'}'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error detallado al guardar: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar: $e'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 4),
-        ),
-      );
-    }
   }
 }

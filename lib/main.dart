@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';  // Asegúrate de que esta importación esté correcta
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'post_tratamiento_page.dart';
 import 'ofertas_promo_page.dart';
@@ -21,7 +19,9 @@ import 'services/notificaciones.dart';
 import 'recomendaciones_page.dart';
 import 'reviews_page.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_application_1/services/ml_kit_service.dart';
+import 'providers/youcam_provider.dart';
+import 'services/youcam_service.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
@@ -34,19 +34,22 @@ void main() async {
   // Inicializar otros servicios
   await SupabaseService.initialize();
   await NotificationService().initialize();
-  
+   
+  // Crear una instancia del servicio YouCam con tu API key
+  final youCamService = YouCamService(apiKey: 'PjbPnjhSKjgSKM8xDdx80LauBNenasqF');
+   
   runApp(
     MultiProvider(
       providers: [
-        Provider<MLKitService>(
-          create: (_) => MLKitService(),
-        ),
+        ChangeNotifierProvider(create: (_) => YouCamProvider(youCamService)),
+        // otros providers...
       ],
       child: const MyApp(),
-    ),
+    )
   );
 }
 
+  
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -85,7 +88,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => RegisterPage(),
         '/assistant': (context) => const VirtualAssistantChat(),
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
-        '/simulation': (context) => TreatmentSimulationScreen(),
+        '/simulation': (context) => SimulacionResultadosPage(),
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
         '/reviews': (context) => const ReviewsPage(),

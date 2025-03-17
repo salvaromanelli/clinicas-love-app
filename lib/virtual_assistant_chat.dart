@@ -124,7 +124,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F7FA),
                         image: DecorationImage(
-                          image: const AssetImage('assets/images/chat_background.png'),
+                          image: const AssetImage('assets/images/Clinicas fondo.jpg'),
                           colorFilter: ColorFilter.mode(
                             Colors.white.withOpacity(0.1),
                             BlendMode.dstATop,

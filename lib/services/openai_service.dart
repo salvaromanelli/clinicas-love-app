@@ -44,7 +44,7 @@ class OpenAIService {
               'content': '''
                 Eres un asistente médico virtual especializado en estética para Clínicas Love.
                 Proporciona información precisa y profesional sobre tratamientos estéticos, 
-                procedimientos dentales y servicios relacionados.
+                y servicios relacionados.
                 No hagas diagnósticos ni prescripciones médicas remotas.
                 Si te preguntan por agendar citas, facilita el proceso preguntando:
                 - Tipo de tratamiento
@@ -61,8 +61,13 @@ class OpenAIService {
       );
       
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'];
+        final data = jsonDecode(utf8.decode(response.bodyBytes)); 
+        String text = data['choices'][0]['message']['content'];
+        
+      
+        text = _cleanResponseText(text);
+
+        return text;
       } else {
         debugPrint('Error OpenAI: ${response.statusCode}, ${response.body}');
         return 'Lo siento, estoy teniendo problemas para procesar tu consulta en este momento. ¿Podrías intentarlo de nuevo más tarde?';
@@ -103,5 +108,32 @@ $prompt
 Utiliza esta información de referencia para tu respuesta:
 $referencesText
     ''';
+  }
+
+    // Método para limpiar el texto si es necesario
+  String _cleanResponseText(String text) {
+    // Corregir problemas de codificación comunes
+    final Map<String, String> replacements = {
+      'Ã¡': 'á',
+      'Ã©': 'é',
+      'Ã­': 'í',
+      'Ã³': 'ó',
+      'Ãº': 'ú',
+      'Ã±': 'ñ',
+      'Ã': 'í',
+      'Â': '',
+      'Ã\x81': 'Á',
+      'Ã\x89': 'É',
+      'Ã\x8D': 'Í',
+      'Ã\x93': 'Ó',
+      'Ã\x9A': 'Ú',
+      'Ã\x91': 'Ñ',
+    };
+    
+    replacements.forEach((key, value) {
+      text = text.replaceAll(key, value);
+    });
+    
+    return text;
   }
 }

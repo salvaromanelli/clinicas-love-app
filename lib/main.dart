@@ -227,31 +227,18 @@ class HomePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Logo con efecto de elevación
+                    // Logo sin círculo de fondo
                     Padding(
                       padding: const EdgeInsets.only(top: 24.0, bottom: 16.0),
                       child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.1),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                              ),
-                            ],
+                        child: ColorFiltered(
+                          colorFilter: const ColorFilter.mode(
+                            Colors.white,
+                            BlendMode.srcIn,
                           ),
-                          child: ColorFiltered(
-                            colorFilter: const ColorFilter.mode(
-                              Colors.white,
-                              BlendMode.srcIn,
-                            ),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              height: 70.0,
-                            ),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            height: 70.0,
                           ),
                         ),
                       ),
@@ -302,29 +289,29 @@ class HomePage extends StatelessWidget {
                       children: [
                         _buildServiceCard(
                           context,
-                          'Simulación de Resultados',
-                          'https://cdn.usegalileo.ai/sdxl10/5413b550-9ddd-4735-a640-8c153c8d010f.png',
+                          'Simulación de Resultados con IA',
+                          'assets/images/Simulador.jpg',
                           Icons.photo_filter,
                           '/simulation',
                         ),
                         _buildServiceCard(
                           context,
                           'Conecta tus Redes',
-                          'assets/images/walomeca.jpg',
+                          'assets/images/descuento_redes.jpg',
                           Icons.share,
                           '/integracion-redes',
                         ),
                         _buildServiceCard(
                           context,
                           'Educación y Contenido',
-                          'https://cdn.usegalileo.ai/sdxl10/95b8b74e-1725-4e02-9556-9871b471a3aa.png',
+                          'assets/images/Contenido_educativo.webp',
                           Icons.menu_book,
                           '/educacion-contenido',
                         ),
                         _buildServiceCard(
                           context,
                           'Nuestras Clínicas',
-                          'https://cdn.usegalileo.ai/sdxl10/fbf4fb0e-c6f7-4cf0-b034-82fb42940f56.png',
+                          'assets/images/Nuestras_clinicas.jpg',
                           Icons.location_on,
                           '/clinicas',
                         ),

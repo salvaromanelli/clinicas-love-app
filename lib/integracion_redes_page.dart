@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/supabase.dart';
+import 'i18n/app_localizations.dart';
 
 class IntegracionRedesPage extends StatefulWidget {
   const IntegracionRedesPage({super.key});
@@ -26,7 +27,14 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   String? _selectedImagePath;
   final _formKey = GlobalKey<FormState>();
   final _tagController = TextEditingController();
+  late AppLocalizations localizations; 
 
+    @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    localizations = AppLocalizations.of(context);
+  }
+  
   @override
   void dispose() {
     _tagController.dispose();
@@ -48,11 +56,11 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Text(
-                '¿Cómo quieres compartir tu experiencia?',
-                style: TextStyle(
+                localizations.get('how_to_share'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18.0,
                   fontWeight: FontWeight.bold,
@@ -61,7 +69,10 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF1980E6)),
-              title: const Text('Tomar una foto ahora', style: TextStyle(color: Colors.white)),
+              title: Text(
+                localizations.get('take_photo'), 
+                style: const TextStyle(color: Colors.white)
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _takePhoto();
@@ -69,7 +80,10 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library, color: Color(0xFF1980E6)),
-              title: const Text('Seleccionar de la galería', style: TextStyle(color: Colors.white)),
+              title: Text(
+                localizations.get('select_from_gallery'), 
+                style: const TextStyle(color: Colors.white)
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage();
@@ -102,7 +116,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
         });
       }
     } catch (e) {
-      _showErrorSnackBar('Error al tomar la foto: $e');
+      _showErrorSnackBar('${localizations.get('error_taking_photo')} $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -129,7 +143,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
         });
       }
     } catch (e) {
-      _showErrorSnackBar('Error al seleccionar imagen: $e');
+      _showErrorSnackBar('${localizations.get('error_selecting_image')} $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -140,9 +154,9 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   // Método para compartir en Instagram usando share_plus
   Future<void> _shareToInstagram() async {
     if (_selectedImagePath == null) {
-      _showErrorSnackBar('Por favor selecciona o toma una imagen primero');
-      return;
-    }
+    _showErrorSnackBar(localizations.get('select_image_first'));
+    return;
+  }
 
     setState(() {
       _isLoading = true;
@@ -155,8 +169,8 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
       // Compartir usando share_plus
       final ShareResult result = await Share.shareXFiles(
         [imageFile],
-        subject: 'Mi experiencia en Clínicas Love',
-        text: '¡Mi experiencia en Clínicas Love! @clinicaslove #clinicaslove #tratamientoestetico',
+        subject: localizations.get('my_experience_title'),
+        text: localizations.get('my_experience_text'),
       );
       
       // Verificar si el usuario completó la acción de compartir
@@ -184,22 +198,22 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF293038),
-        title: const Text(
-          '¿Compartiste en Instagram?', 
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          localizations.get('share_instagram_question'), 
+          style: const TextStyle(color: Colors.white),
         ),
-        content: const Text(
-          '¿Confirmás que compartiste la imagen en Instagram?',
-          style: TextStyle(color: Colors.white70),
+        content: Text(
+          localizations.get('confirm_instagram_share'),
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text(
-              'No',
-              style: TextStyle(color: Colors.grey),
+            child: Text(
+              localizations.get('no'),
+              style: const TextStyle(color: Colors.grey),
             ),
           ),
           TextButton(
@@ -209,9 +223,9 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
               _saveDiscountToSupabase();
               _showSuccessDialog();
             },
-            child: const Text(
-              'Sí, lo compartí',
-              style: TextStyle(color: Color(0xFF1980E6)),
+            child: Text(
+              localizations.get('yes_shared'),
+              style: const TextStyle(color: Color(0xFF1980E6)),
             ),
           ),
         ],
@@ -260,7 +274,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   // Método para verificar la publicación en Instagram
   Future<void> _verifyInstagramPost() async {
     if (_tagController.text.trim().isEmpty) {
-      _showErrorSnackBar('Por favor ingresa tu nombre de usuario de Instagram');
+      _showErrorSnackBar(localizations.get('enter_instagram_username'));
       return;
     }
 
@@ -295,10 +309,10 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
     try {
       final userId = _supabaseService.getCurrentUserId();
       
-      if (userId == null) {
-        _showErrorSnackBar('Debes iniciar sesión para guardar el descuento');
-        return;
-      }
+    if (userId == null) {
+      _showErrorSnackBar(localizations.get('login_required'));
+      return;
+    }
       
       // Datos del descuento
       final discountData = {
@@ -325,77 +339,77 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
 
   // Mostrar diálogo de éxito
   void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF293038),
-        title: const Text(
-          '¡Gracias por compartir!', 
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Has ganado un 10% de descuento en tu próximo tratamiento.',
-              style: TextStyle(color: Colors.white70),
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: const Color(0xFF293038),
+      title: Text(
+        localizations.get('thanks_for_sharing'), 
+        style: const TextStyle(color: Colors.white),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            localizations.get('discount_earned'),
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1980E6),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1980E6),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _discountCode,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _discountCode,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.copy, color: Colors.white),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: _discountCode));
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Código de descuento copiado'),
-                          backgroundColor: Color(0xFF1980E6),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.white),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: _discountCode));
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(localizations.get('discount_copied')),
+                        backgroundColor: const Color(0xFF1980E6),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'El descuento ha sido guardado en tu perfil y es válido por 90 días.',
-              style: TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'Aceptar',
-              style: TextStyle(color: Color(0xFF1980E6)),
-            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            localizations.get('discount_saved'),
+            style: const TextStyle(color: Colors.white70),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: Text(
+            localizations.get('accept'),
+            style: const TextStyle(color: Color(0xFF1980E6)),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -450,11 +464,11 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.all(16.0),
+                          Padding(
+                          padding: const EdgeInsets.all(16.0),
                           child: Text(
-                            'Comparte tu Experiencia',
-                            style: TextStyle(
+                            localizations.get('share_experience'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24.0,
                               fontWeight: FontWeight.bold,
@@ -500,27 +514,27 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                       width: double.infinity,
                                       height: 300,
                                       color: const Color(0xFF293038),
-                                      child: const Column(
+                                      child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(
+                                          const Icon(
                                             Icons.add_a_photo,
                                             color: Color(0xFF1980E6),
                                             size: 64,
                                           ),
-                                          SizedBox(height: 16),
+                                          const SizedBox(height: 16),
                                           Text(
-                                            'Toca para tomar o seleccionar una imagen',
-                                            style: TextStyle(
+                                            localizations.get('tap_to_select'),
+                                            style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16.0,
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
-                                          SizedBox(height: 8),
+                                          const SizedBox(height: 8),
                                           Text(
-                                            'Muestra tu experiencia en Clínicas Love',
-                                            style: TextStyle(
+                                            localizations.get('show_experience'),
+                                            style: const TextStyle(
                                               color: Colors.white70,
                                               fontSize: 14.0,
                                             ),
@@ -538,24 +552,24 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                           padding: const EdgeInsets.all(24.0),
                           child: Column(
                             children: [
-                              const Text(
-                                'Comparte y obtén 10% de descuento',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24.0,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 12.0),
-                              Text(
-                                'Toma una foto después de tu tratamiento o selecciona una de tu galería, compártela en Instagram Stories y recibe un 10% de descuento en tu próximo tratamiento.',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 16.0,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+                                      Text(
+                                      localizations.get('share_get_discount'),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24.0,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 12.0),
+                                    Text(
+                                      localizations.get('share_discount_explanation'),
+                                      style: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 16.0,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
                               const SizedBox(height: 24.0),
                               
                               // Formulario para ingresar usuario de Instagram
@@ -564,10 +578,10 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                 child: TextFormField(
                                   controller: _tagController,
                                   style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Tu usuario de Instagram',
-                                    labelStyle: TextStyle(color: Colors.grey),
-                                    prefixIcon: Icon(Icons.alternate_email, color: Color(0xFF1980E6)),
+                                  decoration: InputDecoration(
+                                    labelText: localizations.get('your_instagram_username'),
+                                    labelStyle: const TextStyle(color: Colors.grey),
+                                    prefixIcon: const Icon(Icons.alternate_email, color: Color(0xFF1980E6)),
                                     enabledBorder: OutlineInputBorder(
                                       borderSide: BorderSide(color: Colors.grey),
                                       borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -583,7 +597,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                   ),
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
-                                      return 'Por favor ingresa tu usuario de Instagram';
+                                      return localizations.get('enter_instagram_username_validation');
                                     }
                                     return null;
                                   },
@@ -619,15 +633,15 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                   Icons.camera_alt,
                                   color: Colors.white,
                                 ),
-                                label: const Text(
-                                  'Compartir en Instagram Stories',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16.0,
-                                    fontWeight: FontWeight.w500,
+                                  label: Text(
+                                    localizations.get('share_instagram_stories'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16.0,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              ),
                               
                               const SizedBox(height: 16),
                               
@@ -652,9 +666,9 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                   Icons.share,
                                   color: Colors.white,
                                 ),
-                                label: const Text(
-                                  'Compartir en otras redes',
-                                  style: TextStyle(
+                                label: Text(
+                                  localizations.get('share_other_networks'),
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16.0,
                                     fontWeight: FontWeight.w500,
@@ -667,9 +681,9 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                               // Botón para verificar publicación
                               TextButton(
                                 onPressed: _isLoading ? null : _verifyInstagramPost,
-                                child: const Text(
-                                  'Ya compartí, verificar mi post',
-                                  style: TextStyle(
+                                child: Text(
+                                  localizations.get('already_shared'),
+                                  style: const TextStyle(
                                     color: Colors.white70,
                                     fontSize: 16.0,
                                     decoration: TextDecoration.underline,

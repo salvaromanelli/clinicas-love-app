@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
-import 'recomendaciones_page.dart';
+import 'appointments.dart';
 import 'ofertas_promo_page.dart';
 import 'profile_page.dart' as profile;
+import 'i18n/app_localizations.dart'; // Añadir importación
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -29,6 +30,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    // Obtener instancia de traducciones
+    final localizations = AppLocalizations.of(context);
+    
     return Scaffold(
       backgroundColor: const Color(0xFF111418),
       body: _pages[_selectedIndex],
@@ -48,10 +52,10 @@ class _MainNavigationState extends State<MainNavigation> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavItem(Icons.home, 'Inicio', _selectedIndex == 0, 0),
-              _buildNavItem(Icons.shopping_bag, 'Productos', _selectedIndex == 1, 1),
-              _buildNavItem(Icons.calendar_today, 'Mis citas', _selectedIndex == 2, 2),
-              _buildNavItem(Icons.person, 'Perfil', _selectedIndex == 3, 3),
+              _buildNavItem(Icons.home, localizations.get('home'), _selectedIndex == 0, 0),
+              _buildNavItem(Icons.shopping_bag, localizations.get('products'), _selectedIndex == 1, 1),
+              _buildNavItem(Icons.calendar_today, localizations.get('my_appointments'), _selectedIndex == 2, 2),
+              _buildNavItem(Icons.person, localizations.get('profile'), _selectedIndex == 3, 3),
             ],
           ),
         ),
@@ -64,8 +68,8 @@ class _MainNavigationState extends State<MainNavigation> {
       behavior: HitTestBehavior.opaque,
       onTap: () => _onItemTapped(index),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        width: 90,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -82,6 +86,9 @@ class _MainNavigationState extends State<MainNavigation> {
                 fontSize: 13.0,
                 fontWeight: FontWeight.w500,
               ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis, // Añadir ellipsis si no cabe
+              maxLines: 1, // Limitar a una línea
             ),
           ],
         ),
@@ -89,4 +96,3 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 }
-

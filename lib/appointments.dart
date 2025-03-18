@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'services/supabase.dart';
 import 'booking_page.dart';
 import 'widgets/appointment_card.dart';
+import 'i18n/app_localizations.dart'; 
 
 class RecomendacionesPage extends StatefulWidget {
   const RecomendacionesPage({super.key});
@@ -17,11 +18,18 @@ class _RecomendacionesPageState extends State<RecomendacionesPage> {
   List<Map<String, dynamic>> _filteredAppointments = []; // Añade esta línea
   bool _isLoading = true;
   String _filterStatus = 'all'; // 'all', 'upcoming', 'past'
+  late AppLocalizations localizations;
 
   @override
   void initState() {
     super.initState();
     _loadAppointments();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    localizations = AppLocalizations.of(context);
   }
 
 // Modifica el método _loadAppointments para añadir manejo de errores y logs
@@ -94,24 +102,24 @@ Future<void> _loadAppointments() async {
     final bool result = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancelar cita'),
-        content: const Text('¿Está seguro de que desea cancelar esta cita? Esta acción no se puede deshacer.'),
+        title: Text(localizations.get('cancel_appointment')),  // Actualizar
+        content: Text(localizations.get('cancel_confirmation')),  // Actualizar
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No, mantener'),
+            child: Text(localizations.get('keep_appointment')),  // Actualizar
             style: TextButton.styleFrom(foregroundColor: Colors.grey),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sí, cancelar'),
+            child: Text(localizations.get('yes_cancel')),  // Actualizar
             style: TextButton.styleFrom(foregroundColor: Colors.red),
           ),
         ],
       ),
     ) ?? false;
 
-    if (result && mounted) {
+    if (result && mounted){
       // Usuario confirmó cancelación
       try {
         setState(() {
@@ -126,13 +134,13 @@ Future<void> _loadAppointments() async {
         // Mostrar confirmación
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cita cancelada correctamente')),
+            SnackBar(content: Text(localizations.get('appointment_cancelled_success'))),  // Actualizar
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al cancelar la cita: ${e.toString()}')),
+            SnackBar(content: Text('${localizations.get('cancel_error')}: ${e.toString()}')),  // Actualizar
           );
         }
         setState(() {
@@ -146,9 +154,9 @@ Future<void> _loadAppointments() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Mis Citas', 
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+        title: Text(
+          localizations.get('my_appointments'),  // Actualizar
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
         ),
         backgroundColor: const Color(0xFF1980E6),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -177,7 +185,7 @@ Future<void> _loadAppointments() async {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2.0),
                         child: FilterChip(
-                          label: Text('Todas', style: labelStyle),
+                          label: Text(localizations.get('all'), style: labelStyle),  // Actualizar
                           selected: _filterStatus == 'all',
                           onSelected: (selected) {
                             setState(() {
@@ -195,7 +203,7 @@ Future<void> _loadAppointments() async {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2.0),
                         child: FilterChip(
-                          label: Text('Próximas', style: labelStyle),
+                          label: Text(localizations.get('upcoming'), style: labelStyle),  // Actualizar
                           selected: _filterStatus == 'upcoming',
                           onSelected: (selected) {
                             setState(() {
@@ -213,7 +221,7 @@ Future<void> _loadAppointments() async {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2.0),
                         child: FilterChip(
-                          label: Text('Anteriores', style: labelStyle),
+                          label: Text(localizations.get('past'), style: labelStyle),  // Actualizar
                           selected: _filterStatus == 'past',
                           onSelected: (selected) {
                             setState(() {
@@ -241,42 +249,33 @@ Future<void> _loadAppointments() async {
                 )
               : _filteredAppointments.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 64,
-                          color: Colors.grey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        localizations.get('no_appointments'),  // Actualizar
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () {
+                          // ... resto del código ...
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1980E6),
+                          foregroundColor: Colors.white,
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No tiene citas programadas',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context, 
-                              MaterialPageRoute(
-                                builder: (context) => const AppointmentBookingPage(),
-                              ),
-                            ).then((value) {
-                              if (value == true) {
-                                _loadAppointments();
-                              }
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1980E6),
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Programar una cita'),
-                        )
-                      ],
-                    ),
-                  )
+                        child: Text(localizations.get('schedule_appointment')),  // Actualizar
+                      )
+                    ],
+                  ),
+                )
                 : ListView.builder(
                     padding: const EdgeInsets.all(16.0),
                     itemCount: _filteredAppointments.length,
@@ -285,6 +284,7 @@ Future<void> _loadAppointments() async {
                         appointment: _filteredAppointments[index],
                         onAppointmentUpdated: _loadAppointments,
                         supabaseService: _supabaseService,
+                        localizations: localizations,
                       );
                     },
                   ),

@@ -1,0 +1,113 @@
+const Map<String, String> es = {
+  // Textos generales
+  'app_title': 'Clínicas Love',
+  'how_can_we_help': '¿Cómo podemos ayudarte hoy?',
+  'our_services': 'Nuestros Servicios',
+  
+  // Servicios
+  'virtual_assistant': 'Asistente Virtual',
+  'virtual_assistant_desc': 'Consulta sobre tratamientos, precios y disponibilidad',
+  'simulation_results': 'Simulación de Resultados con IA',
+  'connect_social': 'Conecta tus Redes',
+  'education_content': 'Educación y Contenido',
+  'our_clinics': 'Nuestras Clínicas',
+  
+  // Menú de idiomas
+  'language': 'Idioma',
+  'language_settings': 'Configuración de idioma',
+  'select_language': 'Seleccionar idioma',
+  'languages': 'Idiomas',
+  
+  // Navegación principal
+  'home': 'Inicio',
+  'products': 'Productos',
+  'my_appointments': 'Mis Citas',
+  'profile': 'Perfil',
+  'settings': 'Configuración',
+  
+  // Perfil
+  'contact_information': 'Información de contacto',
+  'payment_methods': 'Métodos de pago',
+  'my_wishlist': 'Mi lista de deseos',
+  'favorites': 'Favoritos',
+  'my_reviews': 'Mis reseñas',
+  'gift_cards': 'Tarjetas de regalo',
+  'logout': 'Cerrar sesión',
+  
+  // Reserva de citas
+  'schedule_appointment': 'Agendar Cita',
+  'treatment': 'Tratamiento',
+  'clinic': 'Clínica',
+  'date_time': 'Fecha y Hora',
+  'confirm': 'Confirmar',
+  'select_treatment': 'Seleccione el tratamiento',
+  'no_treatments_available': 'No hay tratamientos disponibles',
+  'retry': 'Reintentar',
+  'select_clinic': 'Seleccione la clínica',
+  'select_date_time': 'Seleccione fecha y hora',
+  'select_date': 'Seleccionar fecha',
+  'select_time': 'Seleccionar hora',
+  'office_hours': 'Horario de atención: 9:00 AM - 7:00 PM',
+  'weekend_note': 'Nota: Los fines de semana pueden tener horarios limitados',
+  'additional_notes': 'Notas adicionales',
+  'add_appointment_info': 'Agregue cualquier información adicional para su cita',
+  'appointment_summary': 'Resumen de cita',
+  'treatment_label': 'Tratamiento:',
+  'clinic_label': 'Clínica:',
+  'date_label': 'Fecha:',
+  'time_label': 'Hora:',
+  'not_selected': 'No seleccionado',
+  'confirm_appointment': 'Confirmar cita',
+  'next': 'Siguiente',
+  'previous': 'Anterior',
+  'complete_required_fields': 'Por favor complete todos los campos requeridos',
+  'appointment_booked_success': 'Cita agendada con éxito',
+  'booking_error': 'Error al agendar cita',
+  
+  // Categorías de tratamientos
+  'facial_aesthetic_medicine': 'Medicina Estética Facial',
+  'facial_aesthetic_surgery': 'Cirugía Estética Facial',
+  'body_surgery': 'Cirugía Corporal',
+  
+  // Contacto
+  'phone': 'Teléfono',
+  'email': 'Correo electrónico',
+  'address': 'Dirección',
+  'save': 'Guardar',
+  'cancel': 'Cancelar',
+  
+  // General
+  'welcome': 'Bienvenido/a',
+  'hello': 'Hola',
+  'search': 'Buscar',
+  'see_all': 'Ver todo',
+  'reviews': 'Reseñas',
+  'rating': 'Calificación',
+  'price': 'Precio',
+
+  // Página de citas
+'all': 'Todas',
+'upcoming': 'Próximas',
+'past': 'Anteriores',
+'no_appointments': 'No tiene citas programadas',
+'cancel_appointment': 'Cancelar cita',
+'cancel_confirmation': '¿Está seguro de que desea cancelar esta cita? Esta acción no se puede deshacer.',
+'keep_appointment': 'No, mantener',
+'yes_cancel': 'Sí, cancelar',
+'appointment_cancelled_success': 'Cita cancelada correctamente',
+'cancel_error': 'Error al cancelar la cita',
+
+// Widget de tarjeta de cita
+'status': 'Estado',
+'reschedule': 'Reprogramar',
+'details': 'Detalles',
+'date': 'Fecha',
+'time': 'Hora',
+'notes': 'Notas',
+
+// Estados de cita
+'confirmed': 'Confirmada',
+'cancelled': 'Cancelada',
+'rescheduled': 'Reprogramada',
+'completed': 'Completada',
+};

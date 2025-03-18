@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/supabase.dart';
 import '../booking_page.dart';
+import '../i18n/app_localizations.dart';
 
 class AppointmentCard extends StatelessWidget {
   final Map<String, dynamic> appointment;
   final Function() onAppointmentUpdated;
   final SupabaseService supabaseService;
+  final AppLocalizations localizations;
 
   const AppointmentCard({
     Key? key,
     required this.appointment,
     required this.onAppointmentUpdated,
     required this.supabaseService,
+    required this.localizations,
   }) : super(key: key);
 
   @override
@@ -127,12 +130,12 @@ class AppointmentCard extends StatelessWidget {
                               const SizedBox(height: 4.0),
                               Text(
                                 isCancelled 
-                                  ? 'Cita Cancelada' 
+                                  ? localizations.get('cancelled_appointment') 
                                   : isRescheduled 
-                                    ? 'Cita Reprogramada'
+                                    ? localizations.get('rescheduled_appointment')
                                     : isUpcoming 
-                                      ? 'Cita Programada'
-                                      : 'Cita Pasada',
+                                      ? localizations.get('scheduled_appointment')
+                                      : localizations.get('past_appointment'),
                                 style: TextStyle(
                                   fontSize: subtitleFontSize,
                                   color: isCancelled 
@@ -172,7 +175,7 @@ class AppointmentCard extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    DateFormat('EEEE, d MMMM yyyy', 'es').format(appointmentDate),
+                                    DateFormat('EEEE, d MMMM yyyy', Localizations.localeOf(context).languageCode).format(appointmentDate),
                                     style: TextStyle(
                                       fontSize: bodyFontSize,
                                       fontWeight: FontWeight.w500,
@@ -270,7 +273,7 @@ class AppointmentCard extends StatelessWidget {
                                         color: Colors.red, 
                                         size: isNarrow ? 16 : 20
                                       ),
-                                      label: Text('Cancelar', 
+                                      label: Text(localizations.get('cancel'), 
                                         style: TextStyle(
                                           fontSize: isNarrow ? 12 : 14,
                                         )
@@ -305,7 +308,7 @@ class AppointmentCard extends StatelessWidget {
                                         color: const Color(0xFF1980E6), 
                                         size: isNarrow ? 16 : 20
                                       ),
-                                      label: Text('Reprogramar', 
+                                      label: Text(localizations.get('reschedule'), 
                                         style: TextStyle(
                                           fontSize: isNarrow ? 12 : 14,
                                         )
@@ -351,17 +354,17 @@ class AppointmentCard extends StatelessWidget {
     final bool result = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancelar cita'),
-        content: const Text('¿Está seguro de que desea cancelar esta cita? Esta acción no se puede deshacer.'),
+        title: Text(localizations.get('cancel_appointment')),
+        content: Text(localizations.get('cancel_confirmation')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No, mantener'),
+            child: Text(localizations.get('keep_appointment')),
             style: TextButton.styleFrom(foregroundColor: Colors.grey),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sí, cancelar'),
+            child: Text(localizations.get('yes_cancel')),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
           ),
         ],
@@ -373,7 +376,7 @@ class AppointmentCard extends StatelessWidget {
       try {
         // Mostrar indicador de carga
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cancelando cita...')),
+          SnackBar(content: Text(localizations.get('cancelling_appointment'))),
         );
         
         await supabaseService.updateAppointmentStatus(appointmentId, 'Cancelada');
@@ -384,13 +387,13 @@ class AppointmentCard extends StatelessWidget {
         // Mostrar confirmación si el widget sigue montado
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cita cancelada correctamente')),
+            SnackBar(content: Text(localizations.get('appointment_cancelled_success'))),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al cancelar la cita: ${e.toString()}')),
+            SnackBar(content: Text('${localizations.get('cancel_error')}: ${e.toString()}')),
           );
         }
       }

@@ -16,20 +16,26 @@ import 'services/supabase.dart';
 import 'clinicas_cerca.dart';
 import 'booking_page.dart';
 import 'services/notificaciones.dart';
-import 'recomendaciones_page.dart';
+import 'appointments.dart';
 import 'reviews_page.dart';
 import 'package:provider/provider.dart';
 import 'providers/youcam_provider.dart';
 import 'services/youcam_service.dart';
+import 'providers/language_provider.dart';
+import 'i18n/app_localizations.dart';
+import 'language_settings_page.dart';
+
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
-  // Asegurar que los widgets estén inicializados antes de cualquier operación
+  // Inicializar Flutter
   WidgetsFlutterBinding.ensureInitialized();
   
   // Inicializar formato de fechas
   await initializeDateFormatting('es', null);
+  await initializeDateFormatting('en', null);
+  await initializeDateFormatting('ca', null);
   
   // Inicializar otros servicios
   await SupabaseService.initialize();
@@ -42,6 +48,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => YouCamProvider(youCamService)),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
         // otros providers...
       ],
       child: const MyApp(),
@@ -49,12 +56,14 @@ void main() async {
   );
 }
 
-  
+// Actualizar la clase MyApp
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    
     return MaterialApp(
       navigatorKey: navigatorKey, 
       title: 'Clínicas Love',
@@ -64,7 +73,11 @@ class MyApp extends StatelessWidget {
       ),
       home: const SplashScreen(),
       
-      localizationsDelegates: [
+      // Configuración de localización actualizada
+      locale: languageProvider.currentLocale,
+      
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -72,10 +85,9 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [
         Locale('es'),
         Locale('en'),
+        Locale('ca'),
       ],
-      locale: const Locale('es'),
      
-      
       routes: {
         '/home': (context) => const MainNavigation(),
         '/recomendaciones': (context) => const RecomendacionesPage(),
@@ -92,6 +104,7 @@ class MyApp extends StatelessWidget {
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
         '/reviews': (context) => const ReviewsPage(),
+        '/language-settings': (context) => const LanguageSettingsPage(),
 
         },
         builder: (context, child) {
@@ -192,6 +205,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -245,9 +259,9 @@ class HomePage extends StatelessWidget {
                     ),
 
                     // Título principal con estilo mejorado
-                    const Text(
-                      '¿Cómo podemos ayudarte hoy?',
-                      style: TextStyle(
+                    Text(
+                      localizations.get('how_can_we_help'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 26.0,
                         fontWeight: FontWeight.bold,
@@ -264,18 +278,34 @@ class HomePage extends StatelessWidget {
                     const SizedBox(height: 24.0),
                     
                     // Sección de servicios principales
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Nuestros Servicios',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Text(
+                          localizations.get('our_services'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18.0,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                        const Spacer(), // Empuja el botón hacia el lado derecho
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.language, color: Colors.white),
+                            iconSize: 20,
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/language-settings');
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    
                     const SizedBox(height: 16.0),
                     
                     // Grid de opciones con diseño mejorado
@@ -289,37 +319,36 @@ class HomePage extends StatelessWidget {
                       children: [
                         _buildServiceCard(
                           context,
-                          'Simulación de Resultados con IA',
+                          'simulation_results', // Clave de traducción
                           'assets/images/Simulador.jpg',
                           Icons.photo_filter,
                           '/simulation',
                         ),
                         _buildServiceCard(
                           context,
-                          'Conecta tus Redes',
+                          'connect_social', // Clave de traducción
                           'assets/images/descuento_redes.jpg',
                           Icons.share,
                           '/integracion-redes',
                         ),
                         _buildServiceCard(
                           context,
-                          'Educación y Contenido',
+                          'education_content', // Clave de traducción
                           'assets/images/Contenido_educativo.webp',
                           Icons.menu_book,
                           '/educacion-contenido',
                         ),
                         _buildServiceCard(
                           context,
-                          'Nuestras Clínicas',
+                          'our_clinics', // Clave de traducción
                           'assets/images/Nuestras_clinicas.jpg',
                           Icons.location_on,
                           '/clinicas',
                         ),
                       ],
                     ),
-                    
                     const SizedBox(height: 24.0),
-                  ],
+                  ],   
                 ),
               ),
             ),
@@ -330,6 +359,8 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildAssistantCard(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       decoration: BoxDecoration(
@@ -372,19 +403,19 @@ class HomePage extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
-                        'Asistente Virtual',
-                        style: TextStyle(
+                        localizations.get('virtual_assistant'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Consulta sobre tratamientos, precios y disponibilidad',
-                        style: TextStyle(
+                        localizations.get('virtual_assistant_desc'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                         ),
@@ -478,7 +509,7 @@ class HomePage extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Center(
                   child: Text(
-                    title,
+                    _getTranslatedTitle(context, title),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -494,6 +525,22 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+    String _getTranslatedTitle(BuildContext context, String englishTitle) {
+    final localizations = AppLocalizations.of(context);
+    
+    // Mapa de títulos en español a claves de traducción
+    final Map<String, String> titleToKey = {
+      'Simulación de Resultados con IA': 'simulation_results',
+      'Conecta tus Redes': 'connect_social',
+      'Educación y Contenido': 'education_content',
+      'Nuestras Clínicas': 'our_clinics',
+      // Añadir más según necesites
+    };
+    
+    final key = titleToKey[englishTitle] ?? englishTitle;
+    return localizations.get(key);
   }
 }
 

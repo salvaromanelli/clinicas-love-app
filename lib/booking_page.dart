@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'services/supabase.dart';
 import 'models/clinicas.dart';
+import 'i18n/app_localizations.dart';
 
 class AppointmentBookingPage extends StatefulWidget {
   final Map<String, dynamic>? initialClinic;
   final Map<String, dynamic>? initialTreatment;
   final Map<String, dynamic>? appointmentToReschedule;
+  
 
   final String? preSelectedTreatmentId;
   final String? preSelectedClinicId;
@@ -32,6 +34,7 @@ class AppointmentBookingPage extends StatefulWidget {
 class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   final SupabaseService _supabaseService = SupabaseService();
   final TextEditingController _notesController = TextEditingController();
+  late AppLocalizations localizations; 
 
   List<Map<String, dynamic>> _treatments = [];
   List<dynamic> _clinics = [];
@@ -58,6 +61,13 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     _notesController.dispose();
     super.dispose();
   }
+
+  @override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  // Inicializar localizations cuando el contexto esté disponible
+  localizations = AppLocalizations.of(context);
+}
 
 // Actualiza el método _loadInitialData() para usar los nuevos parámetros
 
@@ -141,13 +151,16 @@ void _loadAppointmentToReschedule(Map<String, dynamic> appointment) {
 }
 
   Future<void> _bookAppointment() async {
+
+    final localizations = AppLocalizations.of(context);
+
     if (_formKey.currentState?.validate() != true || 
         _selectedTreatmentId == null ||
         _selectedClinicId == null ||
         _selectedDate == null ||
         _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor complete todos los campos requeridos')),
+        SnackBar(content: Text(localizations.get('complete_required_fields'))),
       );
       return;
     }
@@ -173,14 +186,13 @@ void _loadAppointmentToReschedule(Map<String, dynamic> appointment) {
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cita agendada con éxito')),
-        );
-        // Navigate back to appointments page
-        Navigator.pop(context, true); // Return true to indicate success
-      }
-    } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localizations.get('appointment_booked_success'))),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al agendar cita: ${e.toString()}')),
@@ -243,9 +255,9 @@ Widget _buildTreatmentSelector() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
-        'Seleccione el tratamiento',
-        style: TextStyle(
+      Text(
+        localizations.get('select_treatment'),
+        style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
         ),
@@ -264,9 +276,9 @@ Widget _buildTreatmentSelector() {
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'No hay tratamientos disponibles',
-                    style: TextStyle(
+                  Text(
+                    localizations.get('no_treatments_available'),
+                    style: const TextStyle(
                       color: Colors.grey,
                       fontSize: 16,
                     ),
@@ -278,7 +290,7 @@ Widget _buildTreatmentSelector() {
                       backgroundColor: const Color(0xFF1980E6),
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Reintentar'),
+                    child: Text(localizations.get('retry')),
                   ),
                 ],
               ),
@@ -452,12 +464,14 @@ Widget _buildTreatmentSelector() {
 }
 
   Widget _buildClinicSelector() {
+    final localizations = AppLocalizations.of(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Seleccione la clínica',
-          style: TextStyle(
+        Text(
+          localizations.get('select_clinic'),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -549,15 +563,16 @@ Widget _buildTreatmentSelector() {
   }
 
   Widget _buildDateTimeSelector() {
+    final localizations = AppLocalizations.of(context);
     final dateFormatter = DateFormat('dd/MM/yyyy');
     final now = DateTime.now();
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Seleccione fecha y hora',
-          style: TextStyle(
+        Text(
+          localizations.get('select_date_time'),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -601,7 +616,7 @@ Widget _buildTreatmentSelector() {
                 Text(
                   _selectedDate != null
                       ? dateFormatter.format(_selectedDate!)
-                      : 'Seleccionar fecha',
+                      : localizations.get('select_date'),
                   style: TextStyle(
                     fontSize: 16,
                     color:
@@ -649,7 +664,7 @@ Widget _buildTreatmentSelector() {
                 Text(
                   _selectedTime != null
                       ? _selectedTime!.format(context)
-                      : 'Seleccionar hora',
+                      : localizations.get('select_time'),
                   style: TextStyle(
                     fontSize: 16,
                     color: _selectedTime != null ? Colors.black : Colors.grey,
@@ -660,19 +675,19 @@ Widget _buildTreatmentSelector() {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Horario de atención: 9:00 AM - 7:00 PM',
-          style: TextStyle(
+        Text(
+          localizations.get('office_hours'),
+          style: const TextStyle(
             color: Colors.grey,
             fontSize: 14,
           ),
         ),
         if (_selectedDate != null && _selectedDate!.weekday > 5)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Nota: Los fines de semana pueden tener horarios limitados',
-              style: TextStyle(
+              localizations.get('weekend_note'),
+              style: const TextStyle(
                 color: Colors.deepOrange,
                 fontSize: 14,
               ),
@@ -683,12 +698,14 @@ Widget _buildTreatmentSelector() {
   }
 
   Widget _buildNotesAndConfirmation() {
+    final localizations = AppLocalizations.of(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Notas adicionales',
-          style: TextStyle(
+        Text(
+          localizations.get('additional_notes'),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -697,7 +714,7 @@ Widget _buildTreatmentSelector() {
         TextFormField(
           controller: _notesController,
           decoration: InputDecoration(
-            hintText: 'Agregue cualquier información adicional para su cita',
+            hintText: localizations.get('add_appointment_info'),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -705,9 +722,9 @@ Widget _buildTreatmentSelector() {
           maxLines: 3,
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Resumen de cita',
-          style: TextStyle(
+        Text(
+          localizations.get('appointment_summary'),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -783,10 +800,10 @@ Widget _buildTreatmentSelector() {
                       strokeWidth: 2,
                     ),
                   )
-                : const Text(
-                    'Confirmar cita',
-                    style: TextStyle(fontSize: 16),
-                  ),
+                : Text(
+                  localizations.get('confirm_appointment'),
+                  style: const TextStyle(fontSize: 16),
+                ),
           ),
         ),
       ],
@@ -807,30 +824,32 @@ Widget _buildTreatmentSelector() {
           ),
         ),
         Expanded(
-          child: Text(value ?? 'No seleccionado'),
+          child: Text(value ?? localizations.get('not_selected')),
         ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Agendar Cita',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF1980E6),
-        iconTheme: const IconThemeData(color: Colors.white),
+@override
+Widget build(BuildContext context) {
+  final localizations = AppLocalizations.of(context); // Añadir esta línea
+  
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(
+        localizations.get('schedule_appointment'),
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF1980E6)),
-            )
-          : Form(
-              key: _formKey,
-              child: Stepper(
+      backgroundColor: const Color(0xFF1980E6),
+      iconTheme: const IconThemeData(color: Colors.white),
+    ),
+    body: _isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: Color(0xFF1980E6)),
+          )
+        : Form(
+            key: _formKey,
+            child: Stepper(
                 currentStep: _currentStep,
                 onStepTapped: (step) {
                   setState(() {
@@ -840,40 +859,40 @@ Widget _buildTreatmentSelector() {
                 onStepContinue: _nextStep,
                 onStepCancel: _previousStep,
                 controlsBuilder: (context, details) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 20),
-                    child: Row(
-                      children: [
-                        if (details.currentStep < 3)
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: details.onStepContinue,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1980E6),
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Siguiente'),
+                return Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: Row(
+                    children: [
+                      if (details.currentStep < 3)
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: details.onStepContinue,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1980E6),
+                              foregroundColor: Colors.white,
                             ),
+                            child: Text(localizations.get('next')),
                           ),
-                        if (details.currentStep > 0) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: details.onStepCancel,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF1980E6),
-                              ),
-                              child: const Text('Anterior'),
+                        ),
+                      if (details.currentStep > 0) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: details.onStepCancel,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF1980E6),
                             ),
+                            child: Text(localizations.get('previous')),
                           ),
-                        ],
+                        ),
                       ],
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                );
+              },
                 steps: [
                   Step(
-                    title: const Text('Tratamiento'),
+                    title: Text(localizations.get('treatment')),
                     content: _buildTreatmentSelector(),
                     isActive: _currentStep >= 0,
                     state: _currentStep > 0
@@ -881,7 +900,7 @@ Widget _buildTreatmentSelector() {
                         : StepState.indexed,
                   ),
                   Step(
-                    title: const Text('Clínica'),
+                    title: Text(localizations.get('clinic')),
                     content: _buildClinicSelector(),
                     isActive: _currentStep >= 1,
                     state: _currentStep > 1
@@ -889,7 +908,7 @@ Widget _buildTreatmentSelector() {
                         : StepState.indexed,
                   ),
                   Step(
-                    title: const Text('Fecha y Hora'),
+                    title: Text(localizations.get('date_time')),
                     content: _buildDateTimeSelector(),
                     isActive: _currentStep >= 2,
                     state: _currentStep > 2
@@ -897,7 +916,7 @@ Widget _buildTreatmentSelector() {
                         : StepState.indexed,
                   ),
                   Step(
-                    title: const Text('Confirmar'),
+                    title: Text(localizations.get('confirm')),
                     content: _buildNotesAndConfirmation(),
                     isActive: _currentStep >= 3,
                     state: StepState.indexed,

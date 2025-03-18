@@ -3,6 +3,9 @@ import 'models/profile_model.dart';
 import 'services/profile_service.dart';
 import 'services/auth_service.dart';
 import 'edit_profile_page.dart';
+import 'providers/language_provider.dart';
+import 'i18n/app_localizations.dart';
+import 'package:provider/provider.dart'; 
 
 
 class ProfilePage extends StatefulWidget {
@@ -78,40 +81,41 @@ Future<void> _loadProfile() async {
   }
 }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF111418),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-              // Back arrow and title
-              Row(
+@override
+Widget build(BuildContext context) {
+  final localizations = AppLocalizations.of(context); // Añadir esta línea
+  
+  return Scaffold(
+    backgroundColor: const Color(0xFF111418),
+    body: SafeArea(
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                 children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      // Navegar a la pantalla principal con la pestaña de productos seleccionada
-                      Navigator.pushReplacementNamed(context, '/home', arguments: {'tabIndex': 1}); // Asume que 'productos' es la pestaña índice 1
-                    },
+                  // Back arrow and title
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          Navigator.pushReplacementNamed(context, '/home', arguments: {'tabIndex': 1});
+                        },
+                      ),
+                      Text(
+                        localizations.get('profile'), // Traducción
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20.0,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24.0),
               // Profile section
               Row(
@@ -176,17 +180,26 @@ Future<void> _loadProfile() async {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _buildMenuItem('Contact Information'),
-                      _buildMenuItem('Payment methods'),
-                      _buildMenuItem('My Wishlist'),
-                      _buildMenuItem('Favorites'),
-                      _buildMenuItem('My Reviews'),
-                      _buildMenuItem('Gift Cards'),
+                      _buildMenuItem(localizations.get('contact_information')), // Traducción
+                      _buildMenuItem(localizations.get('payment_methods')), // Traducción
+                      
+                      // Opción de idioma
+                      _buildMenuItem(
+                        localizations.get('language'), // Traducción  
+                        badge: Provider.of<LanguageProvider>(context)
+                              .getLanguageName(Provider.of<LanguageProvider>(context)
+                              .currentLocale.languageCode),
+                        withBadge: true
+                      ),
+                      
+                      _buildMenuItem(localizations.get('my_wishlist')), // Traducción
+                      _buildMenuItem(localizations.get('favorites')), // Traducción
+                      _buildMenuItem(localizations.get('my_reviews')), // Traducción
+                      _buildMenuItem(localizations.get('gift_cards')), // Traducción
                     ],
                   ),
                 ),
               ),
-
               // Logout button
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -201,9 +214,9 @@ Future<void> _loadProfile() async {
                         borderRadius: BorderRadius.circular(12.0),
                       ),
                     ),
-                    child: const Text(
-                      'Log out',
-                      style: TextStyle(
+                    child: Text(
+                      localizations.get('logout'), // Traducción
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16.0,
                         fontWeight: FontWeight.w600,
@@ -225,94 +238,125 @@ Future<void> _loadProfile() async {
   Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
 }
   // _buildMenuItem method
-  Widget _buildMenuItem(String title) {
-    return GestureDetector(
-      onTap: () async {
-        switch (title) {
-          case 'Contact Information':
-            final updatedProfile = await Navigator.push(
-              context, 
-              MaterialPageRoute(
-                builder: (context) => EditProfilePage(profile: _profile!),
-              )
-            );
-            
-            if (updatedProfile != null) {
-              setState(() {
-                _profile = updatedProfile;
-              });
-            }
-            break;
-          case 'Payment methods':
-            Navigator.pushNamed(context, '/payment-methods');
-            break;
-          case 'My Wishlist':
-            Navigator.pushNamed(context, '/wishlist');
-            break;
-          case 'Favorites':
-            Navigator.pushNamed(context, '/favorites');
-            break;
-          case 'My Reviews':
-            Navigator.pushNamed(context, '/reviews');
-            break;
-          case 'Gift Cards':
-            Navigator.pushNamed(context, '/gift-cards');
-            break;
+Widget _buildMenuItem(String title, {String? badge, bool withBadge = false}) {
+  final localizations = AppLocalizations.of(context);
+  
+  return GestureDetector(
+    onTap: () async {
+      // Usar las claves de traducción para manejar la navegación
+      if (title == localizations.get('contact_information')) {
+        final updatedProfile = await Navigator.push(
+          context, 
+          MaterialPageRoute(
+            builder: (context) => EditProfilePage(profile: _profile!),
+          )
+        );
+        
+        if (updatedProfile != null) {
+          setState(() {
+            _profile = updatedProfile;
+          });
         }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: Color(0xFF2A2F37),
-              width: 1.0,
-            ),
+      } 
+      else if (title == localizations.get('language')) {
+        Navigator.pushNamed(context, '/language-settings');
+      }
+      else if (title == localizations.get('payment_methods')) {
+        Navigator.pushNamed(context, '/payment-methods');
+      }
+      else if (title == localizations.get('my_wishlist')) {
+        Navigator.pushNamed(context, '/wishlist');
+      }
+      else if (title == localizations.get('favorites')) {
+        Navigator.pushNamed(context, '/favorites');
+      }
+      else if (title == localizations.get('my_reviews')) {
+        Navigator.pushNamed(context, '/reviews');
+      }
+      else if (title == localizations.get('gift_cards')) {
+        Navigator.pushNamed(context, '/gift-cards');
+      }
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF2A2F37),
+            width: 1.0,
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16.0,
-              ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16.0,
             ),
-            title == 'My Reviews' 
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1980E6),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        '15% OFF',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+          ),
+          if (title == localizations.get('my_reviews')) 
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1980E6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '15% OFF',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: Color(0xFF9DABB8),
-                    ),
-                  ],
-                )
-              : const Icon(
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
                   Icons.chevron_right,
                   color: Color(0xFF9DABB8),
                 ),
-          ],
-        ),
+              ],
+            )
+          else if (withBadge && badge != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1980E6).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      color: Color(0xFF1980E6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right,
+                  color: Color(0xFF9DABB8),
+                ),
+              ],
+            )
+          else
+            const Icon(
+              Icons.chevron_right,
+              color: Color(0xFF9DABB8),
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

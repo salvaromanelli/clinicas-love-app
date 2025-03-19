@@ -3,11 +3,14 @@ import '/services/openai_service.dart';
 import '/services/medical_reference_service.dart';
 import '/services/appointment_service.dart' as appointment_service;
 import '/virtual_assistant_chat.dart' hide AppointmentInfo;
+import '/i18n/app_localizations.dart';
 
 class ChatViewModel extends ChangeNotifier {
   final OpenAIService _openAIService;
   final MedicalReferenceService _referenceService;
   final appointment_service.AppointmentService _appointmentService;
+  final AppLocalizations localizations;
+  
   
   List<ChatMessage> messages = [];
   bool isTyping = false;
@@ -21,25 +24,23 @@ class ChatViewModel extends ChangeNotifier {
     required OpenAIService openAIService,
     required MedicalReferenceService referenceService,
     required appointment_service.AppointmentService appointmentService,
+    required this.localizations,
   }) : _openAIService = openAIService,
        _referenceService = referenceService,
        _appointmentService = appointmentService;
   
   // Enviar un mensaje de bienvenida al iniciar la conversación
   void sendWelcomeMessage() {
-    const welcomeMessage = "¡Hola! Soy el asistente virtual de Clínicas Love. "
-        "Puedo ayudarte con información sobre nuestros tratamientos estéticos y dentales, "
-        "resolver dudas sobre precios, horarios o ubicaciones, y asistirte para agendar una cita. "
-        "¿En qué puedo ayudarte hoy?";
-    
+
+  final welcomeMessage = localizations.get('welcome_message');
     messages.add(ChatMessage(text: welcomeMessage, isUser: false));
     
     // Establecer sugerencias iniciales
     suggestedReplies = [
-      "¿Qué tratamientos ofrecen?",
-      "Quiero saber los precios",
-      "¿Dónde están ubicados?",
-      "Necesito agendar una cita"
+      localizations.get('what_treatments'),
+      localizations.get('want_know_prices'),
+      localizations.get('where_located'),
+      localizations.get('need_appointment')
     ];
     
     notifyListeners();
@@ -94,15 +95,15 @@ class ChatViewModel extends ChangeNotifier {
     } catch (e) {
       // Manejar error
       messages.add(ChatMessage(
-        text: "Lo siento, tuve un problema procesando tu solicitud. Por favor intenta nuevamente.",
+        text: localizations.get('processing_error'),
         isUser: false,
       ));
       
       // Sugerencias en caso de error
       suggestedReplies = [
-        "Quiero hablar con un asesor",
-        "Intentar de nuevo",
-        "Ver tratamientos disponibles"
+        localizations.get('talk_to_advisor'),
+        localizations.get('try_again'),
+        localizations.get('see_available_treatments')
       ];
     } finally {
       isTyping = false;
@@ -114,13 +115,14 @@ class ChatViewModel extends ChangeNotifier {
     // Iniciar el flujo de reserva de cita
     String treatment = currentAppointmentInfo?.treatmentId != null ? 
         _appointmentService.availableTreatments[currentAppointmentInfo!.treatmentId]! : 
-        "una consulta";
+        localizations.get('a_consultation');
     
-    String response = "Entiendo que quieres agendar una cita para $treatment. "
-        "Para continuar con la reserva necesito algunos datos:\n\n";
+    String response = localizations.get('booking_understand_treatment')
+        .replaceAll('{treatment}', treatment);
+
     
     if (currentAppointmentInfo?.clinicId == null) {
-      response += "¿En qué sede te gustaría atenderte? Tenemos clínicas en:\n";
+      response += localizations.get('which_clinic_with_locations') + "\n";
       _appointmentService.availableClinics.values.forEach((clinic) {
         response += "- $clinic\n";
       });
@@ -128,18 +130,18 @@ class ChatViewModel extends ChangeNotifier {
       // Sugerencias específicas para selección de clínica
       List<String> clinicSuggestions = [];
       _appointmentService.availableClinics.values.take(3).forEach((clinic) {
-        clinicSuggestions.add("Quiero ir a $clinic");
+        clinicSuggestions.add(localizations.get('want_to_go_to').replaceAll('{clinic}', clinic));
       });
       suggestedReplies = clinicSuggestions;
       
     } else if (currentAppointmentInfo?.date == null) {
-      response += "¿Qué día y horario te gustaría agendar tu cita?";
+      response += localizations.get('which_date_time_prefer');
       
       // Sugerencias para fechas
       suggestedReplies = [
-        "Mañana por la tarde",
-        "Este fin de semana",
-        "El próximo lunes"
+        localizations.get('tomorrow_afternoon'),
+        localizations.get('this_weekend'),
+        localizations.get('next_monday')
       ];
     }
     
@@ -161,25 +163,25 @@ class ChatViewModel extends ChangeNotifier {
       }
       
       // Preguntar por la fecha
-      String response = "Perfecto. ";
+      String response = localizations.get('perfect') + " ";
       if (currentAppointmentInfo?.clinicId != null) {
         String clinic = _appointmentService.availableClinics[currentAppointmentInfo!.clinicId]!;
-        response += "Has seleccionado **$clinic**. ";
+        response += localizations.get('you_selected').replaceAll('{clinic}', "**$clinic**") + " ";
       } else {
         // Si no se detectó la clínica, asignar una por defecto para continuar
         currentAppointmentInfo?.clinicId = _appointmentService.availableClinics.keys.first;
         String clinic = _appointmentService.availableClinics[currentAppointmentInfo!.clinicId]!;
-        response += "Entiendo que prefieres **$clinic**. ";
+        response += localizations.get('understand_you_prefer').replaceAll('{clinic}', "**$clinic**") + " ";
       }
-      
-      response += "¿Qué día y horario preferirías para tu cita?";
+
+      response += localizations.get('which_date_time_prefer');
       messages.add(ChatMessage(text: response, isUser: false));
       
       // Actualizar sugerencias para fechas
       suggestedReplies = [
-        "Mañana por la tarde",
-        "Este viernes a las 10am",
-        "El próximo lunes"
+        localizations.get('tomorrow_afternoon'),
+        localizations.get('this_friday_10am'),
+        localizations.get('next_monday')
       ];
       
     } else if (currentAppointmentInfo?.date == null) {
@@ -190,19 +192,20 @@ class ChatViewModel extends ChangeNotifier {
       String treatment = _appointmentService.availableTreatments[currentAppointmentInfo!.treatmentId]!;
       String clinic = _appointmentService.availableClinics[currentAppointmentInfo!.clinicId]!;
       
-      String response = "¡Gracias! He registrado tu solicitud para **$treatment** en **$clinic**.\n\n"
-          "Un asesor se pondrá en contacto contigo pronto para confirmar la disponibilidad "
-          "en el horario solicitado:\n\n"
-          "📅 **$text**\n\n"
-          "¿Deseas agregar algún comentario adicional o tienes alguna otra pregunta?";
+      String response = localizations.get('thanks_registered_request')
+          .replaceAll('{treatment}', "**$treatment**")
+          .replaceAll('{clinic}', "**$clinic**") + "\n\n" +
+          localizations.get('advisor_will_contact') + "\n\n" +
+          "📅 **$text**\n\n" +
+          localizations.get('want_add_comment');
       
       messages.add(ChatMessage(text: response, isUser: false));
       
       // Actualizar sugerencias para después de la reserva
       suggestedReplies = [
-        "¿Necesito llevar algo?",
-        "¿Cuánto dura la consulta?",
-        "Ver más tratamientos"
+        localizations.get('need_to_bring'),
+        localizations.get('consultation_duration'),
+        localizations.get('see_more_treatments')
       ];
       
       // Finalizar flujo de reserva
@@ -220,36 +223,36 @@ class ChatViewModel extends ChangeNotifier {
     // Generar sugerencias contextuales basadas en la conversación actual
     if (botResponse.contains("blanqueamiento") || userMessage.contains("blanqueamiento")) {
       suggestedReplies = [
-        "¿Cuánto cuesta el blanqueamiento?",
-        "¿Es doloroso?",
-        "¿Cuánto tiempo dura?"
+        localizations.get('whitening_cost'),
+        localizations.get('is_it_painful'),
+        localizations.get('how_long_does_it_last')
       ];
     } else if (botResponse.contains("botox") || userMessage.contains("botox")) {
       suggestedReplies = [
-        "¿Qué zonas se pueden tratar?",
-        "¿Cuánto tiempo dura el efecto?",
-        "¿Cuál es el precio?"
+        localizations.get('which_areas'),
+        localizations.get('effect_duration'),
+        localizations.get('what_is_price')
       ];
     } else if (botResponse.contains("precio") || userMessage.contains("precio") || 
-               botResponse.contains("costo") || userMessage.contains("costo")) {
+              botResponse.contains("costo") || userMessage.contains("costo")) {
       suggestedReplies = [
-        "¿Tienen promociones?",
-        "¿Aceptan tarjetas?",
-        "Quiero agendar una cita"
+        localizations.get('have_promotions'),
+        localizations.get('accept_cards'),
+        localizations.get('schedule_appointment')
       ];
     } else if (botResponse.contains("horario") || userMessage.contains("horario") ||
-               botResponse.contains("atención") || userMessage.contains("atención")) {
+              botResponse.contains("atención") || userMessage.contains("atención")) {
       suggestedReplies = [
-        "¿Atienden sábados?",
-        "¿Necesito cita previa?",
-        "Ver ubicaciones"
+        localizations.get('open_saturday'),
+        localizations.get('need_appointment'),
+        localizations.get('see_locations')
       ];
     } else {
       // Sugerencias generales si no hay contexto específico
       suggestedReplies = [
-        "Ver tratamientos disponibles",
-        "Precios de consultas",
-        "Agendar una cita",
+        localizations.get('see_available_treatments'),
+        localizations.get('consultation_prices'),
+        localizations.get('schedule_appointment'),
       ];
     }
     

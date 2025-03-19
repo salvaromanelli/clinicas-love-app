@@ -8,6 +8,7 @@ import 'services/appointment_service.dart';
 import 'viewmodels/chat_viewmodel.dart';
 import 'config/env.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'i18n/app_localizations.dart';
 
 class VirtualAssistantChat extends StatefulWidget {
   const VirtualAssistantChat({super.key});
@@ -23,49 +24,62 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
   late AnimationController _animationController;
   late Animation<double> _animationPulse;
   bool _showSuggestions = true;
-  
-  
-    @override
-    void initState() {
-      super.initState();
-      
-      // Configuración de animación
-      _animationController = AnimationController(
-        duration: const Duration(seconds: 2),
-        vsync: this,
-      )..repeat(reverse: true);
-      
-      _animationPulse = Tween<double>(begin: 1.0, end: 1.05).animate(CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ));
-      
-      // Inicializar servicios usando la configuración de entorno
-      // Usar el constructor, no como función
-      final openAIService = ai.OpenAIService(
-        apiKey: Env.openAIApiKey,
-        model: 'gpt-3.5-turbo',
-        testMode: Env.useAITestMode,
-      );
-      
-      final referenceService = MedicalReferenceService();
-      final appointmentService = AppointmentService();
-      
-      // Inicializar ViewModel
-      _viewModel = ChatViewModel(
-        openAIService: openAIService,
-        referenceService: referenceService,
-        appointmentService: appointmentService,
-      );
-      
-      // Enviar mensaje de bienvenida desde el asistente
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_viewModel.messages.isEmpty) {
-          _viewModel.sendWelcomeMessage();
-        }
-      });
-    }
+  late AppLocalizations localizations;
 
+  
+late bool _isViewModelInitialized = false;
+
+@override
+void initState() {
+  super.initState();
+  
+  // Configuración de animación
+  _animationController = AnimationController(
+    duration: const Duration(seconds: 2),
+    vsync: this,
+  )..repeat(reverse: true);
+  
+  _animationPulse = Tween<double>(begin: 1.0, end: 1.05).animate(CurvedAnimation(
+    parent: _animationController,
+    curve: Curves.easeInOut,
+  ));
+}
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  localizations = AppLocalizations.of(context);
+  
+  // Inicializar ViewModel solo una vez
+  if (!_isViewModelInitialized) {
+    // Inicializar servicios usando la configuración de entorno
+    final openAIService = ai.OpenAIService(
+      apiKey: Env.openAIApiKey,
+      model: 'gpt-3.5-turbo',
+      testMode: Env.useAITestMode,
+    );
+    
+    final referenceService = MedicalReferenceService();
+    final appointmentService = AppointmentService();
+    
+    // Inicializar ViewModel
+    _viewModel = ChatViewModel(
+      openAIService: openAIService,
+      referenceService: referenceService,
+      appointmentService: appointmentService,
+      localizations: localizations,
+    );
+    
+    _isViewModelInitialized = true;
+    
+    // Enviar mensaje de bienvenida
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_viewModel.messages.isEmpty) {
+        _viewModel.sendWelcomeMessage();
+      }
+    });
+  }
+}
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -97,7 +111,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
           
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Asistente Virtual'),
+              title: Text(localizations.get('virtual_assistant')),
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
               elevation: 2,
@@ -106,12 +120,12 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                   IconButton(
                     icon: const Icon(Icons.info_outline),
                     onPressed: () => _showInfoDialog(context),
-                    tooltip: 'Acerca del asistente',
+                    tooltip: localizations.get('about_assistant'),
                   ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   onPressed: () => _resetChat(context),
-                  tooltip: 'Reiniciar conversación',
+                  tooltip: localizations.get('restart_conversation'),
                 ),
               ],
             ),
@@ -158,7 +172,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                     duration: const Duration(milliseconds: 300),
                     height: viewModel.isTyping ? 40 : 0,
                     child: viewModel.isTyping 
-                      ? const Padding(
+                      ? Padding(
                           padding: EdgeInsets.all(8.0),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
@@ -173,7 +187,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                                 ),
                               ),
                               SizedBox(width: 12),
-                              Text("Asistente está escribiendo...",
+                              Text(localizations.get('assistant_typing'),
                                 style: TextStyle(
                                   color: Color(0xFF666666),
                                   fontSize: 14,
@@ -405,7 +419,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      "¡Hola! Soy el asistente virtual de Clínicas Love",
+                      localizations.get('welcome_title'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,
@@ -414,7 +428,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      "¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre nuestros tratamientos, precios, horarios o agendar una cita para ti.",
+                      localizations.get('welcome_description'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: isSmallScreen ? 14 : 16,
@@ -426,7 +440,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
               ),
               const SizedBox(height: 32),
               Text(
-                "Prueba estas preguntas:",
+                localizations.get('try_questions'),
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: isSmallScreen ? 14 : 16,
@@ -438,10 +452,10 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
                 runSpacing: 8,
                 alignment: WrapAlignment.center,
                 children: [
-                  _buildSuggestionChip("¿Qué tratamientos ofrecen?"),
-                  _buildSuggestionChip("Precios de blanqueamiento"),
-                  _buildSuggestionChip("Horarios disponibles"),
-                  _buildSuggestionChip("Quiero agendar una cita"),
+                _buildSuggestionChip(localizations.get('what_treatments')),
+                _buildSuggestionChip(localizations.get('whitening_prices')),
+                _buildSuggestionChip(localizations.get('available_hours')),
+                _buildSuggestionChip(localizations.get('want_appointment')),
                 ],
               ),
             ],
@@ -493,7 +507,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
             child: TextField(
               controller: _messageController,
               decoration: InputDecoration(
-                hintText: "Escribe tu mensaje aquí...",
+                hintText: localizations.get('write_message_here'),
                 hintStyle: TextStyle(
                   color: Colors.grey.shade400,
                   fontSize: isSmallScreen ? 14 : 15,
@@ -578,15 +592,15 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reiniciar conversación'),
-        content: const Text('¿Estás seguro de que quieres empezar una nueva conversación?'),
+        title: Text(localizations.get('restart_conversation')),
+        content: Text(localizations.get('restart_confirmation')),
         actions: [
           TextButton(
-            child: const Text('Cancelar'),
+            child: Text(localizations.get('cancel')),
             onPressed: () => Navigator.of(context).pop(),
           ),
           ElevatedButton(
-            child: const Text('Reiniciar'),
+            child: Text(localizations.get('restart')),
             onPressed: () {
               _viewModel.resetChat();
               Navigator.of(context).pop();
@@ -604,24 +618,24 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Asistente Virtual'),
-        content: const Column(
+        title: Text(localizations.get('virtual_assistant')),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Este asistente puede ayudarte con:'),
+            Text(localizations.get('assistant_help_with')),
             SizedBox(height: 8),
-            Text('• Información sobre tratamientos'),
-            Text('• Precios y promociones'),
-            Text('• Horarios de atención'),
-            Text('• Agendamiento de citas'),
+            Text(localizations.get('treatments_info')),
+            Text(localizations.get('prices_promotions')),
+            Text(localizations.get('opening_hours')),
+            Text(localizations.get('appointment_scheduling')),
             SizedBox(height: 16),
-            Text('Recuerda que puedes agendar una consulta con un especialista para recibir atención personalizada.'),
+            Text(localizations.get('specialist_consultation_reminder')),
           ],
         ),
         actions: [
           ElevatedButton(
-            child: const Text('Entendido'),
+            child: Text(localizations.get('understood')),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],

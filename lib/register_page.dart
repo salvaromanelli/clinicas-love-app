@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'services/supabase.dart';
+import 'i18n/app_localizations.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -25,6 +26,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _confirmPasswordVisible = false;
   String? _errorMessage;
   bool _acceptTerms = false;
+  late AppLocalizations localizations;
 
   @override
   void dispose() {
@@ -36,6 +38,12 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    localizations = AppLocalizations.of(context);
+  }
+
   Future<void> _registerWithEmail() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -43,7 +51,7 @@ class _RegisterPageState extends State<RegisterPage> {
     
     if (!_acceptTerms) {
       setState(() {
-        _errorMessage = 'Debes aceptar los términos y condiciones para continuar';
+        _errorMessage = localizations.get('terms_required');
       });
       return;
     }
@@ -69,8 +77,8 @@ class _RegisterPageState extends State<RegisterPage> {
         if (response.session != null) {
           // Registro exitoso y sesión creada
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Registro exitoso. ¡Bienvenido/a!'),
+            SnackBar(
+              content: Text(localizations.get('registration_success')),
               backgroundColor: Colors.green,
             ),
           );
@@ -78,8 +86,8 @@ class _RegisterPageState extends State<RegisterPage> {
         } else {
           // Si requiere confirmación de email
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Te hemos enviado un correo de confirmación. Por favor verifica tu email.'),
+            SnackBar(
+              content: Text(localizations.get('email_verification_sent')),
               backgroundColor: Colors.blue,
             ),
           );
@@ -121,7 +129,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
   } catch (e) {
     if (mounted) {
       setState(() {
-        _errorMessage = 'Error con el inicio de sesión social: ${e.toString()}';
+        _errorMessage = '${localizations.get('social_login_error')}: ${e.toString()}';
         _isLoading = false;
       });
     }
@@ -164,18 +172,18 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                     ),
                     
                     // Título
-                    const Text(
-                      'Crear una cuenta',
-                      style: TextStyle(
+                    Text(
+                      localizations.get('create_account'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24.0,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8.0),
-                    const Text(
-                      'Llena los datos para comenzar',
-                      style: TextStyle(
+                    Text(
+                      localizations.get('fill_details'),
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16.0,
                       ),
@@ -192,7 +200,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             controller: _nameController,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              labelText: 'Nombre completo',
+                              labelText: localizations.get('full_name'),
                               labelStyle: const TextStyle(color: Colors.white70),
                               prefixIcon: const Icon(Icons.person, color: Colors.white70),
                               enabledBorder: OutlineInputBorder(
@@ -212,13 +220,13 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                                 borderSide: const BorderSide(color: Colors.red),
                               ),
                             ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa tu nombre completo';
-                              }
-                              return null;
-                            },
-                          ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return localizations.get('please_enter_name');
+                                }
+                                return null;
+                              },
+                            ),
                           const SizedBox(height: 16.0),
                           
                           // Email
@@ -227,7 +235,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              labelText: 'Correo electrónico',
+                              labelText: localizations.get('email'),
                               labelStyle: const TextStyle(color: Colors.white70),
                               prefixIcon: const Icon(Icons.email, color: Colors.white70),
                               enabledBorder: OutlineInputBorder(
@@ -249,10 +257,10 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa tu correo electrónico';
+                                return localizations.get('please_enter_email');
                               }
                               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                return 'Ingresa un correo electrónico válido';
+                                return localizations.get('enter_valid_email');
                               }
                               return null;
                             },
@@ -265,7 +273,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             keyboardType: TextInputType.phone,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              labelText: 'Teléfono',
+                              labelText: localizations.get('phone'),
                               labelStyle: const TextStyle(color: Colors.white70),
                               prefixIcon: const Icon(Icons.phone, color: Colors.white70),
                               enabledBorder: OutlineInputBorder(
@@ -287,7 +295,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa tu número de teléfono';
+                                return localizations.get('please_enter_phone');
                               }
                               return null;
                             },
@@ -300,7 +308,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             obscureText: !_passwordVisible,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              labelText: 'Contraseña',
+                              labelText: localizations.get('password'),
                               labelStyle: const TextStyle(color: Colors.white70),
                               prefixIcon: const Icon(Icons.lock, color: Colors.white70),
                               suffixIcon: IconButton(
@@ -333,10 +341,10 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor ingresa una contraseña';
+                                return localizations.get('please_enter_password');
                               }
                               if (value.length < 6) {
-                                return 'La contraseña debe tener al menos 6 caracteres';
+                                return localizations.get('password_min_length');
                               }
                               return null;
                             },
@@ -349,7 +357,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             obscureText: !_confirmPasswordVisible,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              labelText: 'Confirmar contraseña',
+                              labelText: localizations.get('confirm_password'),
                               labelStyle: const TextStyle(color: Colors.white70),
                               prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
                               suffixIcon: IconButton(
@@ -382,10 +390,10 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor confirma tu contraseña';
+                                return localizations.get('please_confirm_password');
                               }
                               if (value != _passwordController.text) {
-                                return 'Las contraseñas no coinciden';
+                                return localizations.get('passwords_dont_match');
                               }
                               return null;
                             },
@@ -419,42 +427,40 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               ),
                               Expanded(
                                 child: RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(color: Colors.white70),
-                                    children: [
-                                      const TextSpan(
-                                        text: 'Acepto los ',
-                                      ),
-                                      TextSpan(
-                                        text: 'Términos y Condiciones',
-                                        style: TextStyle(
-                                          color: Theme.of(context).colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
+                                        text: TextSpan(
+                                          style: const TextStyle(color: Colors.white70),
+                                          children: [
+                                            TextSpan(
+                                              text: localizations.get('i_accept') + ' ',
+                                            ),
+                                            TextSpan(
+                                              text: localizations.get('terms_and_conditions'),
+                                              style: TextStyle(
+                                                color: Theme.of(context).colorScheme.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              recognizer: TapGestureRecognizer()
+                                                ..onTap = () {
+                                                  _showTermsAndConditions();
+                                                },
+                                            ),
+                                            TextSpan(
+                                              text: ' ' + localizations.get('and_the') + ' ',
+                                            ),
+                                            TextSpan(
+                                              text: localizations.get('privacy_policy'),
+                                              style: TextStyle(
+                                                color: Theme.of(context).colorScheme.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              recognizer: TapGestureRecognizer()
+                                                ..onTap = () {
+                                                  _showPrivacyPolicy();
+                                                },
+                                            ),
+                                          ],
                                         ),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () {
-                                            // Mostrar términos y condiciones
-                                            _showTermsAndConditions();
-                                          },
                                       ),
-                                      const TextSpan(
-                                        text: ' y la ',
-                                      ),
-                                      TextSpan(
-                                        text: 'Política de Privacidad',
-                                        style: TextStyle(
-                                          color: Theme.of(context).colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () {
-                                            // Mostrar política de privacidad
-                                            _showPrivacyPolicy();
-                                          },
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               ),
                             ],
                           ),
@@ -494,9 +500,9 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               ),
                               child: _isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
-                                  : const Text(
-                                      'Registrarme',
-                                      style: TextStyle(
+                                  : Text(
+                                      localizations.get('register'),
+                                      style: const TextStyle(
                                         fontSize: 16.0,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -507,15 +513,16 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                           
                           // Separador
                           Row(
-                            children: const [
-                              Expanded(child: Divider(color: Colors.white60)),
+                            children: [
+                              const Expanded(child: Divider(color: Colors.white60)),
                               Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                                child: Text('O registrate con', style: TextStyle(color: Colors.white70)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                child: Text(localizations.get('or_register_with'), style: const TextStyle(color: Colors.white70)),
                               ),
-                              Expanded(child: Divider(color: Colors.white60)),
+                              const Expanded(child: Divider(color: Colors.white60)),
                             ],
                           ),
+
                           const SizedBox(height: 24.0),
                           
                           // Botones de redes sociales
@@ -553,11 +560,11 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                           // Link para iniciar sesión
                           RichText(
                             text: TextSpan(
-                              text: '¿Ya tienes una cuenta? ',
+                              text: localizations.get('already_have_account') + ' ',
                               style: const TextStyle(color: Colors.white70),
                               children: [
                                 TextSpan(
-                                  text: 'Iniciar sesión',
+                                  text: localizations.get('login'),
                                   style: TextStyle(
                                     color: Theme.of(context).colorScheme.primary,
                                     fontWeight: FontWeight.bold,
@@ -614,7 +621,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Términos y Condiciones'),
+        title: Text(localizations.get('terms_title')),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,7 +664,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+            child: Text(localizations.get('close')),
           ),
         ],
       ),
@@ -668,7 +675,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Política de Privacidad'),
+        title: Text(localizations.get('privacy_policy_title')),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,7 +718,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+            child: Text(localizations.get('close')),
           ),
         ],
       ),

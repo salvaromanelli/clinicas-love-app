@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'models/profile_model.dart';
 import 'services/profile_service.dart';
+import 'i18n/app_localizations.dart';
 
 class EditProfilePage extends StatefulWidget {
   final Profile profile;
@@ -19,6 +20,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _locationController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  late AppLocalizations localizations;
   
   final ProfileService _profileService = ProfileService();
   bool _isSaving = false;
@@ -33,6 +35,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController.text = widget.profile.phone ?? '';
     _emailController.text = widget.profile.email;
     _avatarUrl = widget.profile.avatarUrl;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    localizations = AppLocalizations.of(context);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -51,7 +59,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al seleccionar imagen: $e')),
+        SnackBar(content: Text('${localizations.get('image_selection_error')}: $e')),
       );
     }
   }
@@ -87,11 +95,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       
       // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Perfil actualizado con éxito'),
+        SnackBar(
+          content: Text(localizations.get('profile_updated_success')),
           backgroundColor: Colors.green,
         ),
       );
+
 
       // Volver a la página anterior con el perfil actualizado
       Navigator.pop(context, updatedProfile);
@@ -101,7 +110,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // Mostrar mensaje de error
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al actualizar perfil: $e'),
+          content: Text('${localizations.get('profile_update_error')}: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -121,7 +130,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF111418),
         foregroundColor: Colors.white,
-        title: const Text('Editar Perfil'),
+        title: Text(localizations.get('edit_profile')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
@@ -197,18 +206,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Text(
-                                            'Seleccionar foto',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                                 Text(
+                                                  localizations.get('select_photo'),
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                           const SizedBox(height: 16),
                                           ListTile(
                                             leading: const Icon(Icons.photo_library, color: Colors.white),
-                                            title: const Text('Galería', style: TextStyle(color: Colors.white)),
+                                              title: Text(localizations.get('gallery'), style: TextStyle(color: Colors.white)),
                                             onTap: () {
                                               Navigator.pop(context);
                                               _pickImage(ImageSource.gallery);
@@ -216,7 +225,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                           ),
                                           ListTile(
                                             leading: const Icon(Icons.camera_alt, color: Colors.white),
-                                            title: const Text('Cámara', style: TextStyle(color: Colors.white)),
+                                            title: Text(localizations.get('camera'), style: TextStyle(color: Colors.white)),
                                             onTap: () {
                                               Navigator.pop(context);
                                               _pickImage(ImageSource.camera);
@@ -240,11 +249,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 // Form fields
                 _buildTextField(
                   controller: _nameController,
-                  label: 'Nombre completo',
+                  label: localizations.get('full_name'),
                   icon: Icons.person_outline,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Por favor ingresa tu nombre';
+                      return localizations.get('please_enter_name');
                     }
                     return null;
                   },
@@ -253,14 +262,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 
                 _buildTextField(
                   controller: _locationController,
-                  label: 'Ubicación',
+                  label: localizations.get('location'),
                   icon: Icons.location_on_outlined,
                 ),
                 const SizedBox(height: 16.0),
                 
                 _buildTextField(
                   controller: _phoneController,
-                  label: 'Teléfono',
+                  label: localizations.get('phone'),
                   icon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
                 ),
@@ -268,7 +277,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 
                 _buildTextField(
                   controller: _emailController,
-                  label: 'Correo electrónico',
+                  label: localizations.get('email'),
                   icon: Icons.email_outlined,
                   enabled: false,
                 ),
@@ -296,9 +305,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               strokeWidth: 2.0,
                             ),
                           )
-                        : const Text(
-                            'Guardar Cambios',
-                            style: TextStyle(
+                        : Text(
+                            localizations.get('save_changes'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16.0,
                               fontWeight: FontWeight.w600,

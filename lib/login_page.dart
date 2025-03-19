@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase.dart';
 import 'services/auth_service.dart';
+import 'i18n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
   final Widget child;
@@ -23,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _passwordVisible = false;
   String? _errorMessage;
+  late AppLocalizations localizations; 
 
   // Método de login principal - corregido
   Future<void> _handleLogin() async {
@@ -66,10 +68,10 @@ class _LoginPageState extends State<LoginPage> {
             (route) => false
           );
         } else {
-          throw Exception('No se pudo obtener el token de autenticación');
+          throw Exception(localizations.get('auth_token_error'));
         }
       } else {
-        throw Exception('Error de autenticación');
+        throw Exception(localizations.get('auth_error'));
       }
     } on AuthException catch (e) {
       setState(() {
@@ -81,14 +83,15 @@ class _LoginPageState extends State<LoginPage> {
       String errorMsg;
       
       if (e.toString().contains('Invalid login credentials')) {
-        errorMsg = 'Email o contraseña incorrectos';
+        errorMsg = localizations.get('invalid_credentials');
       } else if (e.toString().contains('Email not confirmed')) {
-        errorMsg = 'Por favor confirma tu email antes de iniciar sesión';
+        errorMsg = localizations.get('email_not_confirmed');
       } else if (e.toString().contains('network')) {
-        errorMsg = 'Error de conexión. Verifica tu internet';
+        errorMsg = localizations.get('network_error');
       } else {
-        errorMsg = 'Error: ${e.toString()}';
+        errorMsg = '${localizations.get('error')}: ${e.toString()}';
       }
+
       
       setState(() {
         _errorMessage = errorMsg;
@@ -102,6 +105,12 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  localizations = AppLocalizations.of(context);
+}
 
   @override
   Widget build(BuildContext context) {
@@ -159,29 +168,29 @@ class _LoginPageState extends State<LoginPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 32.0),
-                            const Text(
-                              'Iniciar Sesión',
-                              style: TextStyle(
+                            Text(
+                              localizations.get('login'),
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8.0),
-                            const Text(
-                              'Bienvenido a Clínicas Love',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
+                              Text(
+                                localizations.get('welcome_to_clinics'),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
                               ),
-                            ),
                             const SizedBox(height: 32.0),
                             
                             // Email field with icon - cambiado a TextFormField
                             TextFormField(
                               controller: _emailController,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
+                              decoration: InputDecoration(
+                                labelText: localizations.get('email'),
                                 labelStyle: TextStyle(color: Colors.white70),
                                 prefixIcon: Icon(Icons.email, color: Colors.white70),
                                 enabledBorder: UnderlineInputBorder(
@@ -195,10 +204,10 @@ class _LoginPageState extends State<LoginPage> {
                               keyboardType: TextInputType.emailAddress,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Por favor ingresa tu email';
+                                  return localizations.get('please_enter_email');
                                 }
                                 if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                  return 'Ingresa un email válido';
+                                  return localizations.get('enter_valid_email');
                                 }
                                 return null;
                               },
@@ -209,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
                             TextFormField(
                               controller: _passwordController,
                               decoration: InputDecoration(
-                                labelText: 'Contraseña',
+                                labelText: localizations.get('password'),
                                 labelStyle: const TextStyle(color: Colors.white70),
                                 prefixIcon: const Icon(Icons.lock, color: Colors.white70),
                                 suffixIcon: IconButton(
@@ -232,7 +241,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Por favor ingresa tu contraseña';
+                                  return localizations.get('please_enter_password');
                                 }
                                 return null;
                               },
@@ -245,9 +254,9 @@ class _LoginPageState extends State<LoginPage> {
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 onPressed: _showForgotPasswordDialog,
-                                child: const Text(
-                                  '¿Olvidaste tu contraseña?',
-                                  style: TextStyle(color: Colors.white70),
+                                child: Text(
+                                  localizations.get('forgot_password'),
+                                  style: const TextStyle(color: Colors.white70),
                                 ),
                               ),
                             ),
@@ -288,9 +297,9 @@ class _LoginPageState extends State<LoginPage> {
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Text(
-                                        'Iniciar Sesión',
-                                        style: TextStyle(
+                                    : Text(
+                                        localizations.get('login'),
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 16.0,
                                           fontWeight: FontWeight.bold,
@@ -303,16 +312,16 @@ class _LoginPageState extends State<LoginPage> {
                             
                             // Or divider
                             Row(
-                              children: const [
-                                Expanded(child: Divider(color: Colors.white24)),
+                              children: [
+                                const Expanded(child: Divider(color: Colors.white24)),
                                 Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                                   child: Text(
-                                    'O continúa con',
-                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                    localizations.get('or_continue_with'),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                                   ),
                                 ),
-                                Expanded(child: Divider(color: Colors.white24)),
+                                const Expanded(child: Divider(color: Colors.white24)),
                               ],
                             ),
                             
@@ -348,9 +357,9 @@ class _LoginPageState extends State<LoginPage> {
                                 onPressed: () {
                                   Navigator.pushReplacementNamed(context, '/register');
                                 },
-                                child: const Text(
-                                  '¿No tienes cuenta? Regístrate',
-                                  style: TextStyle(color: Colors.white70),
+                                child: Text(
+                                  localizations.get('no_account_register'),
+                                  style: const TextStyle(color: Colors.white70),
                                 ),
                               ),
                             ),
@@ -440,7 +449,7 @@ class _LoginPageState extends State<LoginPage> {
           break;
           
         default:
-          throw Exception('Proveedor no soportado');
+          throw Exception(localizations.get('unsupported_provider'));
       }
       
       // Iniciar el flujo OAuth
@@ -454,8 +463,8 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Serás redirigido para completar el inicio de sesión'),
+          SnackBar(
+            content: Text(localizations.get('redirect_to_complete_login')),
             backgroundColor: Colors.blue,
           ),
         );
@@ -466,14 +475,14 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al iniciar sesión con $provider: ${e.toString()}';
+       _errorMessage = '${localizations.get('auth_process_failed')} $provider';
       });
       
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text('${localizations.get('error')}: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -499,31 +508,31 @@ class _LoginPageState extends State<LoginPage> {
           builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Recuperar Contraseña'),
+              title: Text(localizations.get('recover_password')),
               content: Form(
                 key: formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Te enviaremos un email con instrucciones para restablecer tu contraseña.',
-                      style: TextStyle(fontSize: 14),
+                    Text(
+                      localizations.get('password_reset_instructions'),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Correo electrónico',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: localizations.get('email'),
+                        prefixIcon: const Icon(Icons.email),
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Por favor ingresa tu correo electrónico';
+                          return localizations.get('please_enter_email');
                         }
                         if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                          return 'Ingresa un correo electrónico válido';
+                          return localizations.get('enter_valid_email');
                         }
                         return null;
                       },
@@ -536,7 +545,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Cancelar'),
+                  child: Text(localizations.get('cancel')),
                 ),
                 ElevatedButton(
                   onPressed: isLoading ? null : () async {
@@ -554,8 +563,8 @@ class _LoginPageState extends State<LoginPage> {
                           
                           // Mostrar mensaje de éxito
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Se ha enviado un correo para restablecer tu contraseña'),
+                            SnackBar(
+                              content: Text(localizations.get('password_reset_email_sent')),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -565,7 +574,7 @@ class _LoginPageState extends State<LoginPage> {
                         
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Error: ${e.toString()}'),
+                            content: Text('${localizations.get('error')}: ${e.toString()}'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -590,7 +599,7 @@ class _LoginPageState extends State<LoginPage> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('Enviar'),
+                      : Text(localizations.get('send')),
                 ),
               ],
             );

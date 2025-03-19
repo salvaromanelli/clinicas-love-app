@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/supabase.dart';
 import 'models/clinicas.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'i18n/app_localizations.dart';
 
 class ClinicasPage extends StatefulWidget {
   const ClinicasPage({super.key});
@@ -18,12 +19,19 @@ class _ClinicasPageState extends State<ClinicasPage> {
   String _errorMessage = '';
   List<Clinica> _clinicas = [];
   Position? _currentPosition;
+  late AppLocalizations localizations;
 
   @override
   void initState() {
     super.initState();
     _loadClinicas();
   }
+
+  @override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  localizations = AppLocalizations.of(context);
+}
 
   Future<void> _loadClinicas() async {
     try {
@@ -37,7 +45,7 @@ class _ClinicasPageState extends State<ClinicasPage> {
       if (!permission) {
         setState(() {
           _hasError = true;
-          _errorMessage = 'Se requieren permisos de ubicación para mostrar las clínicas cercanas';
+          _errorMessage = localizations.get('location_permission_required');
           _isLoading = false;
         });
         return;
@@ -50,7 +58,7 @@ class _ClinicasPageState extends State<ClinicasPage> {
         timeLimit: const Duration(seconds: 10),
       ).catchError((error) {
         print("Error obteniendo ubicación: $error");
-        throw Exception('No se pudo obtener la ubicación actual');
+        throw Exception(localizations.get('could_not_get_location'));
       });
       
       print("Posición actual obtenida: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}");
@@ -124,20 +132,19 @@ class _ClinicasPageState extends State<ClinicasPage> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text('Servicios de ubicación desactivados'),
-              content: const Text(
-                'Esta aplicación necesita acceso a los servicios de ubicación para mostrar las clínicas más cercanas. '
-                'Por favor, active los servicios de ubicación en la configuración de su dispositivo.',
+              title: Text(localizations.get('location_services_disabled')),
+              content: Text(
+                localizations.get('location_services_needed'),
               ),
               actions: <Widget>[
                 TextButton(
-                  child: const Text('Cancelar'),
+                  child: Text(localizations.get('cancel')),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
                 ),
                 TextButton(
-                  child: const Text('Ir a Configuración'),
+                  child: Text(localizations.get('go_to_settings')),
                   onPressed: () async {
                     Navigator.of(context).pop();
                     await Geolocator.openLocationSettings();
@@ -159,9 +166,9 @@ class _ClinicasPageState extends State<ClinicasPage> {
         // El usuario denegó el permiso
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Se requieren permisos de ubicación para mostrar las clínicas cercanas'),
-              duration: Duration(seconds: 3),
+            SnackBar(
+              content: Text(localizations.get('location_permission_required')),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -176,23 +183,22 @@ class _ClinicasPageState extends State<ClinicasPage> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text('Permisos de ubicación denegados'),
-              content: const Text(
-                'Ha denegado permanentemente el permiso de ubicación. '
-                'Para usar esta función, debe habilitar el permiso en la configuración de la aplicación.',
+              title: Text(localizations.get('location_services_disabled')),
+              content: Text(
+                localizations.get('location_services_needed'),
               ),
               actions: <Widget>[
                 TextButton(
-                  child: const Text('Cancelar'),
+                  child: Text(localizations.get('cancel')),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
                 ),
                 TextButton(
-                  child: const Text('Abrir Configuración'),
+                  child: Text(localizations.get('go_to_settings')),
                   onPressed: () async {
                     Navigator.of(context).pop();
-                    await openAppSettings();
+                    await Geolocator.openLocationSettings();
                   },
                 ),
               ],
@@ -209,26 +215,26 @@ class _ClinicasPageState extends State<ClinicasPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nuestras Clínicas'),
-        backgroundColor: const Color(0xFF1980E6),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadClinicas,
-            tooltip: 'Actualizar',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
+            appBar: AppBar(
+              title: Text(localizations.get('our_clinics')),
+              backgroundColor: const Color(0xFF1980E6),
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadClinicas,
+                  tooltip: localizations.get('refresh'),
+                ),
+              ],
+            ),
+      body:_isLoading
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Buscando clínicas cercanas...'),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(localizations.get('searching_nearby_clinics')),
                 ],
               ),
             )
@@ -245,14 +251,14 @@ class _ClinicasPageState extends State<ClinicasPage> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadClinicas,
-                        child: const Text('Reintentar'),
+                        child: Text(localizations.get('retry')),
                       ),
                     ],
                   ),
                 )
               : _clinicas.isEmpty
-                  ? const Center(child: Text('No se encontraron clínicas disponibles'))
-                  : ListView.builder(
+                    ? Center(child: Text(localizations.get('no_clinics_found')))
+                    : ListView.builder(
                       itemCount: _clinicas.length,
                       itemBuilder: (context, index) {
                         final clinica = _clinicas[index];
@@ -320,23 +326,22 @@ class _ClinicasPageState extends State<ClinicasPage> {
                                       ),
                                     ],
                                     if (clinica.rating != null) ...[
-                                      const SizedBox(height: 4),
                                       Row(
                                         children: [
                                           const Icon(Icons.star, color: Colors.amber, size: 16),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Valoración: ${clinica.rating!.toStringAsFixed(1)}',
+                                            '${localizations.get('rating')}: ${clinica.rating!.toStringAsFixed(1)}',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ],
+                                    ],                  
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Distancia: ${clinica.distancia!.toStringAsFixed(1)} km',
+                                      '${localizations.get('distance')}: ${clinica.distancia!.toStringAsFixed(1)} km',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Color(0xFF1980E6),
@@ -360,17 +365,17 @@ class _ClinicasPageState extends State<ClinicasPage> {
                                         try {
                                           if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
                                             ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('No se pudo abrir el mapa')),
+                                              SnackBar(content: Text(localizations.get('could_not_open_map'))),
                                             );
                                           }
                                         } catch (e) {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Error: ${e.toString()}')),
+                                            SnackBar(content: Text('${localizations.get('error')}: ${e.toString()}')),
                                           );
                                         }
                                       },
                                       icon: const Icon(Icons.directions),
-                                      label: const Text('Cómo llegar'),
+                                      label: Text(localizations.get('get_directions')),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF1980E6),
                                         foregroundColor: Colors.white,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'virtual_assistant_chat.dart'; // ignore: unused_import
 import 'main.dart';
+import 'i18n/app_localizations.dart';
 
 class AnimatedAssistantButton extends StatefulWidget {
   const AnimatedAssistantButton({super.key});
@@ -15,6 +16,13 @@ class _AnimatedAssistantButtonState extends State<AnimatedAssistantButton> with 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
+  late AppLocalizations localizations;
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  localizations = AppLocalizations.of(context);
+}
 
   @override
   void initState() {
@@ -96,13 +104,12 @@ class _AnimatedAssistantButtonState extends State<AnimatedAssistantButton> with 
                       children: [
                         // Envuelve el texto en un Flexible para permitir que se ajuste al espacio disponible
                         Flexible(
-                          child: const Text(
-                            "¿Necesitas ayuda? ¡Chatea conmigo!",
-                            style: TextStyle(
+                          child: Text(
+                            localizations.get('need_help_chat_with_me'),
+                            style: const TextStyle(
                               color: Color(0xFF1980E6),
                               fontWeight: FontWeight.bold,
                             ),
-                            // Añade ellipsis si el texto no cabe
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

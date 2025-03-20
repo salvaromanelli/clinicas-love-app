@@ -257,6 +257,7 @@ const Map<String, String> en = {
 'try_again': 'Try again',
 'see_available_treatments': 'See available treatments',
 'consultation_prices': 'Consultation prices',
+'need_help_chat_with_me': 'Need help? Chat with me!',
 
 // Booking flow
 'a_consultation': 'a consultation',
@@ -292,4 +293,13 @@ const Map<String, String> en = {
 'accept_cards': 'Do you accept cards?',
 'open_saturday': 'Are you open on Saturdays?',
 'see_locations': 'See locations',
+
+// Prices
+'price_for': 'Price for',
+'no_exact_price_found': 'I couldn\'t find the exact price for that treatment.',
+'available_categories': 'These are the available categories',
+'ask_specific_treatment': 'Could you ask me about a specific treatment?',
+'price_error': 'Error getting price information',
+'price_data_unavailable': 'Sorry, price information is not available at this time.',
+'see_other_prices': 'See other prices',
 };

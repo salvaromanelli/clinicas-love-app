@@ -1,0 +1,26 @@
+[
+  {
+    "category": "Facial",
+    "treatment": "Botox",
+    "price": "300€",
+    "description": "Tratamiento por zona"
+  },
+  {
+    "category": "Facial",
+    "treatment": "Ácido hialurónico",
+    "price": "450€",
+    "description": "Relleno facial"
+  },
+  {
+    "category": "Facial",
+    "treatment": "Vitaminas",
+    "price": "80€",
+    "description": "Limpieza profesional"
+  },
+  {
+    "category": "Corporal",
+    "treatment": "Lanluma",
+    "price": "250€",
+    "description": "Sesión completa"
+  }
+]

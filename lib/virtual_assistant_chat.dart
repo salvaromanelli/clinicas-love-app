@@ -9,6 +9,7 @@ import 'viewmodels/chat_viewmodel.dart';
 import 'config/env.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'i18n/app_localizations.dart';
+import 'services/prices_service.dart';
 
 class VirtualAssistantChat extends StatefulWidget {
   const VirtualAssistantChat({super.key});
@@ -25,6 +26,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
   late Animation<double> _animationPulse;
   bool _showSuggestions = true;
   late AppLocalizations localizations;
+  
 
   
 late bool _isViewModelInitialized = false;
@@ -61,12 +63,14 @@ void didChangeDependencies() {
     
     final referenceService = MedicalReferenceService();
     final appointmentService = AppointmentService();
+    final priceService = PriceService(); // Añadir esta línea
     
-    // Inicializar ViewModel
+    // Inicializar ViewModel con el nuevo servicio
     _viewModel = ChatViewModel(
       openAIService: openAIService,
       referenceService: referenceService,
       appointmentService: appointmentService,
+      priceService: priceService, // Añadir esta línea
       localizations: localizations,
     );
     
@@ -80,6 +84,7 @@ void didChangeDependencies() {
     });
   }
 }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {

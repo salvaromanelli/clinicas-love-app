@@ -15,7 +15,11 @@ class OpenAIService {
     this.testMode = kDebugMode,
   });
   
-  Future<String> getCompletion(String prompt, {List<String> medicalReferences = const []}) async {
+  Future<String> getCompletion(
+    String prompt, {
+    List<String> medicalReferences = const [],
+    List<Map<String, dynamic>>? priceInfo,
+  }) async {
     // Usar respuestas simuladas en modo de prueba
     if (testMode) {
       return _getTestResponse(prompt, medicalReferences);
@@ -27,8 +31,38 @@ class OpenAIService {
     }
     
     try {
-      // Crear un prompt enriquecido con el contexto médico
-      String fullPrompt = _enrichPromptWithReferences(prompt, medicalReferences);
+      // Crear un prompt enriquecido con el contexto médico y de precios
+      String fullPrompt = _enrichPromptWithReferencesAndPrices(
+        prompt, 
+        medicalReferences,
+        priceInfo,
+      );
+      
+      // Sistema prompt enriquecido con contexto de precios
+      String systemPrompt = '''
+        Eres un asistente médico virtual especializado en estética para Clínicas Love.
+        Proporciona información precisa y profesional sobre tratamientos estéticos, 
+        y servicios relacionados.
+        No hagas diagnósticos ni prescripciones médicas remotas.
+        Si te preguntan por agendar citas, facilita el proceso preguntando:
+        - Tipo de tratamiento
+        - Preferencia de clínica/sede
+        - Fecha y horario preferido
+        Sé amable, profesional y empático, usando un tono cercano pero formal.
+      ''';
+      
+      // Añadir información de precios al sistema prompt si está disponible
+      if (priceInfo != null && priceInfo.isNotEmpty) {
+        systemPrompt += '''
+        
+        Información actualizada de precios:
+        ${_formatPriceInfo(priceInfo)}
+        
+        Utiliza esta información de precios cuando te pregunten sobre costos de tratamientos.
+        Si no encuentras un precio exacto para un tratamiento específico, menciona que 
+        se requiere una consulta personalizada para dar un presupuesto preciso.
+        ''';
+      }
       
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -39,20 +73,7 @@ class OpenAIService {
         body: jsonEncode({
           'model': model,
           'messages': [
-            {
-              'role': 'system',
-              'content': '''
-                Eres un asistente médico virtual especializado en estética para Clínicas Love.
-                Proporciona información precisa y profesional sobre tratamientos estéticos, 
-                y servicios relacionados.
-                No hagas diagnósticos ni prescripciones médicas remotas.
-                Si te preguntan por agendar citas, facilita el proceso preguntando:
-                - Tipo de tratamiento
-                - Preferencia de clínica/sede
-                - Fecha y horario preferido
-                Sé amable, profesional y empático, usando un tono cercano pero formal.
-              '''
-            },
+            {'role': 'system', 'content': systemPrompt},
             {'role': 'user', 'content': fullPrompt}
           ],
           'temperature': temperature,
@@ -64,7 +85,6 @@ class OpenAIService {
         final data = jsonDecode(utf8.decode(response.bodyBytes)); 
         String text = data['choices'][0]['message']['content'];
         
-      
         text = _cleanResponseText(text);
 
         return text;
@@ -76,6 +96,39 @@ class OpenAIService {
       debugPrint('Excepción en OpenAI Service: $e');
       return 'Disculpa, ocurrió un error al procesar tu mensaje. ¿Podrías intentarlo de nuevo?';
     }
+  }
+  
+  String _enrichPromptWithReferencesAndPrices(
+    String prompt,
+    List<String> references,
+    List<Map<String, dynamic>>? priceInfo,
+  ) {
+    String enrichedPrompt = prompt;
+    
+    // Añadir referencias médicas
+    if (references.isNotEmpty) {
+      String referencesText = references.map((ref) => "- $ref").join("\n");
+      enrichedPrompt += '''
+
+Utiliza esta información de referencia para tu respuesta:
+$referencesText
+      ''';
+    }
+    
+    // No añadimos los precios directamente aquí, ya que van en el sistema prompt
+    // para no confundir a la IA sobre quién está preguntando qué.
+    
+    return enrichedPrompt;
+  }
+
+  // Este método también está a nivel de clase
+  String _formatPriceInfo(List<Map<String, dynamic>> priceInfo) {
+    // Limitar a máximo 10 precios para no sobrecargar el contexto
+    final limitedInfo = priceInfo.length > 10 ? priceInfo.sublist(0, 10) : priceInfo;
+    
+    return limitedInfo.map((price) {
+      return "- ${price['treatment']}: ${price['price']} (${price['category']})${price['description'] != null ? ' - ${price["description"]}' : ''}";
+    }).join("\n");
   }
   
   String _getTestResponse(String prompt, List<String> medicalReferences) {

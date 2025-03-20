@@ -255,6 +255,7 @@ const Map<String, String> es = {
 'try_again': 'Intentar de nuevo',
 'see_available_treatments': 'Ver tratamientos disponibles',
 'consultation_prices': 'Precios de consultas',
+'need_help_chat_with_me': '¿Necesitas ayuda? ¡Chatea conmigo!',
 
 // Flujo de reserva
 'a_consultation': 'una consulta',
@@ -290,5 +291,14 @@ const Map<String, String> es = {
 'accept_cards': '¿Aceptan tarjetas?',
 'open_saturday': '¿Atienden sábados?',
 'see_locations': 'Ver ubicaciones',
+
+// Precios
+'price_for': 'Precio para',
+'no_exact_price_found': 'No encontré el precio exacto para ese tratamiento.',
+'available_categories': 'Estas son las categorías disponibles',
+'ask_specific_treatment': '¿Puedes preguntarme por un tratamiento específico?',
+'price_error': 'Error al obtener información de precios',
+'price_data_unavailable': 'Lo siento, la información de precios no está disponible en este momento.',
+'see_other_prices': 'Ver otros precios',
 
 };

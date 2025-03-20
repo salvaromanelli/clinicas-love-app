@@ -102,3 +102,5 @@ key.properties
 # Supabase local development
 /supabase/.branches
 /supabase/.temp
+
+echo ".env" >> .gitignore

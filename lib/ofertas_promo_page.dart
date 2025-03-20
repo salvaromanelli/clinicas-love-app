@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'dart:io';
+import 'boton_asistente.dart';
 
 class OfertasPromosPage extends StatefulWidget {
   const OfertasPromosPage({super.key});
@@ -102,6 +103,7 @@ class _OfertasPromosPageState extends State<OfertasPromosPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF111418),
+      floatingActionButton: const AnimatedAssistantButton(),
       body: SafeArea(
         child: Column(
           children: [
@@ -112,7 +114,6 @@ class _OfertasPromosPageState extends State<OfertasPromosPage> {
               child: Row(
                 children: [
                   const SizedBox(width: 95),
-                  
                   // Logo
                   Expanded(
                     child: Center(

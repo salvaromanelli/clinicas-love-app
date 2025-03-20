@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';  // Asegúrate de que esta importación esté correcta
+import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:intl/date_symbol_data_local.dart';
 import 'post_tratamiento_page.dart';
 import 'ofertas_promo_page.dart';
@@ -45,7 +45,7 @@ void main() async {
   final youCamService = YouCamService(apiKey: 'PjbPnjhSKjgSKM8xDdx80LauBNenasqF');
    
   runApp(
-    MultiProvider(
+    MultiProvider(    
       providers: [
         ChangeNotifierProvider(create: (_) => YouCamProvider(youCamService)),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
@@ -56,7 +56,6 @@ void main() async {
   );
 }
 
-// Actualizar la clase MyApp
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -98,8 +97,8 @@ class MyApp extends StatelessWidget {
         '/integracion-redes': (context) => const IntegracionRedesPage(),
         '/login': (context) => LoginPage(child: MainNavigation()), 
         '/register': (context) => RegisterPage(),
-        '/assistant': (context) => const VirtualAssistantChat(),
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
+        '/assistant': (context) => const VirtualAssistantChat(),
         '/simulation': (context) => SimulacionResultadosPage(),
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
@@ -107,45 +106,32 @@ class MyApp extends StatelessWidget {
         '/language-settings': (context) => const LanguageSettingsPage(),
 
         },
-        builder: (context, child) {
-          // Obtener la ruta actual con depuración
-          final String? currentRoute = ModalRoute.of(context)?.settings.name;
-          print('Ruta actual: $currentRoute'); // Esto ayudará a ver qué ruta se está usando
-          
-          // Aseguramos que child no sea null para evitar errores
-          final Widget safeChild = child ?? const SizedBox();
-          
-          // Verificación explícita para SplashScreen
-          if (child is SplashScreen) {
-            print('Detectado SplashScreen');
+          builder: (context, child) {
+            // Obtener la ruta actual con depuración
+            final String? currentRoute = ModalRoute.of(context)?.settings.name;
+            print('Ruta actual: $currentRoute');
+            
+            // Aseguramos que child no sea null para evitar errores
+            final Widget safeChild = child ?? const SizedBox();
+            
+            // Solo añadir botón asistente a las rutas específicas
+            if (currentRoute == '/ofertas-promo' || currentRoute == '/appointments') {
+              print('Añadiendo botón asistente a: $currentRoute');
+              return Stack(
+                children: [
+                  safeChild,
+                  const Positioned(
+                    bottom: 20.0,
+                    left: 20.0,
+                    child: AnimatedAssistantButton(),
+                  ),
+                ],
+              );
+            }
+            
+            // Para todas las demás rutas, retornar el child sin botón asistente
             return safeChild;
-          }
-          
-          // Verificación explícita para HomePage y MainNavigation
-          if (child is HomePage || child is MainNavigation) {
-            print('Detectado HomePage o MainNavigation');
-            return safeChild;
-          }
-          
-          // Verificación por ruta
-          if (currentRoute == '/assistant' || 
-              currentRoute == '/home' || 
-              currentRoute == '/') {
-            print('Detectado ruta sin botón: $currentRoute');
-            return safeChild;
-          }
-          
-          // Para todas las demás pantallas, mostrar el botón flotante
-          print('Mostrando botón en ruta: $currentRoute');
-          return Scaffold(
-            body: safeChild,
-            floatingActionButton: Padding(
-              padding: const EdgeInsets.only(bottom: 80.0, right: 10.0),
-              child: AnimatedAssistantButton(),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          );
-        },
+          },
     );
   }
 }

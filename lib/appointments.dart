@@ -4,6 +4,7 @@ import 'services/supabase.dart';
 import 'booking_page.dart';
 import 'widgets/appointment_card.dart';
 import 'i18n/app_localizations.dart'; 
+import 'boton_asistente.dart';
 
 class RecomendacionesPage extends StatefulWidget {
   const RecomendacionesPage({super.key});
@@ -155,158 +156,184 @@ Future<void> _loadAppointments() async {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          localizations.get('my_appointments'),  // Actualizar
+          localizations.get('my_appointments'),
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
         ),
         backgroundColor: const Color(0xFF1980E6),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filter chips
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Determinar si es una pantalla pequeña
-              final isSmallScreen = constraints.maxWidth < 340;
-              final chipPadding = isSmallScreen ? 
-                const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0) : 
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0);
-                
-              final labelStyle = TextStyle(
-                fontSize: isSmallScreen ? 12.0 : 14.0,
-              );
+          Column(
+            children: [
+              // Filter chips
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Determinar si es una pantalla pequeña
+                  final isSmallScreen = constraints.maxWidth < 340;
+                  final chipPadding = isSmallScreen ? 
+                    const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0) : 
+                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0);
+                    
+                  final labelStyle = TextStyle(
+                    fontSize: isSmallScreen ? 12.0 : 14.0,
+                  );
+                  
+                  return Padding(
+                    padding: chipPadding,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                            child: FilterChip(
+                              label: Text(localizations.get('all'), style: labelStyle),
+                              selected: _filterStatus == 'all',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _filterStatus = 'all';
+                                  _updateFilteredAppointments();
+                                });
+                              },
+                              selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
+                              checkmarkColor: const Color(0xFF1980E6),
+                              padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                            child: FilterChip(
+                              label: Text(localizations.get('upcoming'), style: labelStyle),
+                              selected: _filterStatus == 'upcoming',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _filterStatus = 'upcoming';
+                                  _updateFilteredAppointments();
+                                });
+                              },
+                              selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
+                              checkmarkColor: const Color(0xFF1980E6),
+                              padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                            child: FilterChip(
+                              label: Text(localizations.get('past'), style: labelStyle),
+                              selected: _filterStatus == 'past',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _filterStatus = 'past';
+                                  _updateFilteredAppointments();
+                                });
+                              },
+                              selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
+                              checkmarkColor: const Color(0xFF1980E6),
+                              padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
               
-              return Padding(
-                padding: chipPadding,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                        child: FilterChip(
-                          label: Text(localizations.get('all'), style: labelStyle),  // Actualizar
-                          selected: _filterStatus == 'all',
-                          onSelected: (selected) {
-                            setState(() {
-                              _filterStatus = 'all';
-                              _updateFilteredAppointments(); // Actualiza la lista filtrada
-                            });
-                          },
-                          selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
-                          checkmarkColor: const Color(0xFF1980E6),
-                          padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
+              // Appointments list - IMPORTANTE: Expanded debe estar dentro de Column
+              Expanded(
+                child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF1980E6)),
+                    )
+                  : _filteredAppointments.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              localizations.get('no_appointments'),
+                              style: const TextStyle(fontSize: 18, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AppointmentBookingPage(),
+                                  ),
+                                ).then((value) {
+                                  if (value == true) {
+                                    _loadAppointments();
+                                  }
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1980E6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text(localizations.get('schedule_appointment')),
+                            )
+                          ],
                         ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16.0),
+                        itemCount: _filteredAppointments.length,
+                        itemBuilder: (context, index) {
+                          return AppointmentCard(
+                            appointment: _filteredAppointments[index],
+                            onAppointmentUpdated: _loadAppointments,
+                            supabaseService: _supabaseService,
+                            localizations: localizations,
+                          );
+                        },
                       ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                        child: FilterChip(
-                          label: Text(localizations.get('upcoming'), style: labelStyle),  // Actualizar
-                          selected: _filterStatus == 'upcoming',
-                          onSelected: (selected) {
-                            setState(() {
-                              _filterStatus = 'upcoming';
-                              _updateFilteredAppointments(); // Actualiza la lista filtrada
-                            });
-                          },
-                          selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
-                          checkmarkColor: const Color(0xFF1980E6),
-                          padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                        child: FilterChip(
-                          label: Text(localizations.get('past'), style: labelStyle),  // Actualizar
-                          selected: _filterStatus == 'past',
-                          onSelected: (selected) {
-                            setState(() {
-                              _filterStatus = 'past';
-                              _updateFilteredAppointments(); // Actualiza la lista filtrada
-                            });
-                          },
-                          selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
-                          checkmarkColor: const Color(0xFF1980E6),
-                          padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+              ),
+            ],
           ),
           
-          // Appointments list
-          Expanded(
-            child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF1980E6)),
-                )
-              : _filteredAppointments.isEmpty
-                ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        localizations.get('no_appointments'),  // Actualizar
-                        style: const TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () {
-                          // ... resto del código ...
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1980E6),
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Text(localizations.get('schedule_appointment')),  // Actualizar
-                      )
-                    ],
+          // Botón para agregar citas (abajo a la derecha)
+          Positioned(
+            bottom: 16.0,
+            right: 16.0,
+            child: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AppointmentBookingPage(),
                   ),
-                )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: _filteredAppointments.length,
-                    itemBuilder: (context, index) {
-                      return AppointmentCard(
-                        appointment: _filteredAppointments[index],
-                        onAppointmentUpdated: _loadAppointments,
-                        supabaseService: _supabaseService,
-                        localizations: localizations,
-                      );
-                    },
-                  ),
+                ).then((value) {
+                  if (value == true) {
+                    _loadAppointments();
+                  }
+                });
+              },
+              backgroundColor: const Color(0xFF1980E6),
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.add),
+            ),
+          ),
+          
+          // Botón asistente (abajo a la izquierda)
+          const Positioned(
+            bottom: 16.0,
+            left: 16.0,
+            child: AnimatedAssistantButton(),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AppointmentBookingPage(),
-            ),
-          ).then((value) {
-            if (value == true) {
-              _loadAppointments();
-            }
-          });
-        },
-        backgroundColor: const Color(0xFF1980E6),
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
       ),
     );
   }

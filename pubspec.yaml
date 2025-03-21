@@ -63,6 +63,7 @@ dependencies:
   image_gallery_saver: ^2.0.3
   flutter_image_compress: ^2.4.0
   flutter_markdown: ^0.7.6+2
+  flutter_dotenv: ^5.2.1
   
   flutter_localizations:
     sdk: flutter

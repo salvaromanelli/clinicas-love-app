@@ -301,4 +301,37 @@ const Map<String, String> es = {
 'price_data_unavailable': 'Lo siento, la información de precios no está disponible en este momento.',
 'see_other_prices': 'Ver otros precios',
 
+  // Mensajes generales
+
+  'chat_error': 'Lo siento, ha ocurrido un error',
+  
+  // Sugerencias generales
+
+  'suggest_treatments': 'Ver tratamientos',
+  'suggest_booking': 'Agendar cita',
+  'suggest_prices': 'Consultar precios',
+  'view_clinic_locations': 'Ver ubicaciones',
+  
+  // Flujo de reserva - inicio
+  'booking_welcome_select_treatment': '¡Perfecto! Me encantaría ayudarte a agendar una cita. ¿Qué tipo de tratamiento estás buscando?',
+  
+  // Flujo de reserva - fechas
+  'clinic_selected_choose_date': 'Has seleccionado **{clinic}**. ¿Qué día te gustaría reservar tu cita?',
+  'no_availability': 'Lo siento, no hay fechas disponibles para esta clínica en las próximas semanas. Te recomendamos contactar directamente por teléfono.',
+  'date_selected_choose_time': 'Has seleccionado el **{date}**. Estos son los horarios disponibles:',
+  'no_time_slots': 'Lo siento, no hay horarios disponibles para el día seleccionado. Por favor, elige otra fecha.',
+  'choose_time_slot': 'Por favor, elige un horario disponible.',
+  'time_not_recognized': 'Lo siento, no he podido identificar el horario. Por favor, elige uno de los horarios disponibles.',
+  
+  // Flujo de reserva - confirmación
+  'change_date': 'Cambiar fecha',
+  'please_confirm': 'Por favor, confirma si quieres reservar esta cita o si prefieres cambiar la fecha u hora.',
+  'booking_confirmed': '✅ **¡Tu cita ha sido confirmada!**\n\n📅 **Fecha y hora:** {dateTime}\n💉 **Tratamiento:** {treatment}\n📍 **Clínica:** {clinic}\n\nTu cita ha sido registrada en el sistema y la podrás encontrar en la sección \'Mis Citas\' de la app.\n\n¿Puedo ayudarte con algo más?',
+  'booking_cancelled': 'He cancelado el proceso de reserva. ¿Hay algo más en lo que pueda ayudarte?',
+  
+  // Post-reserva
+  'view_my_appointments': 'Ver mis citas',
+  'before_treatment_info': 'Instrucciones previas',
+  'thanks': 'Gracias',
+  'appointment_for': 'Cita para',
 };

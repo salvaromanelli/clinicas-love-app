@@ -54,6 +54,8 @@ void didChangeDependencies() {
   
   // Inicializar ViewModel solo una vez
   if (!_isViewModelInitialized) {
+    debugPrint('🔧 Inicializando servicios del asistente virtual...');
+
     // Inicializar servicios usando la configuración de entorno
     final openAIService = ai.OpenAIService(
       apiKey: Env.openAIApiKey,
@@ -63,14 +65,12 @@ void didChangeDependencies() {
     
     final referenceService = MedicalReferenceService();
     final appointmentService = AppointmentService();
-    final priceService = PriceService(); // Añadir esta línea
     
     // Inicializar ViewModel con el nuevo servicio
     _viewModel = ChatViewModel(
       openAIService: openAIService,
       referenceService: referenceService,
       appointmentService: appointmentService,
-      priceService: priceService, // Añadir esta línea
       localizations: localizations,
     );
     
@@ -79,6 +79,7 @@ void didChangeDependencies() {
     // Enviar mensaje de bienvenida
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_viewModel.messages.isEmpty) {
+        debugPrint('👋 Enviando mensaje de bienvenida');
         _viewModel.sendWelcomeMessage();
       }
     });
@@ -590,6 +591,21 @@ void didChangeDependencies() {
     setState(() {
       _showSuggestions = false;
     });
+    
+    // Detectar palabras de confirmación para el flujo de reservas
+    final lowerText = text.toLowerCase();
+    final isConfirmingAppointment = _viewModel.isBookingFlow && 
+        (lowerText == 'confirmar' || 
+        lowerText == 'confirmo' || 
+        lowerText == 'si' || 
+        lowerText == 'sí' || 
+        lowerText == 'ok' || 
+        lowerText.contains('confirm'));
+    
+    if (isConfirmingAppointment) {
+      debugPrint('✅ Detectada confirmación de cita: "$text"');
+    }
+    
     _viewModel.sendMessage(text);
   }
 

@@ -19,16 +19,17 @@ import 'services/notificaciones.dart';
 import 'appointments.dart';
 import 'reviews_page.dart';
 import 'package:provider/provider.dart';
-import 'providers/youcam_provider.dart';
-import 'services/youcam_service.dart';
 import 'providers/language_provider.dart';
 import 'i18n/app_localizations.dart';
 import 'language_settings_page.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
+    // Carga las variables de entorno antes que nada
+  await dotenv.load(fileName: ".env");
+  
   // Inicializar Flutter
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -42,12 +43,10 @@ void main() async {
   await NotificationService().initialize();
    
   // Crear una instancia del servicio YouCam con tu API key
-  final youCamService = YouCamService(apiKey: 'PjbPnjhSKjgSKM8xDdx80LauBNenasqF');
-   
+
   runApp(
     MultiProvider(    
       providers: [
-        ChangeNotifierProvider(create: (_) => YouCamProvider(youCamService)),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         // otros providers...
       ],

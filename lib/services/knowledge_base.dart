@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart' as dotenv;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:math' as Math;
 
 class KnowledgeBase {
   // Las diferentes categorías de conocimiento
@@ -24,9 +25,11 @@ class KnowledgeBase {
   }
   
   KnowledgeBase._internal() {
-    // Inicializar las credenciales (en producción, usaría dotenv o variables de entorno)
-    _supabaseUrl = 'https://xlrutqwvlowzntnjgmwa.supabase.co';
-    _supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscnV0cXd2bG93em50bmpnbXdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5NjM2NDAsImV4cCI6MjA1NjUzOTY0MH0.C-fXIxKkZL2YAjvwo6Lvm1MuuDnNzZVQJqW9c9TWlUQ';
+    // Cargar credenciales desde variables de entorno
+    _supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+    _supabaseKey = dotenv.env['SUPABASE_KEY'] ?? '';
+    
+    debugPrint('🔧 KnowledgeBase inicializado con URL: ${_supabaseUrl.isNotEmpty ? _supabaseUrl : 'No configurada'}');
   }
   
   // Inicializar y cargar datos
@@ -477,35 +480,49 @@ class KnowledgeBase {
   }
 
   Future<void> refreshWebReferences() async {
-  // Intentar cargar desde API
-  try {
-    final response = await http.get(
-      Uri.parse('$_supabaseUrl/rest/v1/web_references?select=*'),
-      headers: {
-        'apikey': _supabaseKey,
-        'Authorization': 'Bearer $_supabaseKey'
-      },
-    ).timeout(const Duration(seconds: 5));
-    
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      _webReferences.clear();
-      _webReferences.addAll(data.cast<Map<String, dynamic>>());
+    try {
+      final response = await http.get(
+        Uri.parse('$_supabaseUrl/rest/v1/web_references?select=*'),
+        headers: {
+          'apikey': _supabaseKey,
+          'Authorization': 'Bearer $_supabaseKey',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+      ).timeout(const Duration(seconds: 8));
       
-      // Guardar en caché
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_web_references', jsonEncode(_webReferences));
+      debugPrint('🔍 Web references response status: ${response.statusCode}');
       
-      debugPrint('✅ Referencias web actualizadas: ${data.length} páginas');
-    } else {
-      debugPrint('⚠️ Error cargando referencias web: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        _webReferences.clear();
+        
+        // Transformar los datos recibidos al formato esperado
+        for (var item in data) {
+          _webReferences.add({
+            'treatment': item['treatment'],
+            'url': item['url'],
+            'title': item['title'],
+            'summary': item['summary'],
+            'tags': item['tags']
+          });
+        }
+        
+        // Guardar en caché
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_web_references', jsonEncode(_webReferences));
+        
+        debugPrint('✅ Referencias web actualizadas: ${data.length} páginas');
+      } else {
+        debugPrint('⚠️ Error cargando referencias web: ${response.statusCode}');
+        debugPrint('⚠️ Respuesta: ${response.body.substring(0, Math.min(100, response.body.length))}...');
+        _loadFallbackWebReferences();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error actualizando referencias web: $e');
       _loadFallbackWebReferences();
     }
-  } catch (e) {
-    debugPrint('⚠️ Error actualizando referencias web: $e');
-    _loadFallbackWebReferences();
   }
-}
   
   // CONSULTA DE DATOS
   
@@ -661,10 +678,38 @@ class KnowledgeBase {
     
     // Incluir información de clínicas si es relevante
     if (query.contains('clínica') || query.contains('dirección') || 
-        query.contains('ubicación') || query.contains('donde')) {
+        query.contains('ubicación') || query.contains('donde') ||
+        query.contains('dónde') || query.contains('sitio') || 
+        query.contains('lugar') || query.contains('cómo llegar') || 
+        (query.contains('barcelona') && !query.contains('precio'))) {  // Añadida detección por ciudad
       result['clinics'] = _clinics;
       debugPrint('🏥 Incluyendo información de clínicas');
     }
+
+      // detección específica para precios
+     bool isPriceQuery = query.contains('precio') || query.contains('costo') || 
+                     query.contains('cuánto') || query.contains('cuanto') ||
+                     query.contains('vale') || query.contains('cuesta');
+  
+       if (isPriceQuery) {
+    // Si es consulta de precio, buscar más agresivamente
+    for (final category in _prices.keys) {
+      for (final price in _prices[category]!) {
+        final treatment = (price['treatment'] as String).toLowerCase();
+        // Buscar coincidencia directa con cualquier palabra clave
+        if (keywords.any((kw) => treatment.contains(kw))) {
+          relevantPrices.add(price);
+          debugPrint('✅ Coincidencia directa: $treatment con $keywords');
+        }
+        // Si es "aumento de labios" específicamente
+        else if (query.contains('labio') && 
+                (treatment.contains('labio') || treatment.contains('lip'))) {
+          relevantPrices.add(price);
+          debugPrint('✅ Coincidencia especial para labios');
+        }
+      }
+    }
+  }
     
     return result;
   }
@@ -675,7 +720,7 @@ class KnowledgeBase {
     final stopWords = [
       'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
       'de', 'del', 'al', 'a', 'ante', 'con', 'en', 'para', 'por', 'sin',
-      'que', 'como', 'cuando', 'donde', 'cuanto', 'quien',
+      'que', 'como', 'cuando', 'cuanto', 'quien',
       'y', 'o', 'pero', 'si', 'no',
       'es', 'son', 'ser', 'estar', 'hay',
       'me', 'te', 'se', 'nos', 'os',
@@ -683,7 +728,7 @@ class KnowledgeBase {
       'aquel', 'aquella', 'aquello', 'aquellos', 'aquellas',
       'mi', 'tu', 'su', 'mis', 'tus', 'sus',
       'hola', 'adios', 'gracias',
-      'precio', 'costo', 'valor', 'cuanto', 'cuánto',
+      'valor', 'cuanto', 'cuánto',
     ];
     
     // Limpiar y normalizar
@@ -704,18 +749,6 @@ class KnowledgeBase {
   // Convertir datos a formato para el prompt
   String formatContextForPrompt(Map<String, dynamic> context) {
     final buffer = StringBuffer();
-    
-    // Formatear precios
-    if (context.containsKey('prices')) {
-      buffer.writeln('INFORMACIÓN DE PRECIOS:');
-      for (var price in context['prices'] as List) {
-        buffer.writeln('- ${price['treatment']}: ${price['price']} (${price['category']})');
-        if (price['description'] != null && price['description'].toString().isNotEmpty) {
-          buffer.writeln('  ${price['description']}');
-        }
-      }
-      buffer.writeln();
-    }
     
     // Formatear categorías de precios
     if (context.containsKey('price_categories')) {
@@ -769,6 +802,18 @@ class KnowledgeBase {
         buffer.writeln('  🔗 Fuente: ${ref['url']}');
       }
       buffer.writeln();
+    }
+    
+    // Añadir información de precios
+    if (context.containsKey('prices')) {
+      final prices = context['prices'] as List<Map<String, dynamic>>;
+      if (prices.isNotEmpty) {
+        buffer.writeln('PRECIOS:');
+        for (final price in prices) {
+          buffer.writeln('- ${price['treatment']}: ${price['price']}');
+        }
+        buffer.writeln();
+      }
     }
     
     return buffer.toString();

@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:math';
-import 'booking_page.dart';
-import 'services/openai_service.dart' as ai;
-import 'services/medical_reference_service.dart';
+import 'services/claude_assistant_service.dart' as ai;
 import 'services/appointment_service.dart';
 import 'viewmodels/chat_viewmodel.dart';
 import 'config/env.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'i18n/app_localizations.dart';
-import 'services/prices_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart' ;
 
 class VirtualAssistantChat extends StatefulWidget {
   const VirtualAssistantChat({super.key});
@@ -56,26 +53,25 @@ void didChangeDependencies() {
   if (!_isViewModelInitialized) {
     debugPrint('🔧 Inicializando servicios del asistente virtual...');
 
-    // Inicializar servicios usando la configuración de entorno
-    final openAIService = ai.OpenAIService(
-      apiKey: Env.openAIApiKey,
-      model: 'gpt-3.5-turbo',
-      testMode: Env.useAITestMode,
+    // Usar la clave de Claude desde el archivo .env
+    final claudeService = ai.ClaudeAssistantService(
+      apiKey: dotenv.env['CLAUDE_API_KEY'],  // ✅ Correcto: usa la clave de Claude
+      model: 'claude-3-haiku-20240307',
+      useFallback: true,  // Activar respuestas de respaldo cuando la API falla
     );
-    
-    final referenceService = MedicalReferenceService();
+
     final appointmentService = AppointmentService();
     
-    // Inicializar ViewModel con el nuevo servicio
+    // Inicializar ViewModel con el servicio Claude
     _viewModel = ChatViewModel(
-      openAIService: openAIService,
-      referenceService: referenceService,
+      aiService: claudeService,
       appointmentService: appointmentService,
       localizations: localizations,
     );
     
     _isViewModelInitialized = true;
-    
+
+
     // Enviar mensaje de bienvenida
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_viewModel.messages.isEmpty) {

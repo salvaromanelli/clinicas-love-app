@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -495,5 +494,25 @@ List<String> get availableTreatmentCategories => [
     return bookingKeywords.any((keyword) => message.contains(keyword));
   }
 
-  
+    Future<String?> findTreatmentIdByName(String name) async {
+    // Normalizar para mejor comparación
+    final normalizedName = name.toLowerCase().trim();
+    
+    // Buscar coincidencias exactas primero
+    for (final entry in availableTreatments.entries) {
+      if (entry.value.toLowerCase() == normalizedName) {
+        return entry.key;
+      }
+    }
+    
+    // Buscar coincidencias parciales
+    for (final entry in availableTreatments.entries) {
+      if (entry.value.toLowerCase().contains(normalizedName) || 
+          normalizedName.contains(entry.value.toLowerCase())) {
+        return entry.key;
+      }
+    }
+    
+    return null;
+  } 
 }

@@ -104,3 +104,5 @@ key.properties
 /supabase/.temp
 
 echo ".env" >> .gitignore
+
+.env

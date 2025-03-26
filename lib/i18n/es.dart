@@ -316,9 +316,9 @@ const Map<String, String> es = {
   'booking_welcome_select_treatment': '¡Perfecto! Me encantaría ayudarte a agendar una cita. ¿Qué tipo de tratamiento estás buscando?',
   
   // Flujo de reserva - fechas
-  'clinic_selected_choose_date': 'Has seleccionado **{clinic}**. ¿Qué día te gustaría reservar tu cita?',
   'no_availability': 'Lo siento, no hay fechas disponibles para esta clínica en las próximas semanas. Te recomendamos contactar directamente por teléfono.',
-  'date_selected_choose_time': 'Has seleccionado el **{date}**. Estos son los horarios disponibles:',
+  'date_selected_choose_time': '¿Qué horario prefieres para el {date}?',
+  'clinic_selected_choose_date': '¿Qué día te gustaría tu cita en {clinic}?',
   'no_time_slots': 'Lo siento, no hay horarios disponibles para el día seleccionado. Por favor, elige otra fecha.',
   'choose_time_slot': 'Por favor, elige un horario disponible.',
   'time_not_recognized': 'Lo siento, no he podido identificar el horario. Por favor, elige uno de los horarios disponibles.',
@@ -334,4 +334,9 @@ const Map<String, String> es = {
   'before_treatment_info': 'Instrucciones previas',
   'thanks': 'Gracias',
   'appointment_for': 'Cita para',
+
+    // Mensajes más concisos para reservas
+  'booking_specific_treatment': '📋 Agendaré tu cita para {treatment}',
+  'which_clinic_short': '¿En qué ubicación?',
+  
 };

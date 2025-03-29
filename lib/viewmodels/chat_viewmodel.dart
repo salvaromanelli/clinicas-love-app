@@ -8,14 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 
-class TimeSlot {
-  final DateTime dateTime;
-  final bool available;
-  
-  TimeSlot({required this.dateTime, this.available = true});
-}
-
-
 class ChatViewModel extends ChangeNotifier {
   final ClaudeAssistantService _aiService;
   final appointment_service.AppointmentService _appointmentService;
@@ -82,6 +74,7 @@ class ChatViewModel extends ChangeNotifier {
             _appointmentService.availableClinics[currentAppointmentInfo!.clinicId] : null,
         'current_date': _currentDateSelection?.toString(),
         'current_time': _currentTimeSelection?.toString(),
+        'language': localizations.locale.languageCode,
       };
       
       // Procesar con Function Calling para aprovechar la IA
@@ -90,28 +83,58 @@ class ChatViewModel extends ChangeNotifier {
         messages.sublist(0, messages.length - 1),  // Historia previa
         currentState
       );
-      
-      // Manejar respuesta basada en si es intención de reserva o no
-      if (processedMessage.isBookingIntent && processedMessage.bookingInfo != null) {
-        await _handleAIBookingIntent(processedMessage);
+
+      messages.add(ChatMessage(text: processedMessage.text, isUser: false));
+
+      // Actualizar sugerencias basadas en el contexto proporcionado
+      if (processedMessage.additionalContext != null) {
+        _generateSuggestionsBasedOnContext(message, processedMessage.text);
       } else {
-        // Mensaje normal - mostrar respuesta directamente
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        
-        // Actualizar sugerencias basadas en el contexto proporcionado
-        if (processedMessage.additionalContext != null) {
-          _generateSuggestionsBasedOnContext(message, processedMessage.text);
-        } else {
-          // Sugerencias generales
-          _updateSuggestedReplies(message, processedMessage.text);
-        }
+        // Sugerencias generales
+        _updateSuggestedReplies(message, processedMessage.text);
       }
+      
     } catch (e) {
       debugPrint('❌ Error: $e');
       messages.add(ChatMessage(
         text: localizations.get('chat_error') ?? 
             "Lo siento, ha ocurrido un error al procesar tu mensaje.",
         isUser: false
+      ));
+    } finally {
+      isTyping = false;
+      notifyListeners();
+    }
+  }
+  
+  Future<ProcessedMessage> processMessage(String message, String language) async {
+    try {
+      isTyping = true;
+      notifyListeners();
+
+      // Preparar el contexto actual para la IA
+      final currentState = {
+        'language': language,
+      };
+
+      // Procesar el mensaje con Claude
+      final processedMessage = await _aiService.processMessage(
+        message,
+        messages,
+        currentState,
+      );
+      
+      return processedMessage;
+    } catch (e) {
+      debugPrint('❌ Error procesando el mensaje con Claude: $e');
+      
+      // Crear el mensaje de error de forma explícita
+      final errorText = localizations.get('chat_error') ??
+            "Lo siento, ha ocurrido un error al procesar tu mensaje.";
+      
+      // Usar Future.value con tipo explícito para evitar ambigüedades
+      return Future<ProcessedMessage>.value(ProcessedMessage(
+        text: errorText
       ));
     } finally {
       isTyping = false;
@@ -134,451 +157,351 @@ class ChatViewModel extends ChangeNotifier {
       suggestedReplies = [
         localizations.get('have_promotions') ?? "¿Tienen promociones?",
         localizations.get('accept_cards') ?? "¿Aceptan tarjetas?",
-        localizations.get('schedule_appointment') ?? "Quiero agendar una cita"
       ];
     } else {
       // Sugerencias por defecto
       suggestedReplies = [
         localizations.get('see_available_treatments') ?? "Ver tratamientos",
         localizations.get('consultation_prices') ?? "Precios de consulta",
-        localizations.get('schedule_appointment') ?? "Agendar una cita",
       ];
     }
   }
-  
-  // SIMPLIFICADO: Maneja intenciones de reserva detectadas por la IA
-  Future<void> _handleAIBookingIntent(ProcessedMessage processedMessage) async {
-    final bookingInfo = processedMessage.bookingInfo!;
-    isBookingFlow = true;
-    currentAppointmentInfo ??= appointment_service.AppointmentInfo();
-    
-    // Extraer información detectada por la IA
-    final intentType = bookingInfo['intent_type'];
-    final treatment = bookingInfo['treatment'];
-    final clinic = bookingInfo['clinic'];
-    final dateRef = bookingInfo['date_reference'];
-    final timeRef = bookingInfo['time_reference'];
-    final confirmation = bookingInfo['confirmation'] == true;
-    
-    // Manejar diferentes etapas del flujo de reserva
-    switch (intentType) {
-      case 'booking':
-      case 'booking_treatment':
-        // Procesar tratamiento detectado
-        if (treatment != null) {
-          await _processTreatmentFromAI(treatment);
-        }
-        
-        // Mostrar mensaje de la IA
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        
-        // Decidir siguiente paso
-        if (currentAppointmentInfo?.treatmentId != null) {
-          if (clinic != null) {
-            await _processClinicFromAI(clinic);
-          } else {
-            await _startBookingFlow();
-          }
-        } else {
-          await _startTreatmentSelection();
-        }
-        break;
-        
-      case 'booking_clinic':
-        if (clinic != null) {
-          await _processClinicFromAI(clinic);
-        }
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        await _showAvailableDates();
-        break;
-        
-      case 'booking_date':
-        if (dateRef != null) {
-          await _processDateFromAI(dateRef);
-        }
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        break;
-        
-      case 'booking_time':
-        if (timeRef != null) {
-          await _processTimeFromAI(timeRef);
-        }
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        break;
-        
-      case 'booking_confirm':
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        if (confirmation) {
-          await _confirmBooking();
-        } else {
-          await _cancelBooking();
-        }
-        break;
-        
-      default:
-        // Continuar flujo normal
-        messages.add(ChatMessage(text: processedMessage.text, isUser: false));
-        break;
-    }
-  }
-  
-  // Métodos auxiliares para procesar información extraída por la IA
-  
-  Future<void> _processTreatmentFromAI(String treatment) async {
-    // Buscar tratamiento en los disponibles
-    for (var entry in _appointmentService.availableTreatments.entries) {
-      if (entry.value.toLowerCase().contains(treatment.toLowerCase())) {
-        currentAppointmentInfo?.treatmentId = entry.key;
-        debugPrint('✅ Tratamiento IA detectado: ${entry.value}');
-        return;
-      }
-    }
-    
-    // Si no encontramos coincidencia, usar consulta general
-    currentAppointmentInfo?.treatmentId = 'general_consultation';
-    debugPrint('ℹ️ No se encontró tratamiento específico, asignando consulta general');
-  }
-  
-  Future<void> _processClinicFromAI(String clinic) async {
-    for (var entry in _appointmentService.availableClinics.entries) {
-      if (entry.value.toLowerCase().contains(clinic.toLowerCase())) {
-        currentAppointmentInfo?.clinicId = entry.key;
-        debugPrint('✅ Clínica IA detectada: ${entry.value}');
-        return;
-      }
-    }
-  }
-  
-  Future<void> _processDateFromAI(String dateReference) async {
-    // Convertir referencia ("segunda semana de abril") a fecha real
-    // Aquí OpenAI ya hizo el análisis, por lo que podríamos tener una implementación más simple
-    final dates = _appointmentService.getAvailableDates(currentAppointmentInfo!.clinicId!);
-    
-    // Buscar una fecha que coincida con la referencia de fecha solicitada
-    DateTime? matchingDate;
-    
-    // Para simplificar, compararemos el texto normalizado
-    final normalizedRef = dateReference.toLowerCase();
-    
-    // Buscar coincidencias con nombres de mes
-    for (final date in dates) {
-      final monthName = DateFormat('MMMM', 'es').format(date).toLowerCase();
-      if (normalizedRef.contains(monthName)) {
-        // Si menciona una semana específica, intentar aproximarse
-        if (normalizedRef.contains('primer') || normalizedRef.contains('primera')) {
-          if (date.day <= 7) matchingDate = date;
-        } else if (normalizedRef.contains('segunda')) {
-          if (date.day > 7 && date.day <= 14) matchingDate = date;
-        } else if (normalizedRef.contains('tercer') || normalizedRef.contains('tercera')) {
-          if (date.day > 14 && date.day <= 21) matchingDate = date;
-        } else if (normalizedRef.contains('cuarta')) {
-          if (date.day > 21) matchingDate = date;
-        } else {
-          // Si solo menciona el mes, tomar la primera fecha disponible
-          matchingDate = date;
-          break;
-        }
-      }
-      
-      // Si ya encontramos coincidencia, salir
-      if (matchingDate != null) break;
-    }
-    
-    if (matchingDate != null) {
-      _currentDateSelection = matchingDate;
-      await _showAvailableTimeSlots(matchingDate);
-    } else {
-      // Si no se encontró coincidencia, mostrar todas las fechas
-      await _showAvailableDates();
-    }
+
+  // Añadir mensaje de usuario directamente
+  void addUserMessage(String text) {
+    messages.add(ChatMessage(text: text, isUser: true));
+    notifyListeners();
   }
 
-  
-  Future<void> _processTimeFromAI(String timeReference) async {
-    if (_currentDateSelection == null) return;
+  // Añadir mensaje de asistente directamente
+  void addBotMessage(String text) {
+    isTyping = false;
+    messages.add(ChatMessage(text: text, isUser: false));
+    notifyListeners();
+  }
+
+  // Cambiar estado de escritura
+  void setTyping(bool typing) {
+    isTyping = typing;
+    notifyListeners();
+  }
+
+  // Procesar con la IA directamente (sin añadir mensaje del usuario)
+  void processMessageWithAI(String text) {
+    isTyping = true;
+    notifyListeners();
     
-    final slots = _appointmentService.getAvailableSlotsForDate(
-      _currentDateSelection!, 
-      currentAppointmentInfo!.clinicId!
+    _aiService.processMessage(text, messages, {}).then((dynamic processedResponse) {
+      isTyping = false;
+      // Convertir la respuesta dinámica a nuestro tipo específico
+      final ProcessedMessage processedMessage;
+      
+      if (processedResponse is ProcessedMessage) {
+        processedMessage = processedResponse;
+      } else {
+        // Manejar el caso cuando la respuesta no es del tipo esperado
+        messages.add(ChatMessage(
+          text: localizations.get('error_processing_message') ?? "Error procesando el mensaje",
+          isUser: false
+        ));
+        notifyListeners();
+        return;
+      }
+      
+      // Ahora podemos usar processedMessage con seguridad
+      messages.add(ChatMessage(
+        text: processedMessage.text,
+        isUser: false
+      ));
+      
+      notifyListeners();
+    }).catchError((error) {
+      // Resto del código sin cambios
+    });
+  }
+  // Obtener información específica de precios desde la knowledge base
+
+Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
+  try {
+    // Obtener contexto con preferencia a precios
+    final knowledgeContext = await _knowledgeBase.getRelevantContext(
+      userMessage, 
+      preferredType: 'prices'  // Indica que preferimos información de precios
     );
     
-    if (slots.isEmpty) {
-      await _showAvailableTimeSlots(_currentDateSelection!);
-      return;
-    }
+    debugPrint('🔍 Buscando información de precios en knowledge base');
     
-    // Buscar slots que coincidan con la referencia de tiempo
-    final lowerTimeRef = timeReference.toLowerCase();
-    appointment_service.AvailableTimeSlot? matchingSlot;
-    
-    // Detectar si menciona mañana o tarde
-    bool prefersMorning = lowerTimeRef.contains('mañana');
-    bool prefersAfternoon = lowerTimeRef.contains('tarde');
-    
-    // Extraer hora específica si se menciona
-    RegExp hourPattern = RegExp(r'(\d{1,2})(?::(\d{2}))?');
-    Match? hourMatch = hourPattern.firstMatch(lowerTimeRef);
-    
-    if (hourMatch != null) {
-      int hour = int.parse(hourMatch.group(1)!);
+    // Si hay precios disponibles
+    if (knowledgeContext.containsKey('prices') && knowledgeContext['prices'] is List) {
+      final prices = knowledgeContext['prices'] as List;
+      debugPrint('💰 Encontrados ${prices.length} precios relevantes');
       
-      // Ajustar AM/PM si necesario
-      if (hour < 12 && (lowerTimeRef.contains('pm') || lowerTimeRef.contains('tarde'))) {
-        hour += 12;
+      // IMPORTANTE: Depurar la estructura real de los datos
+      if (prices.isNotEmpty) {
+        debugPrint('🔍 Estructura del primer precio: ${prices.first}');
       }
       
-      // Buscar slot cercano a la hora mencionada
-      int closestDiff = 24;
-      for (final slot in slots) {
-        int diff = (slot.dateTime.hour - hour).abs();
-        if (diff < closestDiff) {
-          closestDiff = diff;
-          matchingSlot = slot;
+      // Identificar el tratamiento específico
+      final lowerMessage = userMessage.toLowerCase();
+      String priceInfo = "";
+      
+      // Buscar por botox
+      if (lowerMessage.contains('botox') || lowerMessage.contains('toxina')) {
+        for (var price in prices) {
+          final String treatment = price['treatment']?.toString().toLowerCase() ?? '';
+          if (treatment.contains('botox') || treatment.contains('toxina')) {
+            priceInfo = "El tratamiento de Botox en Clínicas Love tiene un precio de ${price['price']}. ";
+            if (price['description'] != null) {
+              priceInfo += price['description'];
+            } else {
+              priceInfo += "El precio puede variar dependiendo de las zonas a tratar. Incluye valoración médica previa y seguimiento posterior.";
+            }
+            break;
+          }
+        }
+      } 
+      // Buscar por labios
+      else if (lowerMessage.contains('labio') || lowerMessage.contains('relleno')) {
+        for (var price in prices) {
+          final String treatment = price['treatment']?.toString().toLowerCase() ?? '';
+          if (treatment.contains('labio') || treatment.contains('relleno')) {
+            priceInfo = "El aumento de labios con ácido hialurónico tiene un precio de ${price['price']}. ";
+            if (price['description'] != null) {
+              priceInfo += price['description'];
+            } else {
+              priceInfo += "Los resultados son inmediatos y duran entre 6-12 meses, dependiendo del metabolismo de cada paciente.";
+            }
+            break;
+          }
         }
       }
-    } else if (prefersMorning) {
-      // Seleccionar un slot de la mañana
-      final morningSlots = slots.where((s) => s.dateTime.hour < 13).toList();
-      if (morningSlots.isNotEmpty) {
-        matchingSlot = morningSlots.first;
+
+      else if (_containsAny(lowerMessage, ['rino', 'nariz', 'rinomodelacion', 'rinomodelación'])) {
+        debugPrint('🔍 Buscando precio de rinomodelación');
+        bool found = false;
+        
+        // Imprimir todos los tratamientos para depuración
+        for (var price in prices) {
+          final String treatment = price['treatment']?.toString().toLowerCase() ?? '';
+          debugPrint('👃 Comparando con: $treatment');
+          
+          // Usar una detección más amplia
+          if (treatment.contains('rino') || 
+              treatment.contains('nariz') || 
+              treatment.contains('armoniz') || 
+              treatment.contains('facial') && treatment.contains('sin cirug')) {
+            
+            found = true;
+            debugPrint('✅ Coincidencia encontrada para rinomodelación: $treatment');
+            
+            priceInfo = "La rinomodelación sin cirugía en Clínicas Love tiene un precio desde ${price['price']}€. ";
+            if (price['description'] != null) {
+              priceInfo += price['description'];
+            } else {
+              priceInfo += "Es un tratamiento realizado con ácido hialurónico que permite corregir pequeñas imperfecciones nasales sin cirugía. El procedimiento es rápido, con resultados inmediatos y mínima recuperación.";
+            }
+            break;
+          }
+        }
+        
+        // Si no encontramos coincidencia específica pero era una pregunta de rinomodelación
+        if (!found && prices.isNotEmpty) {
+          debugPrint('⚠️ No se encontró coincidencia específica para rinomodelación');
+          
+          // Proporcionar una respuesta predefinida con precio aproximado
+          priceInfo = "La rinomodelación sin cirugía en Clínicas Love tiene un precio aproximado de 350€ a 450€, dependiendo de la complejidad del caso y la cantidad de producto necesario. El tratamiento se realiza con ácido hialurónico y los resultados son inmediatos, duran entre 12-18 meses.";
+        }
       }
-    } else if (prefersAfternoon) {
-      // Seleccionar un slot de la tarde
-      final afternoonSlots = slots.where((s) => s.dateTime.hour >= 13).toList();
-      if (afternoonSlots.isNotEmpty) {
-        matchingSlot = afternoonSlots.first;
+      // Precios generales
+      else {
+        priceInfo = "En Clínicas Love contamos con los siguientes tratamientos y precios:\n\n";
+        
+        // Mostrar hasta 5 precios disponibles
+        int count = 0;
+        for (var price in prices) {
+          if (count >= 5) break;
+          
+          // CLAVE: Usar 'treatment' en lugar de 'name'
+          String treatmentName = price['treatment']?.toString() ?? "Tratamiento";
+          String priceValue = price['price']?.toString() ?? "Consultar";
+          
+          priceInfo += "• $treatmentName: $priceValue\n";
+          count++;
+        }
+        
+        priceInfo += "\n¿Sobre qué tratamiento específico te gustaría conocer más detalles?";
       }
-    }
-    
-    if (matchingSlot != null) {
-      _currentTimeSelection = matchingSlot.dateTime;
-      currentAppointmentInfo?.date = matchingSlot.dateTime;
       
-      await _showBookingSummary();
-    } else {
-      await _showAvailableTimeSlots(_currentDateSelection!);
+      // Si no se encontró ninguna coincidencia específica
+      if (priceInfo.isEmpty && prices.isNotEmpty) {
+        priceInfo = "En Clínicas Love contamos con los siguientes tratamientos y precios:\n\n";
+        
+        int count = 0;
+        for (var price in prices) {
+          if (count >= 5) break;
+          
+          // CLAVE: Usar 'treatment' en lugar de 'name'
+          String treatmentName = price['treatment']?.toString() ?? "Tratamiento";
+          String priceValue = price['price']?.toString() ?? "Consultar";
+          
+          priceInfo += "• $treatmentName: $priceValue\n";
+          count++;
+        }
+      }
+      
+      return priceInfo;
     }
+  } catch (e) {
+    debugPrint('⚠️ Error al obtener precios: $e');
   }
   
-  // MANTENIDO: Métodos clave para gestionar el flujo de reserva
-  
-  Future<void> _startTreatmentSelection() async {
-    String response = localizations.get('booking_welcome_select_treatment') ?? 
-        "¡Perfecto! Me encantaría ayudarte a agendar una cita. ¿Qué tipo de tratamiento estás buscando?";
+  return "Lo siento, no encontré información específica sobre precios para tu consulta. ¿Te gustaría preguntar por un tratamiento específico como Botox, aumento de labios o rinomodelación?";
+}
+
+  // Obtener información específica de tratamientos
+  Future<String> getTreatmentInfoFromKnowledgeBase(String userMessage) async {
+    if (_knowledgeBase == null) return "";
     
-    response += "\n\nTenemos las siguientes categorías:";
-    
-    // Mostrar categorías y algunos tratamientos de ejemplo
-    for (final category in _appointmentService.availableTreatmentCategories) {
-      final treatments = _appointmentService.treatmentsByCategory[category];
-      if (treatments != null && treatments.isNotEmpty) {
-        response += "\n\n**$category**:";
-        final exampleTreatments = treatments.take(3).map((t) => t['name']).join(', ');
-        response += " $exampleTreatments${treatments.length > 3 ? ", entre otros." : "."}";
+    try {
+      // Obtener contexto con preferencia a tratamientos
+      final knowledgeContext = await _knowledgeBase.getRelevantContext(
+        userMessage, 
+        preferredType: 'treatments'  // Indica que preferimos información de tratamientos
+      );
+      
+      debugPrint('🔍 Buscando información de tratamientos en knowledge base');
+      
+      // Si hay tratamientos disponibles
+      if (knowledgeContext.containsKey('treatments') && knowledgeContext['treatments'] is List) {
+        final treatments = knowledgeContext['treatments'] as List;
+        debugPrint('💉 Encontrados ${treatments.length} tratamientos relevantes');
+        
+        // Para preguntas generales sobre tratamientos
+        if (_containsAny(userMessage.toLowerCase(), ['qué tratamientos', 'que tratamientos', 'cuáles son', 'cuales son', 'ofrecen', 'disponibles'])) {
+          // Lista todos los tratamientos disponibles
+          String treatmentInfo = "En Clínicas Love ofrecemos estos tratamientos estéticos:\n\n";
+          
+          // Agrupar por categorías
+          final Map<String, List<dynamic>> treatmentsByCategory = {};
+          
+          for (var treatment in treatments) {
+            final category = treatment['category']?.toString() ?? 'General';
+            treatmentsByCategory.putIfAbsent(category, () => []);
+            treatmentsByCategory[category]!.add(treatment);
+          }
+          
+          // Mostrar tratamientos por categoría
+          treatmentsByCategory.forEach((category, categoryTreatments) {
+            treatmentInfo += "**$category**:\n";
+            
+            for (var t in categoryTreatments.take(4)) {
+              treatmentInfo += "• ${t['name']}";
+              if (t['price'] != null) {
+                treatmentInfo += " (${t['price']}€)";
+              }
+              treatmentInfo += "\n";
+            }
+            
+            if (categoryTreatments.length > 4) {
+              treatmentInfo += "• Y otros tratamientos más...\n";
+            }
+            
+            treatmentInfo += "\n";
+          });
+          
+          return treatmentInfo;
+        }
+        
+        // Identificar el tratamiento específico - usar bucle for en lugar de firstWhere
+        final lowerMessage = userMessage.toLowerCase();
+        for (var treatment in treatments) {
+          final treatmentName = treatment['name']?.toString() ?? '';
+          
+          if (_messageContainsTreatment(lowerMessage, treatmentName)) {
+            String treatmentInfo = "**${treatment['name']}**: ";
+            
+            if (treatment['description'] != null) {
+              treatmentInfo += treatment['description'];
+            }
+            
+            // Añadir duración si está disponible
+            if (treatment['duration'] != null) {
+              treatmentInfo += "\n\nDuración aproximada: ${treatment['duration']} minutos.";
+            }
+            
+            // Añadir precio si está disponible
+            if (treatment['price'] != null) {
+              treatmentInfo += " Precio: ${treatment['price']}€.";
+            }
+            
+            return treatmentInfo;
+          }
+        }
+        
+        // Si llegamos aquí, no encontramos un tratamiento específico
+        if (treatments.isNotEmpty) {
+          // Mostrar los tratamientos disponibles
+          String treatmentInfo = "No encontré información específica sobre ese tratamiento, pero en Clínicas Love ofrecemos estos tratamientos:\n\n";
+          
+          // Listar hasta 5 tratamientos
+          int count = 0;
+          for (var t in treatments) {
+            if (count >= 5) break;
+            treatmentInfo += "• **${t['name']}**";
+            if (t['price'] != null) {
+              treatmentInfo += " (${t['price']}€)";
+            }
+            treatmentInfo += "\n";
+            count++;
+          }
+          
+          treatmentInfo += "\n¿Te gustaría información más detallada sobre alguno de estos tratamientos?";
+          return treatmentInfo;
+        }
       }
+    } catch (e) {
+      debugPrint('⚠️ Error al obtener información de tratamientos: $e');
     }
     
-    messages.add(ChatMessage(text: response, isUser: false));
-    
-    // Sugerencias para tratamientos populares
-    suggestedReplies = [
-      "Botox",
-      "Ácido Hialurónico",
-      "Eliminación de ojeras",
-      "Consulta General"
-    ];
-    
-    notifyListeners();
+    // Respuesta de respaldo si todo falla
+    return "En Clínicas Love ofrecemos una amplia variedad de tratamientos estéticos, incluyendo:\n\n"
+        "• Tratamientos faciales: Botox, ácido hialurónico, rellenos, rinomodelación\n"
+        "• Tratamientos corporales: Mesoterapia, tratamientos reductores\n"
+        "• Medicina estética avanzada: Peelings químicos, láser\n\n"
+        "Todos realizados por médicos especialistas. ¿Sobre qué tratamiento específico te gustaría más información?";
   }
 
-  Future<void> _startBookingFlow() async {
-    // Obtener nombre del tratamiento para mostrarlo
-    String treatment = currentAppointmentInfo?.treatmentId != null ? 
-        _appointmentService.availableTreatments[currentAppointmentInfo!.treatmentId]! : 
-        (localizations.get('a_consultation') ?? "una consulta");
+  // Método auxiliar para verificar si un mensaje contiene el nombre de un tratamiento
+  bool _messageContainsTreatment(String message, String treatmentName) {
+    final treatmentLower = treatmentName.toLowerCase();
     
-    // Mensaje conciso para reserva específica
-    String response = (localizations.get('booking_specific_treatment') ?? 
-        "📋 Agendaré tu cita para {treatment}")
-        .replaceAll('{treatment}', "**$treatment**");
-
-    if (currentAppointmentInfo?.clinicId == null) {
-      response += "\n\n${localizations.get('which_clinic_short') ?? "¿En qué ubicación?"}";
-      
-      // Mostrar clínicas de forma concisa
-      for (final clinic in _appointmentService.availableClinics.values) {
-        response += "\n$clinic";
-      }
-      
-      // Sugerencias de clínicas
-      List<String> clinicSuggestions = [];
-      for (final clinic in _appointmentService.availableClinics.values.take(3)) {
-        clinicSuggestions.add(clinic);
-      }
-      suggestedReplies = clinicSuggestions;
+    // Palabras clave para tratamientos comunes
+    final Map<String, List<String>> treatmentKeywords = {
+      'botox': ['botox', 'toxina', 'botulínica', 'arrugas'],
+      'labios': ['labio', 'labios', 'relleno labial', 'aumento de labios'],
+      'rinomodelación': ['rino', 'rinomodelación', 'nariz', 'rinoplastia'],
+      'mesoterapia': ['meso', 'mesoterapia', 'facial', 'vitaminas'],
+      'peeling': ['peeling', 'químico', 'exfoliación'],
+      'facial': ['facial', 'limpieza facial', 'tratamiento facial'],
+    };
+    
+    // Verificar coincidencia directa
+    if (message.contains(treatmentLower)) {
+      return true;
     }
     
-    messages.add(ChatMessage(text: response, isUser: false));
-    notifyListeners();
-  }
-  
-  // Mostrar días disponibles
-  Future<void> _showAvailableDates() async {
-    final clinicId = currentAppointmentInfo!.clinicId!;
-    final clinicName = _appointmentService.availableClinics[clinicId]!;
-    final availableDates = _appointmentService.getAvailableDates(clinicId);
-    
-    String response = (localizations.get('clinic_selected_choose_date') ?? 
-        "¿Qué día te gustaría tu cita en {clinic}?")
-        .replaceAll('{clinic}', clinicName);
-    
-    if (availableDates.isEmpty) {
-      response += "\n\n${localizations.get('no_availability') ?? 
-          "Lo siento, no hay fechas disponibles para esta clínica en las próximas semanas."}";
-      messages.add(ChatMessage(text: response, isUser: false));
-      isBookingFlow = false;
-      return;
-    }
-    
-    // Formatear fechas disponibles de forma concisa
-    final dateFormat = DateFormat('EEEE d MMMM', 'es');
-    response += "\n\nFechas disponibles:";
-    
-    List<String> dateSuggestions = [];
-    for (final date in availableDates.take(5)) {
-      final dateStr = dateFormat.format(date);
-      response += "\n• $dateStr";
-      dateSuggestions.add(dateStr);
-    }
-    
-    messages.add(ChatMessage(text: response, isUser: false));
-    suggestedReplies = dateSuggestions.take(3).toList();
-  }
-  
-  // Mostrar horarios disponibles
-  Future<void> _showAvailableTimeSlots(DateTime date) async {
-    final clinicId = currentAppointmentInfo!.clinicId!;
-    final availableSlots = _appointmentService.getAvailableSlotsForDate(date, clinicId);
-    
-    if (availableSlots.isEmpty) {
-      final response = localizations.get('no_time_slots') ?? 
-          "Lo siento, no hay horarios disponibles para el día seleccionado.";
-      messages.add(ChatMessage(text: response, isUser: false));
-      _currentDateSelection = null;
-      await _showAvailableDates();
-      return;
-    }
-    
-    final dayName = DateFormat('EEEE d MMMM', 'es').format(date);
-    String response = (localizations.get('date_selected_choose_time') ?? 
-        "¿Qué horario prefieres para el {date}?")
-        .replaceAll('{date}', dayName);
-    
-    // Agrupar por mañana/tarde de manera concisa
-    final morningSlots = availableSlots.where((s) => s.dateTime.hour < 13).toList();
-    final afternoonSlots = availableSlots.where((s) => s.dateTime.hour >= 13).toList();
-    
-    List<String> timeSuggestions = [];
-    
-    if (morningSlots.isNotEmpty) {
-      response += "\n\n**Mañana:**";
-      for (final slot in morningSlots) {
-        final timeStr = DateFormat('HH:mm').format(slot.dateTime);
-        response += "\n• $timeStr";
-        timeSuggestions.add(timeStr);
+    // Verificar por palabras clave específicas
+    for (final entry in treatmentKeywords.entries) {
+      if (treatmentLower.contains(entry.key)) {
+        for (final keyword in entry.value) {
+          if (message.contains(keyword)) {
+            return true;
+          }
+        }
       }
     }
     
-    if (afternoonSlots.isNotEmpty) {
-      response += "\n\n**Tarde:**";
-      for (final slot in afternoonSlots) {
-        final timeStr = DateFormat('HH:mm').format(slot.dateTime);
-        response += "\n• $timeStr";
-        timeSuggestions.add(timeStr);
-      }
-    }
-    
-    messages.add(ChatMessage(text: response, isUser: false));
-    suggestedReplies = timeSuggestions.take(4).toList();
-  }
-  
-  // Mostrar resumen de reserva
-  Future<void> _showBookingSummary() async {
-    final treatment = _appointmentService.availableTreatments[currentAppointmentInfo!.treatmentId]!;
-    final clinic = _appointmentService.availableClinics[currentAppointmentInfo!.clinicId]!;
-    final dateTime = DateFormat('EEEE d MMMM, HH:mm', 'es').format(currentAppointmentInfo!.date!);
-    
-    final response = (localizations.get('appointment_summary') ?? 
-        "📌 Resumen de cita:\n📅 {dateTime}\n💉 {treatment}\n📍 {clinic}\n\n¿Confirmas?")
-        .replaceAll('{dateTime}', dateTime)
-        .replaceAll('{treatment}', treatment)
-        .replaceAll('{clinic}', clinic);
-    
-    messages.add(ChatMessage(text: response, isUser: false));
-    
-    suggestedReplies = [
-      localizations.get('confirm') ?? "Confirmar", 
-      localizations.get('change_date') ?? "Cambiar fecha", 
-      localizations.get('cancel') ?? "Cancelar"
-    ];
-  }
-  
-  // Confirmar reserva final
-  Future<void> _confirmBooking() async {
-    final success = await _appointmentService.confirmAppointment(currentAppointmentInfo!);
-    
-    if (success) {
-      final treatment = _appointmentService.availableTreatments[currentAppointmentInfo!.treatmentId]!;
-      final clinic = _appointmentService.availableClinics[currentAppointmentInfo!.clinicId]!;
-      final dateTime = DateFormat('EEEE d MMMM, HH:mm', 'es').format(currentAppointmentInfo!.date!);
-      
-      final response = (localizations.get('booking_confirmed') ?? 
-          "✅ **¡Tu cita ha sido confirmada!**\n\n" +
-          "📅 **Fecha y hora:** {dateTime}\n" +
-          "💉 **Tratamiento:** {treatment}\n" +
-          "📍 **Clínica:** {clinic}")
-          .replaceAll('{dateTime}', dateTime)
-          .replaceAll('{treatment}', treatment)
-          .replaceAll('{clinic}', clinic);
-      
-      messages.add(ChatMessage(text: response, isUser: false));
-      
-      // Finalizar flujo de reserva
-      isBookingFlow = false;
-      currentAppointmentInfo = null;
-      _currentDateSelection = null;
-      _currentTimeSelection = null;
-      
-      suggestedReplies = [
-        localizations.get('view_my_appointments') ?? "Ver mis citas",
-        localizations.get('before_treatment_info') ?? "Instrucciones previas",
-        localizations.get('thanks') ?? "Gracias"
-      ];
-    } else {
-      final response = localizations.get('booking_error') ?? 
-          "Lo siento, ha ocurrido un problema al confirmar tu cita.";
-      messages.add(ChatMessage(text: response, isUser: false));
-      _currentTimeSelection = null;
-      await _showAvailableTimeSlots(_currentDateSelection!);
-    }
-  }
-  
-  // Cancelar reserva
-  Future<void> _cancelBooking() async {
-    final response = localizations.get('booking_cancelled') ?? 
-        "He cancelado el proceso de reserva. ¿Hay algo más en lo que pueda ayudarte?";
-    messages.add(ChatMessage(text: response, isUser: false));
-    
-    isBookingFlow = false;
-    currentAppointmentInfo = null;
-    _currentDateSelection = null;
-    _currentTimeSelection = null;
-    
-    suggestedReplies = [
-      localizations.get('suggest_treatments') ?? "Ver tratamientos",
-      localizations.get('consultation_prices') ?? "Precios de consulta",
-      localizations.get('schedule_appointment') ?? "Intentar otra cita"
-    ];
+    return false;
   }
   
   void _updateSuggestedReplies(String userMessage, String botResponse) {
@@ -593,5 +516,27 @@ class ChatViewModel extends ChangeNotifier {
     currentAppointmentInfo = null;
     isTyping = false;
     sendWelcomeMessage();
+  }
+
+    bool _containsAny(String text, List<String> keywords) {
+    final normalized = _normalizeText(text);
+    
+    for (final keyword in keywords) {
+      if (normalized.contains(_normalizeText(keyword))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _normalizeText(String text) {
+    // Normalizar: quitar acentos, convertir a minúsculas, eliminar caracteres especiales
+    return text.toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n');
   }
 }

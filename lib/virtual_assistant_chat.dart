@@ -212,9 +212,49 @@ void didChangeDependencies() {
     );
   }
 
+  Widget _buildScheduleButton() {
+  return Padding(
+    padding: const EdgeInsets.only(top: 8.0),
+    child: Center(
+      child: ElevatedButton(
+        onPressed: () {
+          _handleAppLink('app://schedule');
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1980E6), // Color vibrante
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24), // Bordes redondeados
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          elevation: 5, // Sombra para hacerlo más llamativo
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.calendar_today, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              'Agendar una cita',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
   Widget _buildMessage(ChatMessage message) {
+    // Verificar si el mensaje contiene el enlace "[Agendar una cita]"
+    final containsScheduleLink = message.text.contains('[Agendar una cita](app://schedule)');
+    final processedText = message.text.replaceAll('[Agendar una cita](app://schedule)', '');
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,28 +283,40 @@ void didChangeDependencies() {
                   ),
                 ],
               ),
-              child: message.isUser 
-                ? Text(
-                    message.text,
-                    style: const TextStyle(
-                      color: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Mostrar el texto del mensaje sin el enlace
+                  if (processedText.isNotEmpty)
+                    MarkdownBody(
+                      data: processedText,
+                      onTapLink: (text, href, title) {
+                        if (href != null && href.startsWith('app://')) {
+                          _handleAppLink(href);
+                        }
+                      },
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(
+                          color: Color(0xFF303030),
+                        ),
+                        strong: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        a: TextStyle(
+                          color: Theme.of(context).colorScheme.secondary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
-                  )
-                : MarkdownBody(
-                    data: message.text,
-                    styleSheet: MarkdownStyleSheet(
-                      p: const TextStyle(
-                        color: Color(0xFF303030),
-                      ),
-                      strong: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      a: TextStyle(
-                        color: Theme.of(context).colorScheme.secondary,
-                      ),
+                  // Mostrar el botón si el mensaje contiene el enlace
+                  if (containsScheduleLink)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: _buildScheduleButton(),
                     ),
-                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -273,6 +325,15 @@ void didChangeDependencies() {
       ),
     );
   }
+
+  void _handleAppLink(String href) {
+  if (href == 'app://schedule') {
+    // Redirigir a la página de agendar citas
+    Navigator.pushNamed(context, '/book-appointment');
+  } else {
+    debugPrint('🔗 Enlace desconocido: $href');
+  }
+}
 
   Widget _buildSuggestedReplies(List<String> suggestions) {
     if (suggestions.isEmpty) return const SizedBox.shrink();
@@ -587,22 +648,77 @@ void didChangeDependencies() {
     setState(() {
       _showSuggestions = false;
     });
-    
-    // Detectar palabras de confirmación para el flujo de reservas
+
     final lowerText = text.toLowerCase();
-    final isConfirmingAppointment = _viewModel.isBookingFlow && 
-        (lowerText == 'confirmar' || 
-        lowerText == 'confirmo' || 
-        lowerText == 'si' || 
-        lowerText == 'sí' || 
-        lowerText == 'ok' || 
-        lowerText.contains('confirm'));
-    
-    if (isConfirmingAppointment) {
-      debugPrint('✅ Detectada confirmación de cita: "$text"');
+    final currentLanguage = localizations.locale.languageCode;
+
+    // 1. INTERCEPTAR CONSULTAS DE PRECIOS
+    if (_containsAny(lowerText, ['precio', 'cuesta', 'cuánto', 'cuanto', 'valor', 'tarifa', 'price', 'cost', 'how much', 'preu'])) {
+      _viewModel.addUserMessage(text);
+      _viewModel.setTyping(true);
+
+      // Obtener precios de la knowledge base
+      _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
+        if (priceInfo.isNotEmpty) {
+          // Mostrar la información de precios con un botón para agendar
+          _viewModel.addBotMessage(
+            "$priceInfo\n\n[${localizations.get('want_appointment')}](app://schedule)"
+          );
+        } else {
+          // Si no hay información específica, procesar normalmente
+          _viewModel.addBotMessage(
+            "${localizations.get('no_price_info')} [${localizations.get('want_appointment')}](app://schedule)"
+          );
+        }
+      });
+
+      return; // No continuar con el procesamiento normal
     }
-    
-    _viewModel.sendMessage(text);
+
+    // 2. INTERCEPTAR CONSULTAS DE TRATAMIENTOS
+    if (_containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'hacen', 'realizan', 'procedimiento', 'treatment', 'offer', 'service', 'procediment'])) {
+      _viewModel.addUserMessage(text);
+      _viewModel.setTyping(true);
+
+      // Obtener información de tratamientos de la knowledge base
+      _viewModel.getTreatmentInfoFromKnowledgeBase(text).then((treatmentInfo) {
+        if (treatmentInfo.isNotEmpty) {
+          // Mostrar la información de tratamientos con un botón para agendar
+          _viewModel.addBotMessage(
+            "$treatmentInfo\n\n[${localizations.get('want_appointment')}](app://schedule)"
+          );
+        } else {
+          // Usar respuesta estática si no hay información específica
+          _viewModel.addBotMessage(
+            "${localizations.get('no_treatment_info')} [${localizations.get('want_appointment')}](app://schedule)"
+          );
+        }
+      });
+
+      return; // No continuar con el procesamiento normal
+    }
+
+    // 3. Para todas las demás consultas, usar Claude AI
+    _viewModel.addUserMessage(text);
+    _viewModel.setTyping(true);
+
+    // Enviar el idioma actual al modelo de IA
+    _viewModel.processMessage(text, currentLanguage).then((response) {
+      // Añadir el botón de cita a todas las respuestas
+      _viewModel.addBotMessage(
+        "${response.text}\n\n[${localizations.get('want_appointment')}](app://schedule)"
+      );
+    });
+  }
+
+  // Añade este método auxiliar
+  bool _containsAny(String text, List<String> keywords) {
+    for (final keyword in keywords) {
+      if (text.contains(keyword)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _resetChat(BuildContext context) {
@@ -629,6 +745,46 @@ void didChangeDependencies() {
         ],
       ),
     );
+  }
+
+  String _detectLanguage(String text) {
+    // Detección básica basada en palabras comunes
+    text = text.toLowerCase();
+    
+    // Palabras comunes en español
+    List<String> spanishWords = ['el', 'la', 'los', 'las', 'de', 'en', 'para', 'que', 'como', 
+                                'con', 'por', 'pero', 'si', 'qué', 'cuál', 'dónde', 'cuándo'];
+    
+    // Palabras comunes en inglés
+    List<String> englishWords = ['the', 'of', 'and', 'to', 'in', 'that', 'for', 'is', 'on', 
+                                'with', 'by', 'at', 'this', 'be', 'what', 'where', 'when', 'how'];
+    
+    // Palabras comunes en catalán
+    List<String> catalanWords = ['el', 'la', 'els', 'les', 'de', 'en', 'amb', 'per', 'què', 
+                                'com', 'si', 'però', 'quan', 'quant', 'on', 'quin'];
+
+    // Contar coincidencias
+    int spanishCount = 0;
+    int englishCount = 0;
+    int catalanCount = 0;
+    
+    for (String word in text.split(RegExp(r'[^a-zA-ZáéíóúàèòùÀÈÌÒÙçÇäëïöüÄËÏÖÜñÑ]+'))) {
+      if (spanishWords.contains(word)) spanishCount++;
+      if (englishWords.contains(word)) englishCount++;
+      if (catalanWords.contains(word)) catalanCount++;
+    }
+    
+    // Determinar el idioma más probable
+    if (englishCount > spanishCount && englishCount > catalanCount) {
+      return 'en';
+    } else if (catalanCount > spanishCount && catalanCount > englishCount) {
+      return 'ca';
+    } else if (spanishCount > 0) {
+      return 'es';
+    }
+    
+    // Si no hay coincidencias claras, usar el idioma de la interfaz
+    return localizations.locale.languageCode;
   }
 
   void _showInfoDialog(BuildContext context) {

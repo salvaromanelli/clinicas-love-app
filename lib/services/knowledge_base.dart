@@ -270,7 +270,7 @@ class KnowledgeBase {
     _clinics.addAll([
       {
         'name': 'Clínicas Love Barcelona',
-        'address': 'Carrer diputacio 327, 08009 Barcelona',
+        'address': 'Carrer Diputacio 327, 08009 Barcelona',
         'phone': '+34 938526533',
         'schedule': 'Lunes a Viernes: 9:00 - 20:00.'
       },
@@ -472,11 +472,50 @@ class KnowledgeBase {
     _loadFallbackFAQ();
     debugPrint('✅ FAQs actualizadas');
   }
-  
+    
   Future<void> refreshClinics() async {
-    // Intentar cargar desde API o usar respaldo
-    _loadFallbackClinics();
-    debugPrint('✅ Información de clínicas actualizada');
+    try {
+      // CARGAR DESDE SUPABASE - Esta es la clave
+      final response = await http.get(
+        Uri.parse('$_supabaseUrl/rest/v1/clinics?select=*'),
+        headers: {
+          'apikey': _supabaseKey,
+          'Authorization': 'Bearer $_supabaseKey',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+      ).timeout(const Duration(seconds: 5));
+      
+      debugPrint('🔍 Clinics response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        _clinics.clear();
+        
+        // Transformar los datos recibidos al formato esperado
+        for (var item in data) {
+          _clinics.add({
+            'name': item['name'] ?? '',
+            'address': item['address'] ?? '',
+            'phone': item['phone'] ?? '',
+            'schedule': item['schedule'] ?? ''
+          });
+        }
+        
+        // Guardar en caché
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_clinics', jsonEncode(_clinics));
+        
+        debugPrint('✅ Información de clínicas actualizada: ${_clinics.length} clínicas');
+      } else {
+        debugPrint('⚠️ Error cargando clínicas: ${response.statusCode}');
+        debugPrint('⚠️ Respuesta: ${response.body.substring(0, Math.min(100, response.body.length))}...');
+        _loadFallbackClinics();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error actualizando clínicas: $e');
+      _loadFallbackClinics();
+    }
   }
 
   Future<void> refreshWebReferences() async {
@@ -597,7 +636,7 @@ class KnowledgeBase {
   }
   
   // Obtener datos relevantes basados en la consulta del usuario
-  Future<Map<String, dynamic>> getRelevantContext(String query) async {
+  Future<Map<String, dynamic>> getRelevantContext(String query, {String? preferredType}) async {
     final result = <String, dynamic>{};
     
     // Normalizar consulta
@@ -681,7 +720,12 @@ class KnowledgeBase {
         query.contains('ubicación') || query.contains('donde') ||
         query.contains('dónde') || query.contains('sitio') || 
         query.contains('lugar') || query.contains('cómo llegar') || 
-        (query.contains('barcelona') && !query.contains('precio'))) {  // Añadida detección por ciudad
+        query.contains('on es') || query.contains('ubicacions') ||
+        query.contains('cliniques') || query.contains('where') ||
+        query.contains('location') || query.contains('address') ||
+        query.contains('barcelona') || query.contains('madrid') ||
+        query.contains('málaga') || query.contains('malaga') ||
+        query.contains('tenerife')) {  // Añadida detección por ciudad
       result['clinics'] = _clinics;
       debugPrint('🏥 Incluyendo información de clínicas');
     }
@@ -706,6 +750,22 @@ class KnowledgeBase {
                 (treatment.contains('labio') || treatment.contains('lip'))) {
           relevantPrices.add(price);
           debugPrint('✅ Coincidencia especial para labios');
+        }
+
+          // Añade lógica para priorizar el tipo preferido
+        if (preferredType != null) {
+          debugPrint('🔍 Buscando principalmente: $preferredType para: "$query"');
+          
+          // Si preferredType es 'prices', prioriza la búsqueda en los precios
+          if (preferredType == 'prices' && relevantPrices.isNotEmpty) {
+            // Dar prioridad a los precios en los resultados
+            result['prices'] = relevantPrices;
+          }
+          // Si preferredType es 'treatments', prioriza la búsqueda en los tratamientos
+          else if (preferredType == 'treatments' && relevantTreatments.isNotEmpty) {
+            // Dar prioridad a los tratamientos en los resultados
+            result['treatments'] = relevantTreatments;
+          }
         }
       }
     }

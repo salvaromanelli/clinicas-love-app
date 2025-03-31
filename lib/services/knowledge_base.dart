@@ -914,6 +914,6 @@ class KnowledgeBase {
     
     // Si llegamos aquí, cargar las clínicas de respaldo
     _loadFallbackClinics();
-    return List<Map<String, dynamic>>.from(_clinics);
+    return List<Map<String, dynamic>>.from(_clinics); // Faltaba este return
   }
 }

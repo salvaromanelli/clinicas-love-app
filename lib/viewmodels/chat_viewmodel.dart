@@ -375,46 +375,6 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
   return "Lo siento, no encontré información específica sobre precios para tu consulta. ¿Te gustaría preguntar por un tratamiento específico como Botox, aumento de labios o rinomodelación?";
 }
 
-// Método para obtener ubicaciones directamente de la base de conocimiento
-Future<String> _getClinicLocationsDirectly() async {
-  try {
-    // DEPURACIÓN: Imprimir las clínicas directamente del KnowledgeBase
-    debugPrint('🔍 ACCEDIENDO DIRECTAMENTE A LA LISTA DE CLÍNICAS');
-    
-    // Acceder DIRECTAMENTE a las clínicas en lugar de usar getRelevantContext
-    final List<Map<String, dynamic>> clinics = await _knowledgeBase.getAllClinics();
-    
-    // Imprimir cada clínica para depuración
-    for (var i = 0; i < clinics.length; i++) {
-      debugPrint('Clínica ${i+1}: ${clinics[i]['name']} - ${clinics[i]['address']}');
-    }
-    
-    if (clinics.isEmpty) {
-      return "Lo siento, no tengo información sobre nuestras ubicaciones en este momento.";
-    }
-    
-    String locationInfo = "Nuestras clínicas están ubicadas en:\n\n";
-    
-    for (var clinic in clinics) {
-      final name = clinic['name'] ?? 'Clínica Love';
-      final address = clinic['address'] ?? 'Dirección no disponible';
-      final phone = clinic['phone'] ?? 'Teléfono no disponible';
-      final schedule = clinic['schedule'] ?? 'Horario no disponible';
-      
-      locationInfo += "📍 **$name**\n";
-      locationInfo += "   Dirección: $address\n";
-      locationInfo += "   Teléfono: $phone\n";
-      locationInfo += "   Horario: $schedule\n\n";
-    }
-    
-    locationInfo += "¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?";
-    return locationInfo;
-  } catch (e) {
-    debugPrint('⚠️ Error obteniendo ubicaciones: $e');
-    return "Lo siento, no pude recuperar la información sobre nuestras ubicaciones. Por favor, contacta con nosotros por teléfono para obtener las direcciones exactas.";
-  }
-}
-
   // Obtener información específica de tratamientos
   Future<String> getTreatmentInfoFromKnowledgeBase(String userMessage) async {
     if (_knowledgeBase == null) return "";
@@ -660,13 +620,67 @@ Future<String> _getClinicLocationsDirectly() async {
   }
 
   bool _isLocationQuestion(String text) {
-  final lowerText = text.toLowerCase();
-  return lowerText.contains('dónde') || 
-         lowerText.contains('donde') || 
-         lowerText.contains('ubicación') || 
-         lowerText.contains('ubicacion') ||
-         lowerText.contains('dirección') || 
-         lowerText.contains('direccion') ||
-         lowerText.contains('clinica');
-}
+    final lowerText = text.toLowerCase();
+    return lowerText.contains('dónde') || 
+          lowerText.contains('donde') || 
+          lowerText.contains('ubicación') || 
+          lowerText.contains('ubicacion') ||
+          lowerText.contains('dirección') || 
+          lowerText.contains('direccion') ||
+          lowerText.contains('clinica') ||
+          lowerText.contains('localización') ||
+          lowerText.contains('lugar') ||
+          lowerText.contains('sede') ||
+          (lowerText.contains('esta') && lowerText.contains('ubicad'));
+  }
+
+  Future<String> _getClinicLocationsDirectly() async {
+    try {
+      debugPrint('🔍 ACCEDIENDO DIRECTAMENTE A LA LISTA DE CLÍNICAS');
+      
+      // Acceder DIRECTAMENTE a las clínicas - importante usar await aquí
+      final List<Map<String, dynamic>> clinics = await _knowledgeBase.getAllClinics();
+      
+      // Depuración profunda para verificar qué estamos obteniendo
+      debugPrint('📍 CLÍNICAS OBTENIDAS: ${clinics.length}');
+      for (var i = 0; i < clinics.length; i++) {
+        debugPrint('Clínica ${i+1}: ${clinics[i]['name']} - ${clinics[i]['address']}');
+      }
+      
+      if (clinics.isEmpty) {
+        return "Lo siento, no tengo información sobre nuestras ubicaciones en este momento.";
+      }
+      
+      // Construir respuesta manualmente con las ubicaciones reales
+      String locationInfo = "Nuestras clínicas están ubicadas en:\n\n";
+      
+      for (var clinic in clinics) {
+        final name = clinic['name'] ?? 'Clínica Love';
+        final address = clinic['address'] ?? 'Dirección no disponible';
+        final phone = clinic['phone'] ?? 'Teléfono no disponible';
+        final schedule = clinic['schedule'] ?? 'Horario no disponible';
+        
+        locationInfo += "📍 **$name**\n";
+        locationInfo += "   Dirección: $address\n";
+        locationInfo += "   Teléfono: $phone\n";
+        locationInfo += "   Horario: $schedule\n\n";
+      }
+      
+      locationInfo += "¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?";
+      return locationInfo;
+    } catch (e) {
+      debugPrint('⚠️ Error obteniendo ubicaciones: $e');
+      // Si hay error, devolver información hardcoded como último recurso
+      return "Nuestras clínicas están ubicadas en:\n\n" +
+            "📍 **Clínicas Love Barcelona**\n" +
+            "   Dirección: Carrer Diputacio 327, 08009 Barcelona\n" +
+            "   Teléfono: +34 938526533\n" +
+            "   Horario: Lunes a Viernes: 9:00 - 20:00.\n\n" +
+            "📍 **Clínicas Love Madrid**\n" +
+            "   Dirección: Calle Edgar Neville, 16. 28020 Madrid\n" +
+            "   Teléfono: 34 919993515\n" +
+            "   Horario: Lunes a Viernes: 10:00 - 20:00.\n\n" +
+            "¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?";
+    }
+  }
 }

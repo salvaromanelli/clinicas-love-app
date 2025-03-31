@@ -35,6 +35,111 @@ class ClaudeAssistantService {
     return apiKey ?? dotenv.env['CLAUDE_API_KEY'] ?? '';
   }
 
+    // Añadir este método en la clase ClaudeAssistantService
+  bool _isLocationQuestion(String text) {
+    final lowerText = text.toLowerCase();
+    return lowerText.contains('dónde') || 
+          lowerText.contains('donde') || 
+          lowerText.contains('ubicación') || 
+          lowerText.contains('ubicacion') ||
+          lowerText.contains('dirección') || 
+          lowerText.contains('direccion') ||
+          lowerText.contains('clínica') ||
+          lowerText.contains('sede') ||
+          lowerText.contains('lugar') ||
+          (lowerText.contains('están') && (
+              lowerText.contains('ubicad') || 
+              lowerText.contains('situad') || 
+              lowerText.contains('localiz')
+          ));
+  }
+
+  // Añadir este método que devuelve respuestas hardcoded para ubicaciones
+  ProcessedMessage _getHardcodedLocationResponse(String language) {
+    String responseText;
+    
+    if (language == 'ca') {
+      responseText = """Les nostres clíniques estan ubicades a:
+
+  📍 **Clíniques Love Barcelona**
+    Adreça: Carrer Diputacio 327, 08009 Barcelona
+    Telèfon: +34 938526533
+    Horari: Dilluns a Divendres: 11:00 - 20:00.
+
+  📍 **Clíniques Love Madrid**
+    Adreça: Calle Edgar Neville, 16, 28020 Madrid
+    Telèfon: +34 919993515
+    Horari: Dilluns a Divendres: 11:00 - 20:00.
+
+  📍 **Clíniques Love Málaga**
+    Adreça: Calle Alarcón Luján, 9. 29005 Málaga
+    Telèfon: +34 638189262
+    Horari: Dilluns a Divendres: 11:00 - 20:00.
+
+  📍 **Clíniques Love Tenerife**
+    Adreça: Calle san clemente 31. 38003 Santa Cruz de Tenerife
+    Telèfon: +34 608333285
+    Horari: Dilluns a Divendres: 11:00 - 20:00.
+
+  Necessites informació sobre com arribar a alguna de les nostres clíniques?""";
+    } else if (language == 'en') {
+      responseText = """Our clinics are located at:
+
+  📍 **Clínicas Love Barcelona**
+    Address: Carrer Diputacio 327, 08009 Barcelona
+    Phone: +34 938526533
+    Hours: Monday to Friday: 9:00 AM - 8:00 PM.
+
+  📍 **Clínicas Love Madrid**
+    Address: Calle Edgar Neville, 16, 28020 Madrid
+    Phone: +34 919993515
+    Hours: Monday to Friday: 10:00 AM - 8:00 PM.
+
+  📍 **Clínicas Love Málaga**
+    Address: Calle Alarcón Luján, 9. 29005 Málaga
+    Phone: +34 638189262
+    Hours: Monday to Friday: 11:00 AM - 8:00 PM.
+
+  📍 **Clínicas Love Tenerife**
+    Address: Calle san clemente 31. 38003 Santa Cruz de Tenerife
+    Phone: +34 608333285
+    Hours: Monday to Friday: 11:00 AM - 8:00 PM.
+
+  Do you need information on how to reach any of our clinics?""";
+    } else {
+      // Español por defecto
+      responseText = """Nuestras clínicas están ubicadas en:
+
+  📍 **Clínicas Love Barcelona**
+    Dirección: Carrer Diputacio 327, 08009 Barcelona
+    Teléfono: +34 938526533
+    Horario: Lunes a Viernes: 9:00 - 20:00.
+
+  📍 **Clínicas Love Madrid**
+    Dirección: Calle Edgar Neville, 16, 28020 Madrid
+    Teléfono: +34 919993515
+    Horario: Lunes a Viernes: 10:00 - 20:00.
+
+  📍 **Clínicas Love Málaga**
+    Dirección: Calle Alarcón Luján, 9. 29005 Málaga
+    Teléfono: +34 638189262
+    Horario: Lunes a Viernes: 11:00 - 20:00.
+
+  📍 **Clínicas Love Tenerife**
+    Dirección: Calle san clemente 31. 38003 Santa Cruz de Tenerife
+    Teléfono: +34 608333285
+    Horario: Lunes a Viernes: 11:00 - 20:00.
+
+  ¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
+    }
+
+    debugPrint('✅ Respuesta de ubicación HARDCODED generada');
+    return ProcessedMessage(
+      text: responseText,
+      additionalContext: "Respuesta directa sobre ubicaciones de clínicas"
+    );
+  }
+
   // Método principal simplificado para procesar mensajes del usuario
   Future<ProcessedMessage> processMessage(
     String userMessage, 
@@ -44,6 +149,14 @@ class ClaudeAssistantService {
     debugPrint('🔍 Procesando mensaje con Claude: "$userMessage"');
 
     final language = currentState['language'] ?? 'es';
+    
+    // Interceptar preguntas de ubicación directamente en el servicio
+    if (_isLocationQuestion(userMessage)) {
+      debugPrint('🏢 Interceptando pregunta sobre ubicación de clínicas en el servicio');
+      return _getHardcodedLocationResponse(language);
+    }
+    
+    // El resto de tu código existente permanece igual...
     final currentTopic = currentState['conversation_topic'] ?? '';
     final lastMentionedTreatment = currentState['last_mentioned_treatment'] ?? '';
     

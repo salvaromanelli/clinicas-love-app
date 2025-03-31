@@ -69,6 +69,45 @@ class ChatViewModel extends ChangeNotifier {
     messages.add(ChatMessage(text: message, isUser: true));
     isTyping = true;
     notifyListeners();
+    
+    // NUEVO: Detección mejorada de preguntas sobre ubicación
+    final normalizedMsg = message.toLowerCase();
+    final isLocationQuery = normalizedMsg.contains('dónde') || 
+                          normalizedMsg.contains('donde') ||
+                          normalizedMsg.contains('ubicacion') ||
+                          normalizedMsg.contains('ubicación') ||
+                          normalizedMsg.contains('direccion') ||
+                          normalizedMsg.contains('dirección') ||
+                          normalizedMsg.contains('clínica') ||
+                          (normalizedMsg.contains('están') && normalizedMsg.contains('ubicad'));
+    
+    // NUEVO: Respuesta hardcoded para ubicaciones
+    if (isLocationQuery) {
+      debugPrint('📍 INTERCEPTANDO PREGUNTA SOBRE UBICACIÓN: "$message"');
+      
+      // Respuesta hardcoded con datos exactos de las clínicas
+      final locationResponse = """Nuestras clínicas están ubicadas en:
+
+📍 **Clínicas Love Barcelona**
+   Dirección: Carrer Diputacio 327, 08009 Barcelona
+   Teléfono: +34 938526533
+   Horario: Lunes a Viernes: 9:00 - 20:00.
+
+📍 **Clínicas Love Madrid**
+   Dirección: Calle Edgar Neville, 16, 28020 Madrid
+   Teléfono: +34 919993515
+   Horario: Lunes a Viernes: 10:00 - 20:00.
+
+¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
+
+      // Agregar directamente la respuesta hardcoded
+      messages.add(ChatMessage(text: locationResponse, isUser: false));
+      isTyping = false;
+      notifyListeners();
+      
+      debugPrint('✅ RESPUESTA DE UBICACIÓN HARDCODED ENVIADA');
+      return; // Terminar aquí
+    }
       
       // Analizar el contexto actual de la conversación
       final ConversationContext conversationContext = _analyzeConversationContext();

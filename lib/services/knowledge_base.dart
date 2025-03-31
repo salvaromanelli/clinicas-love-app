@@ -12,6 +12,8 @@ class KnowledgeBase {
   final List<Map<String, dynamic>> _faq = [];
   final List<Map<String, dynamic>> _clinics = [];
   final List<Map<String, dynamic>> _webReferences = [];
+
+  bool _isInitialized = false;
   
   // Configuración de Supabase
   late final String _supabaseUrl;
@@ -37,6 +39,7 @@ class KnowledgeBase {
     debugPrint('🔄 Inicializando KnowledgeBase...');
     await _loadCachedData();
     await refreshAllData();
+    _isInitialized = true; 
   }
   
   // Cargar datos desde el almacenamiento local
@@ -810,6 +813,24 @@ class KnowledgeBase {
   String formatContextForPrompt(Map<String, dynamic> context) {
     final buffer = StringBuffer();
     
+    // Formatear clínicas con énfasis
+    if (context.containsKey('clinics') && context['clinics'] is List) {
+      buffer.writeln('\nUBICACIONES EXACTAS DE CLÍNICAS LOVE:');
+      final clinics = context['clinics'] as List;
+      for (var i = 0; i < clinics.length; i++) {
+        final clinic = clinics[i];
+        buffer.writeln('${i+1}. ${clinic['name']}: DIRECCIÓN EXACTA → ${clinic['address']}');
+        if (clinic['phone'] != null) {
+          buffer.writeln('   Teléfono: ${clinic['phone']}');
+        }
+        if (clinic['schedule'] != null) {
+          buffer.writeln('   Horario: ${clinic['schedule']}');
+        }
+      }
+      buffer.writeln('\nIMPORTANTE: SOLO EXISTEN ESTAS UBICACIONES. NO HAY OTRAS SUCURSALES.');
+    }
+  
+
     // Formatear categorías de precios
     if (context.containsKey('price_categories')) {
       buffer.writeln('CATEGORÍAS DE PRECIOS DISPONIBLES:');
@@ -877,5 +898,22 @@ class KnowledgeBase {
     }
     
     return buffer.toString();
+  }
+
+  // Método para acceder directamente a TODAS las clínicas sin filtros
+  Future<List<Map<String, dynamic>>> getAllClinics() async {
+    // Asegurarnos de que la base de conocimiento está inicializada
+    if (!_isInitialized) {
+      await initialize();
+    }
+    
+    // Si tenemos clínicas cargadas, devolverlas directamente
+    if (_clinics.isNotEmpty) {
+      return List<Map<String, dynamic>>.from(_clinics);
+    }
+    
+    // Si llegamos aquí, cargar las clínicas de respaldo
+    _loadFallbackClinics();
+    return List<Map<String, dynamic>>.from(_clinics);
   }
 }

@@ -66,9 +66,9 @@ class ChatViewModel extends ChangeNotifier {
   // NUEVO MÉTODO PRINCIPAL: Procesa mensajes con IA
   Future<void> sendMessage(String message) async {
     try {
-      messages.add(ChatMessage(text: message, isUser: true));
-      isTyping = true;
-      notifyListeners();
+    messages.add(ChatMessage(text: message, isUser: true));
+    isTyping = true;
+    notifyListeners();
       
       // Analizar el contexto actual de la conversación
       final ConversationContext conversationContext = _analyzeConversationContext();
@@ -81,6 +81,18 @@ class ChatViewModel extends ChangeNotifier {
         'last_mentioned_price': conversationContext.lastMentionedPrice,
         'last_mentioned_location': conversationContext.lastMentionedLocation,
       };
+
+          // BYPASS CLAUDE PARA PREGUNTAS DE UBICACIÓN
+      if (_isLocationQuestion(message)) {
+        debugPrint('🚦 ACTIVANDO BYPASS para pregunta de ubicación: "$message"');
+        // Obtener ubicaciones directamente de la base de conocimientos
+        final locationInfo = await _getClinicLocationsDirectly();
+        messages.add(ChatMessage(text: locationInfo, isUser: false));
+        isTyping = false;
+        notifyListeners();
+        debugPrint('✅ Respuesta de BYPASS enviada correctamente');
+        return; // Importante: terminar el método aquí
+      }
       
       // Procesar con la IA incluyendo historia conversacional relevante
       final processedMessage = await _aiService.processMessage(
@@ -363,6 +375,46 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
   return "Lo siento, no encontré información específica sobre precios para tu consulta. ¿Te gustaría preguntar por un tratamiento específico como Botox, aumento de labios o rinomodelación?";
 }
 
+// Método para obtener ubicaciones directamente de la base de conocimiento
+Future<String> _getClinicLocationsDirectly() async {
+  try {
+    // DEPURACIÓN: Imprimir las clínicas directamente del KnowledgeBase
+    debugPrint('🔍 ACCEDIENDO DIRECTAMENTE A LA LISTA DE CLÍNICAS');
+    
+    // Acceder DIRECTAMENTE a las clínicas en lugar de usar getRelevantContext
+    final List<Map<String, dynamic>> clinics = await _knowledgeBase.getAllClinics();
+    
+    // Imprimir cada clínica para depuración
+    for (var i = 0; i < clinics.length; i++) {
+      debugPrint('Clínica ${i+1}: ${clinics[i]['name']} - ${clinics[i]['address']}');
+    }
+    
+    if (clinics.isEmpty) {
+      return "Lo siento, no tengo información sobre nuestras ubicaciones en este momento.";
+    }
+    
+    String locationInfo = "Nuestras clínicas están ubicadas en:\n\n";
+    
+    for (var clinic in clinics) {
+      final name = clinic['name'] ?? 'Clínica Love';
+      final address = clinic['address'] ?? 'Dirección no disponible';
+      final phone = clinic['phone'] ?? 'Teléfono no disponible';
+      final schedule = clinic['schedule'] ?? 'Horario no disponible';
+      
+      locationInfo += "📍 **$name**\n";
+      locationInfo += "   Dirección: $address\n";
+      locationInfo += "   Teléfono: $phone\n";
+      locationInfo += "   Horario: $schedule\n\n";
+    }
+    
+    locationInfo += "¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?";
+    return locationInfo;
+  } catch (e) {
+    debugPrint('⚠️ Error obteniendo ubicaciones: $e');
+    return "Lo siento, no pude recuperar la información sobre nuestras ubicaciones. Por favor, contacta con nosotros por teléfono para obtener las direcciones exactas.";
+  }
+}
+
   // Obtener información específica de tratamientos
   Future<String> getTreatmentInfoFromKnowledgeBase(String userMessage) async {
     if (_knowledgeBase == null) return "";
@@ -606,4 +658,15 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
         .replaceAll('ú', 'u')
         .replaceAll('ñ', 'n');
   }
+
+  bool _isLocationQuestion(String text) {
+  final lowerText = text.toLowerCase();
+  return lowerText.contains('dónde') || 
+         lowerText.contains('donde') || 
+         lowerText.contains('ubicación') || 
+         lowerText.contains('ubicacion') ||
+         lowerText.contains('dirección') || 
+         lowerText.contains('direccion') ||
+         lowerText.contains('clinica');
+}
 }

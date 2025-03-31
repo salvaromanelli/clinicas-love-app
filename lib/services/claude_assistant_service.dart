@@ -44,34 +44,94 @@ class ClaudeAssistantService {
     debugPrint('🔍 Procesando mensaje con Claude: "$userMessage"');
 
     final language = currentState['language'] ?? 'es';
+    final currentTopic = currentState['conversation_topic'] ?? '';
+    final lastMentionedTreatment = currentState['last_mentioned_treatment'] ?? '';
     
-    // 1. Obtener contexto relevante de la base de conocimiento
+    // Obtener contexto relevante considerando el tema actual
     Map<String, dynamic> knowledgeContext = {};
     String formattedContext = '';
     
     if (knowledgeBase != null) {
       try {
-        knowledgeContext = await knowledgeBase!.getRelevantContext(userMessage);
+        // Extraer información del historial de conversación
+        String conversationContext = _extractConversationContext(conversationHistory);
+        debugPrint('🧠 Contexto conversacional: $conversationContext');
+        
+        // Si el usuario está preguntando sobre un tratamiento específico
+        // mencionado anteriormente sin nombrarlo explícitamente
+        if (lastMentionedTreatment.isNotEmpty && 
+            _isFollowUpQuestion(userMessage) &&
+            currentTopic == 'tratamientos') {
+          // Forzar búsqueda sobre ese tratamiento
+          knowledgeContext = await knowledgeBase!.getRelevantContext(
+            lastMentionedTreatment + " " + userMessage,
+            preferredType: 'treatments'
+          );
+          debugPrint('🔍 Búsqueda específica para tratamiento: $lastMentionedTreatment');
+        } 
+        // Si es una pregunta de seguimiento sobre precios de un tratamiento 
+        // mencionado anteriormente
+        else if (lastMentionedTreatment.isNotEmpty && 
+                _isFollowUpQuestion(userMessage) && 
+                (currentTopic == 'precios' || 
+                _containsAny(userMessage.toLowerCase(), ['precio', 'costo', 'vale']))) {
+          knowledgeContext = await knowledgeBase!.getRelevantContext(
+            lastMentionedTreatment + " precio " + userMessage,
+            preferredType: 'prices'
+          );
+          debugPrint('💰 Búsqueda específica para precio de: $lastMentionedTreatment');
+        } else {
+          // Búsqueda normal
+          knowledgeContext = await knowledgeBase!.getRelevantContext(userMessage);
+        }
+        
+        // Formatear el contexto para Claude
         formattedContext = knowledgeBase!.formatContextForPrompt(knowledgeContext);
+        
+        // Añadir explícitamente el contexto de la conversación si es necesario
+        if (lastMentionedTreatment.isNotEmpty || conversationContext.isNotEmpty) {
+          formattedContext += "\n\nCONTEXTO DE LA CONVERSACIÓN:";
+          
+          if (lastMentionedTreatment.isNotEmpty) {
+            formattedContext += "\n- Tratamiento mencionado previamente: $lastMentionedTreatment";
+          }
+          
+          if (conversationContext.isNotEmpty) {
+            formattedContext += "\n- Mensajes recientes: $conversationContext";
+          }
+        }
+        
         debugPrint('📝 Contexto formateado: ${formattedContext.length} caracteres');
       } catch (e) {
         debugPrint('⚠️ Error recuperando contexto: $e');
       }
     }
     
-    // 2. Intentar procesar con Claude utilizando el contexto obtenido
-    try {
-      String systemPrompt = _buildSystemPrompt(formattedContext, language);
-      final List<Map<String, dynamic>> messages = [];
-      
-      final recentMessages = _getRecentConversationHistory(conversationHistory);
-      messages.addAll(recentMessages);
-      
+    // Crear systemPrompt mejorado para conversaciones fluidas
+    String systemPrompt = _buildSystemPrompt(formattedContext, language);
+    
+    // Preparar mensajes para Claude incluyendo historial conversacional
+    final List<Map<String, dynamic>> messages = [];
+    
+    // Añadir hasta 6 mensajes recientes para mantener el contexto
+    final int historyLimit = 6;
+    final startIdx = conversationHistory.length > historyLimit ? 
+                    conversationHistory.length - historyLimit : 0;
+    
+    for (var i = startIdx; i < conversationHistory.length; i++) {
       messages.add({
-        'role': 'user',
-        'content': userMessage
+        'role': conversationHistory[i].isUser ? 'user' : 'assistant',
+        'content': conversationHistory[i].text
       });
-      
+    }
+    
+    // Añadir el mensaje actual del usuario
+    messages.add({
+      'role': 'user',
+      'content': userMessage
+    });
+    
+    try {
       final response = await http.post(
         Uri.parse('https://api.anthropic.com/v1/messages'),
         headers: {
@@ -97,68 +157,111 @@ class ClaudeAssistantService {
         final cleanedText = _cleanResponse(text);
         final verifiedText = _verifyLanguage(cleanedText, language);
         
+        debugPrint('✅ Respuesta de Claude procesada correctamente');
         return ProcessedMessage(
           text: verifiedText,
           additionalContext: formattedContext
         );
       } else {
         debugPrint('⚠️ Error en API Claude: ${response.statusCode}');
-        
-        if (useFallback) {
-          return _getFallbackResponse(userMessage, formattedContext, language);
-        } else {
-          throw Exception('Error conectando con Claude: ${response.statusCode}');
-        }
+        throw Exception('Error conectando con Claude: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('❌ Error procesando con Claude: $e');
-      
-      if (useFallback) {
-        return _getFallbackResponse(userMessage, formattedContext, language);
-      } else {
-        return ProcessedMessage(
-          text: 'Lo siento, estoy teniendo problemas para procesar tu consulta. Por favor, inténtalo de nuevo más tarde.'
-        );
-      }
+      throw e;
     }
   }
-  
-  // Prompt con instrucciones claras
+
+  // Extraer información relevante del historial de conversación
+  String _extractConversationContext(List<ChatMessage> history) {
+    if (history.isEmpty || history.length < 2) return '';
+    
+    // Tomar solo los últimos 4 mensajes para el contexto
+    final recentMessages = history.length > 4 ? history.sublist(history.length - 4) : history;
+    
+    // Formatear como un resumen conciso
+    List<String> contextItems = [];
+    for (int i = 0; i < recentMessages.length; i++) {
+      final message = recentMessages[i];
+      final prefix = message.isUser ? "Usuario preguntó" : "Asistente respondió";
+      // Limitar la longitud de cada mensaje para que el contexto no sea demasiado largo
+      final truncatedText = message.text.length > 50 ? 
+                          '${message.text.substring(0, 50)}...' : message.text;
+      contextItems.add('$prefix: "$truncatedText"');
+    }
+    
+    return contextItems.join(' | ');
+  }
+
+  // Detectar si es una pregunta de seguimiento sin mencionar explícitamente el tema
+  bool _isFollowUpQuestion(String message) {
+    final lowerMessage = message.toLowerCase();
+    
+    // Si es una pregunta muy corta, probablemente sea de seguimiento
+    if (message.split(' ').length < 6) {
+      
+      // Patrones comunes en preguntas de seguimiento
+      final followUpPatterns = [
+        'cuánto', 'cuanto', 'precio', 'costo', 'vale', 
+        'qué es', 'que es', 'cómo funciona', 'como funciona',
+        'duración', 'duracion', 'más información', 'mas informacion',
+        'me interesa', 'explica', 'dime más', 'dime mas',
+        'y eso', 'cómo es', 'como es', 'efectos', 'tiempo', 'resultados',
+        'por qué', 'para qué', 'qué hace', 'beneficios', 'ventajas',
+        'riesgos', 'contraindicaciones', 'efectos secundarios',
+        'duele', 'dolor', 'recuperación', 'después', 'tiempo',
+        'funciona', 'resultados', 'cuánto dura', 'permanente'
+      ];
+      
+      for (final pattern in followUpPatterns) {
+        if (lowerMessage.contains(pattern)) {
+          return true;
+        }
+      }
+      
+      // Preguntas implícitas muy cortas "¿Y eso duele?", "¿Es permanente?"
+      if (message.split(' ').length < 4) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Construir un prompt mejorado para conversaciones fluidas
   String _buildSystemPrompt(String context, String language) {
     String basePrompt = '''Eres un asistente virtual de Clínicas Love, especializado en medicina estética.
+    Actúas como una secretaria profesional, amable y conocedora de todos los servicios de la clínica.
+    
+    INSTRUCCIONES PARA CONVERSACIÓN FLUIDA Y NATURAL:
+    - Mantén la COHERENCIA con los mensajes anteriores
+    - Si el usuario hace una pregunta corta o ambigua, asume que se refiere al tema que se estaba discutiendo
+    - Si anteriormente se mencionó un tratamiento específico y el usuario hace una pregunta genérica como "¿cuánto cuesta?", entiende que se refiere a ese tratamiento
+    - Evita repetir toda la lista de servicios si el usuario está preguntando sobre uno específico
+    - Adopta un estilo conversacional natural como lo haría una recepcionista real
     
     ADVERTENCIA CRÍTICA:
     - NUNCA INVENTES INFORMACIÓN QUE NO ESTÉ EN EL CONTEXTO PROPORCIONADO
     - Si no tienes la información específica solicitada, ADMITE QUE NO LA TIENES
     - NO INVENTES UBICACIONES, PRECIOS, SERVICIOS O CUALQUIER OTRO DATO
-    - Cuando te pregunten sobre ubicaciones, SOLO menciona las ubicaciones específicas que aparecen en el contexto
-    - NUNCA sugieras que hay clínicas en lugares que no estén explícitamente mencionados en el contexto
     
-    INSTRUCCIÓN CRÍTICA DE IDIOMA:
+    INSTRUCCIÓN DE IDIOMA:
     - DEBES RESPONDER ÚNICAMENTE EN EL IDIOMA: $language
-    - Si $language es 'ca', TODA tu respuesta debe estar en catalán
-    - Si $language es 'en', TODA tu respuesta debe estar en inglés
-    - Si $language es 'es', TODA tu respuesta debe estar en español
-    - NO MEZCLES IDIOMAS en tu respuesta bajo ninguna circunstancia
+    - Si $language es 'ca', responde en catalán
+    - Si $language es 'en', responde en inglés
+    - Si $language es 'es', responde en español
     
-    IMPORTANTE:
-    - Responde de forma BREVE Y CONCISA usando máximo 3 frases cortas
-    - Debes ser ÚTIL y PRECISO en tus respuestas
-    - SIEMPRE basa tus respuestas EXCLUSIVAMENTE en la información proporcionada en el contexto
-    - Si no tienes información específica, DI CLARAMENTE "No tengo información específica sobre eso"
-    - NUNCA respondas "No pude procesar tu mensaje" bajo NINGUNA circunstancia
+    ESTILO DE RESPUESTA:
+    - Respuestas BREVES Y CONCISAS (2-3 frases)
+    - Tono AMABLE y PROFESIONAL
+    - SIEMPRE basa tus respuestas en la información proporcionada
     ''';
     
     if (context.isNotEmpty) {
-      basePrompt += '''\n\nINFORMACIÓN RELEVANTE PARA RESPONDER - USA SOLO ESTA INFORMACIÓN:
+      basePrompt += '''\n\nINFORMACIÓN RELEVANTE PARA RESPONDER:
       $context
       
-      RECUERDA: SOLO usa la información proporcionada arriba. Si la información no está ahí, di que no tienes esa información.
-      NO INVENTES ningún dato que no esté explícitamente proporcionado.''';
-    } else {
-      basePrompt += '''\n\nNO TIENES INFORMACIÓN ESPECÍFICA EN EL CONTEXTO.
-      Cuando te pregunten por datos específicos como ubicaciones, precios o servicios, responde:
-      "No tengo esa información específica. Te recomiendo contactar directamente con Clínicas Love para obtener datos precisos."''';
+      RECUERDA: Usa SOLO la información proporcionada arriba. Si la información no está ahí, admite que no la tienes.''';
     }
     
     return basePrompt;

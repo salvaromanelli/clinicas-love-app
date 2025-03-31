@@ -4,13 +4,19 @@ import '/services/appointment_service.dart' as appointment_service;
 import '/virtual_assistant_chat.dart' hide AppointmentInfo;
 import '/i18n/app_localizations.dart';
 import '/services/knowledge_base.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+
+class ConversationContext {
+  String currentTopic = '';
+  String lastMentionedTreatment = '';
+  String lastMentionedPrice = '';
+  String lastMentionedLocation = '';
+  List<String> mentionedTreatments = [];
+}
 
 
 class ChatViewModel extends ChangeNotifier {
   final ClaudeAssistantService _aiService;
-  final appointment_service.AppointmentService _appointmentService;
   final AppLocalizations localizations;
   final KnowledgeBase _knowledgeBase;
   
@@ -29,7 +35,6 @@ class ChatViewModel extends ChangeNotifier {
     required appointment_service.AppointmentService appointmentService,
     required this.localizations,
   }) : _aiService = aiService,
-      _appointmentService = appointmentService,
       _knowledgeBase = KnowledgeBase() {
     _initKnowledgeBase();
     initializeDateFormatting('es');
@@ -65,34 +70,34 @@ class ChatViewModel extends ChangeNotifier {
       isTyping = true;
       notifyListeners();
       
-      // Preparar estado actual para la IA
+      // Analizar el contexto actual de la conversación
+      final ConversationContext conversationContext = _analyzeConversationContext();
+      
+      // Preparar estado actual para la IA con más contexto
       final currentState = {
-        'is_booking_flow': isBookingFlow,
-        'current_treatment': currentAppointmentInfo?.treatmentId != null ? 
-            _appointmentService.availableTreatments[currentAppointmentInfo!.treatmentId] : null,
-        'current_clinic': currentAppointmentInfo?.clinicId != null ?
-            _appointmentService.availableClinics[currentAppointmentInfo!.clinicId] : null,
-        'current_date': _currentDateSelection?.toString(),
-        'current_time': _currentTimeSelection?.toString(),
         'language': localizations.locale.languageCode,
+        'conversation_topic': conversationContext.currentTopic,
+        'last_mentioned_treatment': conversationContext.lastMentionedTreatment,
+        'last_mentioned_price': conversationContext.lastMentionedPrice,
+        'last_mentioned_location': conversationContext.lastMentionedLocation,
       };
       
-      // Procesar con Function Calling para aprovechar la IA
+      // Procesar con la IA incluyendo historia conversacional relevante
       final processedMessage = await _aiService.processMessage(
         message,
-        messages.sublist(0, messages.length - 1),  // Historia previa
+        // Enviar más mensajes de historial para mantener el contexto
+        messages.sublist(messages.length > 10 ? messages.length - 10 : 0, messages.length - 1),
         currentState
       );
 
-      messages.add(ChatMessage(text: processedMessage.text, isUser: false));
+      messages.add(ChatMessage(
+        text: processedMessage.text, 
+        isUser: false,
+        additionalContext: processedMessage.additionalContext
+      ));
 
-      // Actualizar sugerencias basadas en el contexto proporcionado
-      if (processedMessage.additionalContext != null) {
-        _generateSuggestionsBasedOnContext(message, processedMessage.text);
-      } else {
-        // Sugerencias generales
-        _updateSuggestedReplies(message, processedMessage.text);
-      }
+      // Actualizar sugerencias basadas en el nuevo contexto
+      _generateSuggestionsBasedOnContext(message, processedMessage.text);
       
     } catch (e) {
       debugPrint('❌ Error: $e');
@@ -502,6 +507,68 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
     }
     
     return false;
+  }
+
+  // Método para analizar el contexto de la conversación actual
+  ConversationContext _analyzeConversationContext() {
+    final context = ConversationContext();
+    
+    // No analizar si no hay mensajes suficientes
+    if (messages.length < 2) return context;
+    
+    // Analizar los últimos mensajes para detectar temas, tratamientos, etc.
+    final recentMessages = messages.sublist(messages.length > 6 ? messages.length - 6 : 0);
+    
+    // Concatenar todo el texto reciente para análisis
+    String recentText = recentMessages.map((m) => m.text.toLowerCase()).join(' ');
+    
+    // Detectar tema actual
+    if (recentText.contains('precio') || recentText.contains('costo') || 
+        recentText.contains('vale') || recentText.contains('cuesta')) {
+      context.currentTopic = 'precios';
+    } else if (recentText.contains('tratamiento') || recentText.contains('procedimiento')) {
+      context.currentTopic = 'tratamientos';
+    } else if (recentText.contains('ubicación') || recentText.contains('dirección') || 
+              recentText.contains('donde') || recentText.contains('clínica')) {
+      context.currentTopic = 'ubicaciones';
+    }
+    
+    // Detectar tratamientos mencionados
+    final treatmentsKeywords = {
+      'botox': ['botox', 'toxina', 'botulínica', 'arrugas'],
+      'ácido hialurónico': ['ácido', 'hialurónico', 'relleno'],
+      'labios': ['labio', 'labios', 'aumento'],
+      'rinomodelación': ['rino', 'nariz', 'rinomodelación'],
+      'peeling': ['peeling', 'químico', 'exfoliación']
+    };
+    
+    treatmentsKeywords.forEach((treatment, keywords) {
+      for (final keyword in keywords) {
+        if (recentText.contains(keyword)) {
+          // Si es la primera vez que se menciona o es reciente
+          if (!context.mentionedTreatments.contains(treatment) || 
+              recentMessages.last.text.toLowerCase().contains(keyword)) {
+            context.lastMentionedTreatment = treatment;
+          }
+          if (!context.mentionedTreatments.contains(treatment)) {
+            context.mentionedTreatments.add(treatment);
+          }
+          break;
+        }
+      }
+    });
+    
+    // Detectar ubicaciones mencionadas
+    final locationsKeywords = ['barcelona', 'madrid', 'málaga', 'tenerife'];
+    for (final location in locationsKeywords) {
+      if (recentText.contains(location)) {
+        context.lastMentionedLocation = location;
+        break;
+      }
+    }
+    
+    debugPrint('📊 Análisis de contexto: ${context.currentTopic}, tratamiento: ${context.lastMentionedTreatment}');
+    return context;
   }
   
   void _updateSuggestedReplies(String userMessage, String botResponse) {

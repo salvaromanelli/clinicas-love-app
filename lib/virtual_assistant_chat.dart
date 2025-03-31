@@ -8,6 +8,19 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'i18n/app_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' ;
 
+
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  final String? additionalContext; // Para almacenar contexto adicional
+  
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    this.additionalContext,
+  });
+}
+
 class VirtualAssistantChat extends StatefulWidget {
   const VirtualAssistantChat({super.key});
 
@@ -835,16 +848,4 @@ class AppointmentInfo {
   
   bool get hasBasicInfo => treatmentId != null;
   bool get isComplete => treatmentId != null && clinicId != null && date != null;
-}
-
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-
-  ChatMessage({
-    required this.text, 
-    required this.isUser,
-    DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
 }

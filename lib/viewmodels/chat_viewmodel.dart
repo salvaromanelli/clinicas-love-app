@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/claude_assistant_service.dart';
-import '/services/appointment_service.dart' as appointment_service;
 import '/virtual_assistant_chat.dart' hide AppointmentInfo;
 import '/i18n/app_localizations.dart';
 import '/services/knowledge_base.dart';
@@ -22,7 +21,6 @@ class ChatViewModel extends ChangeNotifier {
   
   List<ChatMessage> messages = [];
   bool isTyping = false;
-  appointment_service.AppointmentInfo? currentAppointmentInfo;
   bool isBookingFlow = false;
   
   // Variables auxiliares para el flujo de reserva
@@ -32,7 +30,6 @@ class ChatViewModel extends ChangeNotifier {
   
   ChatViewModel({
     required ClaudeAssistantService aiService,
-    required appointment_service.AppointmentService appointmentService,
     required this.localizations,
   }) : _aiService = aiService,
       _knowledgeBase = KnowledgeBase() {
@@ -66,49 +63,49 @@ class ChatViewModel extends ChangeNotifier {
   // NUEVO MÉTODO PRINCIPAL: Procesa mensajes con IA
   Future<void> sendMessage(String message) async {
     try {
-    messages.add(ChatMessage(text: message, isUser: true));
-    isTyping = true;
-    notifyListeners();
-    
-    // NUEVO: Detección mejorada de preguntas sobre ubicación
-    final normalizedMsg = message.toLowerCase();
-    final isLocationQuery = normalizedMsg.contains('dónde') || 
-                          normalizedMsg.contains('donde') ||
-                          normalizedMsg.contains('ubicacion') ||
-                          normalizedMsg.contains('ubicación') ||
-                          normalizedMsg.contains('direccion') ||
-                          normalizedMsg.contains('dirección') ||
-                          normalizedMsg.contains('clínica') ||
-                          (normalizedMsg.contains('están') && normalizedMsg.contains('ubicad'));
-    
-    // NUEVO: Respuesta hardcoded para ubicaciones
-    if (isLocationQuery) {
-      debugPrint('📍 INTERCEPTANDO PREGUNTA SOBRE UBICACIÓN: "$message"');
-      
-      // Respuesta hardcoded con datos exactos de las clínicas
-      final locationResponse = """Nuestras clínicas están ubicadas en:
-
-📍 **Clínicas Love Barcelona**
-   Dirección: Carrer Diputacio 327, 08009 Barcelona
-   Teléfono: +34 938526533
-   Horario: Lunes a Viernes: 9:00 - 20:00.
-
-📍 **Clínicas Love Madrid**
-   Dirección: Calle Edgar Neville, 16, 28020 Madrid
-   Teléfono: +34 919993515
-   Horario: Lunes a Viernes: 10:00 - 20:00.
-
-¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
-
-      // Agregar directamente la respuesta hardcoded
-      messages.add(ChatMessage(text: locationResponse, isUser: false));
-      isTyping = false;
+      messages.add(ChatMessage(text: message, isUser: true));
+      isTyping = true;
       notifyListeners();
       
-      debugPrint('✅ RESPUESTA DE UBICACIÓN HARDCODED ENVIADA');
-      return; // Terminar aquí
-    }
+      // NUEVO: Detección de preguntas sobre ubicación
+      final normalizedMsg = message.toLowerCase();
+      final isLocationQuery = normalizedMsg.contains('dónde') || 
+                            normalizedMsg.contains('donde') ||
+                            normalizedMsg.contains('ubicacion') ||
+                            normalizedMsg.contains('ubicación') ||
+                            normalizedMsg.contains('direccion') ||
+                            normalizedMsg.contains('dirección') ||
+                            normalizedMsg.contains('clínica') ||
+                            (normalizedMsg.contains('están') && normalizedMsg.contains('ubicad'));
       
+      // NUEVO: Respuesta hardcoded para ubicaciones
+      if (isLocationQuery) {
+        debugPrint('📍 INTERCEPTANDO PREGUNTA SOBRE UBICACIÓN: "$message"');
+        
+        // Respuesta hardcoded con datos exactos de las clínicas
+        final locationResponse = """Nuestras clínicas están ubicadas en:
+
+  📍 **Clínicas Love Barcelona**
+    Dirección: Carrer Diputacio 327, 08009 Barcelona
+    Teléfono: +34 938526533
+    Horario: Lunes a Viernes: 9:00 - 20:00.
+
+  📍 **Clínicas Love Madrid**
+    Dirección: Calle Edgar Neville, 16, 28020 Madrid
+    Teléfono: +34 919993515
+    Horario: Lunes a Viernes: 10:00 - 20:00.
+
+  ¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
+
+        // Agregar directamente la respuesta hardcoded
+        messages.add(ChatMessage(text: locationResponse, isUser: false));
+        isTyping = false;
+        notifyListeners();
+        
+        debugPrint('✅ RESPUESTA DE UBICACIÓN HARDCODED ENVIADA');
+        return; // Terminar aquí
+      }
+        
       // Analizar el contexto actual de la conversación
       final ConversationContext conversationContext = _analyzeConversationContext();
       
@@ -120,18 +117,6 @@ class ChatViewModel extends ChangeNotifier {
         'last_mentioned_price': conversationContext.lastMentionedPrice,
         'last_mentioned_location': conversationContext.lastMentionedLocation,
       };
-
-          // BYPASS CLAUDE PARA PREGUNTAS DE UBICACIÓN
-      if (_isLocationQuestion(message)) {
-        debugPrint('🚦 ACTIVANDO BYPASS para pregunta de ubicación: "$message"');
-        // Obtener ubicaciones directamente de la base de conocimientos
-        final locationInfo = await _getClinicLocationsDirectly();
-        messages.add(ChatMessage(text: locationInfo, isUser: false));
-        isTyping = false;
-        notifyListeners();
-        debugPrint('✅ Respuesta de BYPASS enviada correctamente');
-        return; // Importante: terminar el método aquí
-      }
       
       // Procesar con la IA incluyendo historia conversacional relevante
       final processedMessage = await _aiService.processMessage(
@@ -631,7 +616,6 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
   void resetChat() {
     messages.clear();
     isBookingFlow = false;
-    currentAppointmentInfo = null;
     isTyping = false;
     sendWelcomeMessage();
   }
@@ -656,21 +640,6 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
         .replaceAll('ó', 'o')
         .replaceAll('ú', 'u')
         .replaceAll('ñ', 'n');
-  }
-
-  bool _isLocationQuestion(String text) {
-    final lowerText = text.toLowerCase();
-    return lowerText.contains('dónde') || 
-          lowerText.contains('donde') || 
-          lowerText.contains('ubicación') || 
-          lowerText.contains('ubicacion') ||
-          lowerText.contains('dirección') || 
-          lowerText.contains('direccion') ||
-          lowerText.contains('clinica') ||
-          lowerText.contains('localización') ||
-          lowerText.contains('lugar') ||
-          lowerText.contains('sede') ||
-          (lowerText.contains('esta') && lowerText.contains('ubicad'));
   }
 
   Future<String> _getClinicLocationsDirectly() async {

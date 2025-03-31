@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/claude_assistant_service.dart' as ai;
-import 'services/appointment_service.dart';
 import 'viewmodels/chat_viewmodel.dart';
 import 'config/env.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -73,12 +72,10 @@ void didChangeDependencies() {
       useFallback: true,  // Activar respuestas de respaldo cuando la API falla
     );
 
-    final appointmentService = AppointmentService();
     
     // Inicializar ViewModel con el servicio Claude
     _viewModel = ChatViewModel(
       aiService: claudeService,
-      appointmentService: appointmentService,
       localizations: localizations,
     );
     

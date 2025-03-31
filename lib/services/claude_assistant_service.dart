@@ -141,6 +141,7 @@ class ClaudeAssistantService {
   }
 
   // Método principal simplificado para procesar mensajes del usuario
+
   Future<ProcessedMessage> processMessage(
     String userMessage, 
     List<ChatMessage> conversationHistory,
@@ -156,78 +157,65 @@ class ClaudeAssistantService {
       return _getHardcodedLocationResponse(language);
     }
     
-    // El resto de tu código existente permanece igual...
-    final currentTopic = currentState['conversation_topic'] ?? '';
-    final lastMentionedTreatment = currentState['last_mentioned_treatment'] ?? '';
-    
-    // Obtener contexto relevante considerando el tema actual
+    // Obtener contexto relevante de la base de conocimiento
     Map<String, dynamic> knowledgeContext = {};
     String formattedContext = '';
     
     if (knowledgeBase != null) {
       try {
-        // Extraer información del historial de conversación
-        String conversationContext = _extractConversationContext(conversationHistory);
-        debugPrint('🧠 Contexto conversacional: $conversationContext');
-        
-        // Si el usuario está preguntando sobre un tratamiento específico
-        // mencionado anteriormente sin nombrarlo explícitamente
-        if (lastMentionedTreatment.isNotEmpty && 
-            _isFollowUpQuestion(userMessage) &&
-            currentTopic == 'tratamientos') {
-          // Forzar búsqueda sobre ese tratamiento
-          knowledgeContext = await knowledgeBase!.getRelevantContext(
-            lastMentionedTreatment + " " + userMessage,
-            preferredType: 'treatments'
-          );
-          debugPrint('🔍 Búsqueda específica para tratamiento: $lastMentionedTreatment');
-        } 
-        // Si es una pregunta de seguimiento sobre precios de un tratamiento 
-        // mencionado anteriormente
-        else if (lastMentionedTreatment.isNotEmpty && 
-                _isFollowUpQuestion(userMessage) && 
-                (currentTopic == 'precios' || 
-                _containsAny(userMessage.toLowerCase(), ['precio', 'costo', 'vale']))) {
-          knowledgeContext = await knowledgeBase!.getRelevantContext(
-            lastMentionedTreatment + " precio " + userMessage,
-            preferredType: 'prices'
-          );
-          debugPrint('💰 Búsqueda específica para precio de: $lastMentionedTreatment');
-        } else {
-          // Búsqueda normal
-          knowledgeContext = await knowledgeBase!.getRelevantContext(userMessage);
-        }
-        
-        // Formatear el contexto para Claude
+        // Búsqueda normal en la base de conocimientos
+        knowledgeContext = await knowledgeBase!.getRelevantContext(userMessage);
         formattedContext = knowledgeBase!.formatContextForPrompt(knowledgeContext);
-        
-        // Añadir explícitamente el contexto de la conversación si es necesario
-        if (lastMentionedTreatment.isNotEmpty || conversationContext.isNotEmpty) {
-          formattedContext += "\n\nCONTEXTO DE LA CONVERSACIÓN:";
-          
-          if (lastMentionedTreatment.isNotEmpty) {
-            formattedContext += "\n- Tratamiento mencionado previamente: $lastMentionedTreatment";
-          }
-          
-          if (conversationContext.isNotEmpty) {
-            formattedContext += "\n- Mensajes recientes: $conversationContext";
-          }
-        }
-        
         debugPrint('📝 Contexto formateado: ${formattedContext.length} caracteres');
       } catch (e) {
         debugPrint('⚠️ Error recuperando contexto: $e');
       }
     }
     
-    // Crear systemPrompt mejorado para conversaciones fluidas
-    String systemPrompt = _buildSystemPrompt(formattedContext, language);
+    // Sistema prompt simplificado
+    String systemPrompt = '''Eres un asistente virtual de Clínicas Love, especializado en medicina estética.
+    Actúas como una secretaria profesional, amable y conocedora de todos los servicios de la clínica.
     
-    // Preparar mensajes para Claude incluyendo historial conversacional
+    INSTRUCCIONES PARA CONVERSACIÓN FLUIDA Y NATURAL:
+    - Mantén la COHERENCIA con los mensajes anteriores
+    - Si el usuario hace una pregunta corta o ambigua, asume que se refiere al tema que se estaba discutiendo
+    - Si anteriormente se mencionó un tratamiento específico y el usuario hace una pregunta genérica como "¿cuánto cuesta?", entiende que se refiere a ese tratamiento
+    - Evita repetir toda la lista de servicios si el usuario está preguntando sobre uno específico
+    - Adopta un estilo conversacional natural como lo haría una recepcionista real
+    
+    ADVERTENCIA CRÍTICA:
+    - NUNCA INVENTES INFORMACIÓN QUE NO ESTÉ EN EL CONTEXTO PROPORCIONADO
+    - Si no tienes la información específica solicitada, ADMITE QUE NO LA TIENES
+    - NO INVENTES UBICACIONES, PRECIOS, SERVICIOS O CUALQUIER OTRO DATO
+   
+    ADVERTENCIA CRÍTICA:
+    - NUNCA INVENTES INFORMACIÓN QUE NO ESTÉ EN EL CONTEXTO PROPORCIONADO
+    - Si no tienes la información específica solicitada, ADMITE QUE NO LA TIENES
+    - NO INVENTES UBICACIONES, PRECIOS, SERVICIOS O CUALQUIER OTRO DATO
+    
+    INSTRUCCIÓN DE IDIOMA:
+    - DEBES RESPONDER ÚNICAMENTE EN EL IDIOMA: $language
+    - Si $language es 'ca', responde en catalán
+    - Si $language es 'en', responde en inglés
+    - Si $language es 'es', responde en español
+    
+    ESTILO DE RESPUESTA:
+    - Respuestas BREVES Y CONCISAS (2-3 frases)
+    - Tono AMABLE y PROFESIONAL
+    ''';
+    
+    if (formattedContext.isNotEmpty) {
+      systemPrompt += '''\n\nINFORMACIÓN RELEVANTE PARA RESPONDER:
+      $formattedContext
+      
+      RECUERDA: Usa SOLO la información proporcionada arriba. Si la información no está ahí, admite que no la tienes.''';
+    }
+    
+    // Preparar mensajes para Claude
     final List<Map<String, dynamic>> messages = [];
     
-    // Añadir hasta 6 mensajes recientes para mantener el contexto
-    final int historyLimit = 6;
+    // Añadir hasta 4 mensajes recientes para mantener contexto mínimo
+    final historyLimit = 4;
     final startIdx = conversationHistory.length > historyLimit ? 
                     conversationHistory.length - historyLimit : 0;
     
@@ -238,7 +226,7 @@ class ClaudeAssistantService {
       });
     }
     
-    // Añadir el mensaje actual del usuario
+    // Añadir el mensaje actual
     messages.add({
       'role': 'user',
       'content': userMessage
@@ -284,176 +272,7 @@ class ClaudeAssistantService {
       throw e;
     }
   }
-
-  // Extraer información relevante del historial de conversación
-  String _extractConversationContext(List<ChatMessage> history) {
-    if (history.isEmpty || history.length < 2) return '';
-    
-    // Tomar solo los últimos 4 mensajes para el contexto
-    final recentMessages = history.length > 4 ? history.sublist(history.length - 4) : history;
-    
-    // Formatear como un resumen conciso
-    List<String> contextItems = [];
-    for (int i = 0; i < recentMessages.length; i++) {
-      final message = recentMessages[i];
-      final prefix = message.isUser ? "Usuario preguntó" : "Asistente respondió";
-      // Limitar la longitud de cada mensaje para que el contexto no sea demasiado largo
-      final truncatedText = message.text.length > 50 ? 
-                          '${message.text.substring(0, 50)}...' : message.text;
-      contextItems.add('$prefix: "$truncatedText"');
-    }
-    
-    return contextItems.join(' | ');
-  }
-
-  // Detectar si es una pregunta de seguimiento sin mencionar explícitamente el tema
-  bool _isFollowUpQuestion(String message) {
-    final lowerMessage = message.toLowerCase();
-    
-    // Si es una pregunta muy corta, probablemente sea de seguimiento
-    if (message.split(' ').length < 6) {
-      
-      // Patrones comunes en preguntas de seguimiento
-      final followUpPatterns = [
-        'cuánto', 'cuanto', 'precio', 'costo', 'vale', 
-        'qué es', 'que es', 'cómo funciona', 'como funciona',
-        'duración', 'duracion', 'más información', 'mas informacion',
-        'me interesa', 'explica', 'dime más', 'dime mas',
-        'y eso', 'cómo es', 'como es', 'efectos', 'tiempo', 'resultados',
-        'por qué', 'para qué', 'qué hace', 'beneficios', 'ventajas',
-        'riesgos', 'contraindicaciones', 'efectos secundarios',
-        'duele', 'dolor', 'recuperación', 'después', 'tiempo',
-        'funciona', 'resultados', 'cuánto dura', 'permanente'
-      ];
-      
-      for (final pattern in followUpPatterns) {
-        if (lowerMessage.contains(pattern)) {
-          return true;
-        }
-      }
-      
-      // Preguntas implícitas muy cortas "¿Y eso duele?", "¿Es permanente?"
-      if (message.split(' ').length < 4) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-  // Construir un prompt mejorado para conversaciones fluidas
-  String _buildSystemPrompt(String context, String language) {
-    String basePrompt = '''Eres un asistente virtual de Clínicas Love, especializado en medicina estética.
-    Actúas como una secretaria profesional, amable y conocedora de todos los servicios de la clínica.
-    
-    ADVERTENCIA CRÍTICA DE MÁXIMA IMPORTANCIA:
-    - NUNCA, BAJO NINGUNA CIRCUNSTANCIA, INVENTES UBICACIONES DE CLÍNICAS
-    - Cuando te pregunten por ubicaciones, SÓLO MENCIONA LAS DIRECCIONES EXACTAS que aparecen en el contexto proporcionado
-    - NUNCA respondas con direcciones genéricas como "Calle Mayor 123" o "Avenida Principal"
-    - Si no tienes las direcciones exactas en el contexto, di "Tenemos clínicas en [ciudades], pero necesito verificar las direcciones exactas"
-
-    INSTRUCCIONES PARA CONVERSACIÓN FLUIDA Y NATURAL:
-    - Mantén la COHERENCIA con los mensajes anteriores
-    - Si el usuario hace una pregunta corta o ambigua, asume que se refiere al tema que se estaba discutiendo
-    - Si anteriormente se mencionó un tratamiento específico y el usuario hace una pregunta genérica como "¿cuánto cuesta?", entiende que se refiere a ese tratamiento
-    - Evita repetir toda la lista de servicios si el usuario está preguntando sobre uno específico
-    - Adopta un estilo conversacional natural como lo haría una recepcionista real
-    
-    ADVERTENCIA CRÍTICA:
-    - NUNCA INVENTES INFORMACIÓN QUE NO ESTÉ EN EL CONTEXTO PROPORCIONADO
-    - Si no tienes la información específica solicitada, ADMITE QUE NO LA TIENES
-    - NO INVENTES UBICACIONES, PRECIOS, SERVICIOS O CUALQUIER OTRO DATO
-    
-    INSTRUCCIÓN DE IDIOMA:
-    - DEBES RESPONDER ÚNICAMENTE EN EL IDIOMA: $language
-    - Si $language es 'ca', responde en catalán
-    - Si $language es 'en', responde en inglés
-    - Si $language es 'es', responde en español
-    
-    ESTILO DE RESPUESTA:
-    - Respuestas BREVES Y CONCISAS (2-3 frases)
-    - Tono AMABLE y PROFESIONAL
-    - SIEMPRE basa tus respuestas en la información proporcionada
-    ''';
-    
-    if (context.isNotEmpty) {
-      basePrompt += '''\n\nINFORMACIÓN RELEVANTE PARA RESPONDER:
-      $context
-      
-      RECUERDA: Usa SOLO la información proporcionada arriba. Si la información no está ahí, admite que no la tienes.''';
-    }
-    
-    return basePrompt;
-  }
   
-  // Historial de conversación reciente para contexto
-  List<Map<String, dynamic>> _getRecentConversationHistory(List<ChatMessage> history) {
-    final List<Map<String, dynamic>> messages = [];
-    int count = 0;
-    
-    for (final msg in history.reversed) {
-      if (count >= 4) break;
-      
-      messages.add({
-        'role': msg.isUser ? 'user' : 'assistant',
-        'content': msg.text
-      });
-      
-      count++;
-    }
-    
-    return messages.reversed.toList();
-  }
-  
-  // Respuesta de respaldo simplificada
-  ProcessedMessage _getFallbackResponse(
-    String userMessage, 
-    String formattedContext,
-    String language
-  ) {
-    final lowerMessage = userMessage.toLowerCase();
-    String responseText;
-    
-    // RESPUESTAS SEGÚN EL IDIOMA
-    if (language == 'ca') {
-      if (_containsAny(lowerMessage, ['preu', 'cost', 'quant', 'val', 'costa'])) {
-        responseText = "Els preus a Clíniques Love varien segons el tractament específic. Si us plau, contacta directament amb la clínica per obtenir informació precisa sobre els preus.";
-      } else if (_containsAny(lowerMessage, ['tractament', 'ofereixen', 'servei', 'fan', 'realitzen'])) {
-        responseText = "A Clíniques Love oferim diversos tractaments estètics, incloent Botox, augment de llavis, rinomodelació, mesoteràpia, tractaments corporals reductors, peelings químics i tractaments de rejoveniment facial amb tecnologia làser.";
-      } else if (_containsAny(lowerMessage, ['ubicació', 'on', 'adreça', 'seu', 'clínica'])) {
-        responseText = "Clíniques Love té seus a Barcelona, Madrid, Màlaga i Tenerife. Per a informació més detallada sobre les adreces exactes, et recomanem contactar directament amb nosaltres.";
-      } else {
-        responseText = "A Clíniques Love ens especialitzem en medicina estètica facial i corporal amb els més alts estàndards. Oferim valoració personalitzada i tractaments adaptats a les teves necessitats estètiques.";
-      }
-    } else if (language == 'en') {
-      if (_containsAny(lowerMessage, ['price', 'cost', 'how much', 'value', 'fee'])) {
-        responseText = "Prices at Clínicas Love vary according to the specific treatment. Please contact the clinic directly for accurate price information.";
-      } else if (_containsAny(lowerMessage, ['treatment', 'offer', 'service', 'do', 'perform'])) {
-        responseText = "At Clínicas Love we offer various aesthetic treatments, including Botox, lip augmentation, rhinomodeling, mesotherapy, slimming body treatments, chemical peels, and facial rejuvenation treatments with laser technology.";
-      } else if (_containsAny(lowerMessage, ['location', 'where', 'address', 'office', 'clinic'])) {
-        responseText = "Clínicas Love has locations in Barcelona, Madrid, Malaga, and Tenerife. For more detailed information about the exact addresses, we recommend contacting us directly.";
-      } else {
-        responseText = "At Clínicas Love we specialize in facial and body aesthetic medicine with the highest standards. We offer personalized assessment and treatments tailored to your aesthetic needs.";
-      }
-    } else {
-      // Español por defecto
-      if (_containsAny(lowerMessage, ['precio', 'costo', 'cuánto', 'vale', 'cuesta'])) {
-        responseText = "Los precios en Clínicas Love varían según el tratamiento específico. Por favor, contacta directamente con la clínica para obtener información precisa sobre los precios.";
-      } else if (_containsAny(lowerMessage, ['tratamiento', 'ofrecen', 'servicio', 'hacen', 'realizan'])) {
-        responseText = "En Clínicas Love ofrecemos diversos tratamientos estéticos, incluyendo Botox, aumento de labios, rinomodelación, mesoterapia, tratamientos corporales reductores, peelings químicos y tratamientos de rejuvenecimiento facial con tecnología láser.";
-      } else if (_containsAny(lowerMessage, ['ubicación', 'dónde', 'dirección', 'sede', 'clínica'])) {
-        responseText = "Clínicas Love tiene sedes en Barcelona, Madrid, Málaga y Tenerife. Para información más detallada sobre las direcciones exactas, te recomendamos contactar directamente con nosotros.";
-      } else {
-        responseText = "En Clínicas Love nos especializamos en medicina estética facial y corporal con los más altos estándares. Ofrecemos valoración personalizada y tratamientos adaptados a tus necesidades estéticas.";
-      }
-    }
-
-    return ProcessedMessage(
-      text: responseText,
-      additionalContext: formattedContext
-    );
-  }
-
   // Mantener el resto de funciones de utilidad
   String _cleanResponse(String text) {
     // Código existente para limpiar la respuesta

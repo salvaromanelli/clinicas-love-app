@@ -23,6 +23,8 @@ import 'providers/language_provider.dart';
 import 'i18n/app_localizations.dart';
 import 'language_settings_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'providers/user_provider.dart';
+
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -48,7 +50,7 @@ void main() async {
     MultiProvider(    
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
-        // otros providers...
+        ChangeNotifierProvider(create: (_) => UserProvider()), 
       ],
       child: const MyApp(),
     )

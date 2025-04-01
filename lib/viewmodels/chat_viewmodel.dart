@@ -215,9 +215,12 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   // Añadir mensaje de asistente directamente
-  void addBotMessage(String text) {
-    isTyping = false;
-    messages.add(ChatMessage(text: text, isUser: false));
+  void addBotMessage(String text, {String? additionalContext}) {
+    messages.add(ChatMessage(
+      text: text,
+      isUser: false,
+      additionalContext: additionalContext,
+    ));
     notifyListeners();
   }
 

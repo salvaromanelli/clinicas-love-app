@@ -6,6 +6,7 @@ import 'config/env.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'i18n/app_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' ;
+import 'providers/user_provider.dart';
 
 
 class ChatMessage {
@@ -148,11 +149,11 @@ void didChangeDependencies() {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
+                        color: const Color(0xFFE8EAED),
                         image: DecorationImage(
                           image: const AssetImage('assets/images/Clinicas fondo.jpg'),
                           colorFilter: ColorFilter.mode(
-                            Colors.white.withOpacity(0.1),
+                            Colors.white.withOpacity(0.15),
                             BlendMode.dstATop,
                           ),
                           fit: BoxFit.cover,
@@ -223,28 +224,63 @@ void didChangeDependencies() {
   }
 
   Widget _buildScheduleButton() {
-  return Padding(
-    padding: const EdgeInsets.only(top: 8.0),
-    child: Center(
+    return Center(
+      child: Transform.scale(
+        scale: 0.9,
+        child: ElevatedButton(
+          onPressed: () {
+            _handleAppLink('app://schedule');
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1980E6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.calendar_today, color: Colors.white),
+              SizedBox(width: 8),
+              Text(
+                'Agendar una cita',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// Añadir después del método _buildScheduleButton()
+Widget _buildClinicasButton() {
+  return Center(
+    child: Transform.scale(
+      scale: 0.9,
       child: ElevatedButton(
         onPressed: () {
-          _handleAppLink('app://schedule');
+          Navigator.of(context).pushNamed('/clinicas');
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1980E6), // Color vibrante
+          backgroundColor: const Color(0xFF1980E6),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24), // Bordes redondeados
+            borderRadius: BorderRadius.circular(24),
           ),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-          elevation: 5, // Sombra para hacerlo más llamativo
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: const [
-            Icon(Icons.calendar_today, color: Colors.white),
+            Icon(Icons.location_on, color: Colors.white),
             SizedBox(width: 8),
             Text(
-              'Agendar una cita',
+              'Ver clínicas en mapa',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -258,92 +294,114 @@ void didChangeDependencies() {
   );
 }
 
-  Widget _buildMessage(ChatMessage message) {
-    // Verificar si el mensaje contiene el enlace "[Agendar una cita]"
-    final containsScheduleLink = message.text.contains('[Agendar una cita](app://schedule)');
-    final processedText = message.text.replaceAll('[Agendar una cita](app://schedule)', '');
+Widget _buildMessage(ChatMessage message) {
+  final shouldShowScheduleButton = message.additionalContext == "show_schedule_button" ||
+                                  message.text.contains('[Agendar una cita](app://schedule)');
+  
+  // línea para definir processedText
+  final processedText = message.text.replaceAll('[Agendar una cita](app://schedule)', '');
+  
+  final shouldShowClinicasButton = message.additionalContext == "show_clinics_button" || 
+                                 message.additionalContext == "show_clinic_button" || 
+                                 message.text.contains('(app://clinicas)');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isUser) _buildAvatar(),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Row(
+      mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!message.isUser) _buildAvatar(),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: message.isUser 
+                  ? Theme.of(context).colorScheme.primary 
+                  : const Color(0xFFF0F2F5), 
+              borderRadius: BorderRadius.circular(16).copyWith(
+                topLeft: message.isUser ? Radius.circular(16) : Radius.circular(0),
+                topRight: !message.isUser ? Radius.circular(16) : Radius.circular(0),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: message.isUser 
-                    ? Theme.of(context).colorScheme.primary 
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(16).copyWith(
-                  topLeft: message.isUser ? Radius.circular(16) : Radius.circular(0),
-                  topRight: !message.isUser ? Radius.circular(16) : Radius.circular(0),
+              boxShadow: [
+                BoxShadow(
+                  offset: const Offset(0, 1),
+                  blurRadius: 3, // Sombra más pronunciada
+                  spreadRadius: 0.5,
+                  color: Colors.black.withOpacity(0.15),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    offset: const Offset(0, 1),
-                    blurRadius: 2,
-                    color: Colors.black.withOpacity(0.1),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Mostrar el texto del mensaje sin el enlace
-                  if (processedText.isNotEmpty)
-                    MarkdownBody(
-                      data: processedText,
-                      onTapLink: (text, href, title) {
-                        if (href != null && href.startsWith('app://')) {
-                          _handleAppLink(href);
-                        }
-                      },
-                      styleSheet: MarkdownStyleSheet(
-                        p: const TextStyle(
-                          color: Color(0xFF303030),
-                        ),
-                        strong: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        a: TextStyle(
-                          color: Theme.of(context).colorScheme.secondary,
-                          decoration: TextDecoration.underline,
-                        ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Mostrar el texto del mensaje sin el enlace
+                if (processedText.isNotEmpty)
+                  MarkdownBody(
+                    data: processedText,
+                    onTapLink: (text, href, title) {
+                      if (href != null && href.startsWith('app://')) {
+                        _handleAppLink(href);
+                      }
+                    },
+                    styleSheet: MarkdownStyleSheet(
+                      p: TextStyle(
+                        // El color del texto depende de si es un mensaje del usuario o del bot
+                        color: message.isUser ? Colors.white : const Color(0xFF303030), 
+                        fontSize: 15.0, // Tamaño ligeramente mayor para mejor legibilidad
+                      ),
+                      strong: TextStyle(
+                        // Color para texto en negrita también sensible al remitente
+                        color: message.isUser ? Colors.white : Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      a: TextStyle(
+                        // Enlaces también sensibles al remitente
+                        color: message.isUser ? Colors.white.withOpacity(0.9) : Theme.of(context).colorScheme.secondary,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
-                  // Mostrar el botón si el mensaje contiene el enlace
-                  if (containsScheduleLink)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: _buildScheduleButton(),
-                    ),
-                ],
-              ),
+                  ),
+                  
+                // Mostrar el botón si el mensaje contiene el enlace
+                if (shouldShowScheduleButton)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildScheduleButton(),
+                  ),
+                  
+                // Mostrar el botón de clínicas si corresponde
+                if (shouldShowClinicasButton)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: _buildClinicasButton(),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          if (message.isUser) _buildUserAvatar(),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(width: 8),
+        if (message.isUser) _buildUserAvatar(),
+      ],
+    ),
+  );
+}
 
   void _handleAppLink(String href) {
-  if (href == 'app://schedule') {
-    // Redirigir a la página de agendar citas
-    Navigator.pushNamed(context, '/book-appointment');
-  } else {
-    debugPrint('🔗 Enlace desconocido: $href');
+    if (href == 'app://schedule') {
+      // Redirigir a la página de agendar citas
+      Navigator.pushNamed(context, '/book-appointment');
+    } else if (href == 'app://clinicas') {
+      // Redirigir a la página de clínicas cercanas
+      Navigator.pushNamed(context, '/clinicas');
+    } else {
+      debugPrint('🔗 Enlace desconocido: $href');
+    }
   }
-}
 
   Widget _buildSuggestedReplies(List<String> suggestions) {
     if (suggestions.isEmpty) return const SizedBox.shrink();
@@ -411,6 +469,66 @@ void didChangeDependencies() {
   }
   
   Widget _buildUserAvatar() {
+    try {
+      // Obtener la información del usuario actual
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final bool isLoggedIn = userProvider.isLoggedIn;
+      
+      debugPrint('👤 Usuario logueado: $isLoggedIn'); // Log de depuración
+      
+      final user = userProvider.user;
+      final String? profileImageUrl = user?.profileImageUrl;
+      
+      debugPrint('🖼️ URL de imagen: $profileImageUrl'); // Log de depuración
+      
+      // Si el usuario está logueado y tiene imagen de perfil
+      if (isLoggedIn && profileImageUrl != null && profileImageUrl.isNotEmpty) {
+        return Container(
+          width: 36,
+          height: 36,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.network(
+              profileImageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                debugPrint('❌ Error cargando imagen: $error'); // Log de error
+                return _buildDefaultAvatar();
+              },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: 36,
+                  height: 36,
+                  color: Colors.grey[300],
+                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                );
+              },
+            ),
+          ),
+        );
+      }
+      
+      // Por defecto, mostrar avatar genérico
+      return _buildDefaultAvatar();
+    } catch (e) {
+      debugPrint('⚠️ Error en _buildUserAvatar: $e'); // Log de error general
+      return _buildDefaultAvatar();
+    }
+  }
+
+  // Método auxiliar para el avatar genérico
+  Widget _buildDefaultAvatar() {
     return Container(
       width: 36,
       height: 36,
@@ -563,16 +681,16 @@ void didChangeDependencies() {
         horizontal: isSmallScreen ? 8.0 : 12.0,
         vertical: isSmallScreen ? 8.0 : 12.0,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            offset: const Offset(0, -1),
-            blurRadius: 4,
-            color: Colors.black.withOpacity(0.07),
-          ),
-        ],
-      ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F2F5), // Color más oscuro para el área de composición
+          boxShadow: [
+            BoxShadow(
+              offset: const Offset(0, -1),
+              blurRadius: 4,
+              color: Colors.black.withOpacity(0.09), // Sombra más pronunciada
+            ),
+          ],
+        ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -662,6 +780,25 @@ void didChangeDependencies() {
     final lowerText = text.toLowerCase();
     final currentLanguage = localizations.locale.languageCode;
 
+      // Verificar si es una pregunta sobre ubicaciones
+    final isLocationQuestion = _containsAny(lowerText, [
+      'dónde', 'donde', 'ubicación', 'ubicacion', 'dirección', 
+      'direccion', 'clínica', 'clinica', 'están', 'estan'
+    ]);
+
+    // INTERCEPTAR CONSULTAS DE UBICACIÓN
+    if (isLocationQuestion) {
+      _viewModel.addUserMessage(text);
+      _viewModel.setTyping(true);
+      
+      // Procesar sin añadir el botón de agendar (ya que tendrá su propio botón)
+      _viewModel.processMessage(text, currentLanguage).then((response) {
+      _viewModel.addBotMessage(response.text); // Sin botón adicional
+      });
+      
+      return;
+    }
+
     // 1. INTERCEPTAR CONSULTAS DE PRECIOS
     if (_containsAny(lowerText, ['precio', 'cuesta', 'cuánto', 'cuanto', 'valor', 'tarifa', 'price', 'cost', 'how much', 'preu'])) {
       _viewModel.addUserMessage(text);
@@ -670,14 +807,15 @@ void didChangeDependencies() {
       // Obtener precios de la knowledge base
       _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
         if (priceInfo.isNotEmpty) {
-          // Mostrar la información de precios con un botón para agendar
+          // No añadir el enlace
           _viewModel.addBotMessage(
-            "$priceInfo\n\n[${localizations.get('want_appointment')}](app://schedule)"
+            priceInfo,
+            additionalContext: "show_schedule_button"
           );
         } else {
-          // Si no hay información específica, procesar normalmente
           _viewModel.addBotMessage(
-            "${localizations.get('no_price_info')} [${localizations.get('want_appointment')}](app://schedule)"
+            localizations.get('no_price_info'),
+            additionalContext: "show_schedule_button"
           );
         }
       });
@@ -691,16 +829,17 @@ void didChangeDependencies() {
       _viewModel.setTyping(true);
 
       // Obtener información de tratamientos de la knowledge base
-      _viewModel.getTreatmentInfoFromKnowledgeBase(text).then((treatmentInfo) {
-        if (treatmentInfo.isNotEmpty) {
-          // Mostrar la información de tratamientos con un botón para agendar
+      _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
+        if (priceInfo.isNotEmpty) {
+          // No añadir el enlace
           _viewModel.addBotMessage(
-            "$treatmentInfo\n\n[${localizations.get('want_appointment')}](app://schedule)"
+            priceInfo,
+            additionalContext: "show_schedule_button"
           );
         } else {
-          // Usar respuesta estática si no hay información específica
           _viewModel.addBotMessage(
-            "${localizations.get('no_treatment_info')} [${localizations.get('want_appointment')}](app://schedule)"
+            localizations.get('no_price_info'),
+            additionalContext: "show_schedule_button"
           );
         }
       });
@@ -715,8 +854,9 @@ void didChangeDependencies() {
     // Enviar el idioma actual al modelo de IA
     _viewModel.processMessage(text, currentLanguage).then((response) {
       // Añadir el botón de cita a todas las respuestas
-      _viewModel.addBotMessage(
-        "${response.text}\n\n[${localizations.get('want_appointment')}](app://schedule)"
+    _viewModel.addBotMessage(
+      response.text, 
+      additionalContext: "show_schedule_button"  
       );
     });
   }

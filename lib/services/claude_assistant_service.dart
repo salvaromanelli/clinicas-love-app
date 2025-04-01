@@ -80,8 +80,8 @@ class ClaudeAssistantService {
     Adreça: Calle san clemente 31. 38003 Santa Cruz de Tenerife
     Telèfon: +34 608333285
     Horari: Dilluns a Divendres: 11:00 - 20:00.
-
-  Necessites informació sobre com arribar a alguna de les nostres clíniques?""";
+      [](app://clinicas)""";
+      
     } else if (language == 'en') {
       responseText = """Our clinics are located at:
 
@@ -104,8 +104,7 @@ class ClaudeAssistantService {
     Address: Calle san clemente 31. 38003 Santa Cruz de Tenerife
     Phone: +34 608333285
     Hours: Monday to Friday: 11:00 AM - 8:00 PM.
-
-  Do you need information on how to reach any of our clinics?""";
+      [](app://clinicas)""";
     } else {
       // Español por defecto
       responseText = """Nuestras clínicas están ubicadas en:
@@ -129,14 +128,13 @@ class ClaudeAssistantService {
     Dirección: Calle san clemente 31. 38003 Santa Cruz de Tenerife
     Teléfono: +34 608333285
     Horario: Lunes a Viernes: 11:00 - 20:00.
-
-  ¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
+      [](app://clinicas)""";
     }
 
     debugPrint('✅ Respuesta de ubicación HARDCODED generada');
     return ProcessedMessage(
       text: responseText,
-      additionalContext: "Respuesta directa sobre ubicaciones de clínicas"
+      additionalContext: "show_clinic_button"
     );
   }
 

@@ -6,6 +6,8 @@ import 'edit_profile_page.dart';
 import 'providers/language_provider.dart';
 import 'i18n/app_localizations.dart';
 import 'package:provider/provider.dart'; 
+import 'providers/user_provider.dart';
+import 'services/supabase.dart';
 
 
 class ProfilePage extends StatefulWidget {
@@ -231,11 +233,23 @@ Widget build(BuildContext context) {
       ),
     );
   }
-  Future<void> _handleLogout() async {
-  final authService = AuthService();
-  await authService.logout();
-  if (!mounted) return;
-  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+Future<void> _handleLogout() async {
+  try {
+    // Primero limpiar el UserProvider
+    Provider.of<UserProvider>(context, listen: false).logout();
+    
+    // Luego cerrar sesión en Supabase
+    await SupabaseService().signOut();
+    
+    // Eliminar el token de autenticación
+    await AuthService().logout(context: context);
+    
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    }
+  } catch (e) {
+    debugPrint('❌ Error en logout: $e');
+  }
 }
   // _buildMenuItem method
 Widget _buildMenuItem(String title, {String? badge, bool withBadge = false}) {

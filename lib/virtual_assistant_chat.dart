@@ -7,7 +7,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'i18n/app_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' ;
 import 'providers/user_provider.dart';
-
+import 'services/supabase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatMessage {
   final String text;
@@ -45,6 +46,23 @@ late bool _isViewModelInitialized = false;
 void initState() {
   super.initState();
   
+  _syncUserStateFromSupabase();
+
+    // Añadir un listener para cambios de autenticación
+  SupabaseService().client.auth.onAuthStateChange.listen((data) {
+    if (data.event == AuthChangeEvent.signedOut) {
+      debugPrint('🔄 Evento de cierre de sesión detectado en chat');
+      // Limpiar el UserProvider cuando se detecte un logout
+      if (mounted) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        userProvider.logout();
+        
+        // Forzar reconstrucción para actualizar UI
+        setState(() {});
+      }
+    }
+  });
+  
   // Configuración de animación
   _animationController = AnimationController(
     duration: const Duration(seconds: 2),
@@ -56,6 +74,70 @@ void initState() {
     curve: Curves.easeInOut,
   ));
 }
+
+  // Nuevo método para sincronizar el estado de usuario directamente desde Supabase
+Future<void> _syncUserStateFromSupabase() async {
+  try {
+    final supabase = SupabaseService().client;
+    final currentUser = supabase.auth.currentUser;
+    
+    debugPrint('🔍 Verificando usuario de Supabase: ${currentUser?.id}');
+    
+    if (currentUser != null) {
+      try {
+        // Cambiar para obtener TODOS los campos y hacer logging completo
+        final userData = await supabase
+            .from('profiles')
+            .select('*')  // Seleccionar todos los campos para ver qué contiene realmente
+            .eq('id', currentUser.id)
+            .single();
+        
+        debugPrint('📝 Datos completos del perfil: $userData');
+        
+        // Comprobar todos los posibles nombres de campo para la URL del avatar
+        String? avatarUrl = userData['avatar_url'] ?? 
+                          userData['profile_image_url'] ?? 
+                          userData['image_url'] ?? 
+                          userData['photo_url'] ?? 
+                          userData['profile_picture'] ??
+                          userData['image'];
+        
+        debugPrint('🖼️ URL de avatar encontrada: $avatarUrl');
+        
+        // Crear modelo de usuario con la URL del avatar real
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        userProvider.setUser(UserModel(
+          userId: currentUser.id,
+          name: userData['full_name'] ?? userData['name'] ?? currentUser.email,
+          profileImageUrl: avatarUrl,
+        ));
+        
+        // Forzar reconstrucción para mostrar el avatar
+        if (mounted) setState(() {});
+        
+      } catch (e) {
+        debugPrint('❌ Error obteniendo datos del usuario: $e');
+        
+        // Como fallback, intentar con metadatos del usuario
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        final avatarUrl = currentUser.userMetadata?['avatar_url'];
+        
+        debugPrint('🔍 Intentando con metadatos: $avatarUrl');
+        
+        userProvider.setUser(UserModel(
+          userId: currentUser.id,
+          name: currentUser.email,
+          profileImageUrl: avatarUrl,
+        ));
+      }
+    } else {
+      debugPrint('⚠️ No hay usuario autenticado en Supabase');
+    }
+  } catch (e) {
+    debugPrint('❌ Error sincronizando usuario: $e');
+  }
+}
+
 
 @override
 void didChangeDependencies() {
@@ -470,65 +552,74 @@ Widget _buildMessage(ChatMessage message) {
   
   Widget _buildUserAvatar() {
     try {
-      // Obtener la información del usuario actual
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final bool isLoggedIn = userProvider.isLoggedIn;
+      final isLoggedIn = userProvider.isLoggedIn;
       
-      debugPrint('👤 Usuario logueado: $isLoggedIn'); // Log de depuración
+      debugPrint('🔍 Estado de login en _buildUserAvatar: $isLoggedIn');
       
-      final user = userProvider.user;
-      final String? profileImageUrl = user?.profileImageUrl;
-      
-      debugPrint('🖼️ URL de imagen: $profileImageUrl'); // Log de depuración
-      
-      // Si el usuario está logueado y tiene imagen de perfil
-      if (isLoggedIn && profileImageUrl != null && profileImageUrl.isNotEmpty) {
-        return Container(
-          width: 36,
-          height: 36,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.network(
-              profileImageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                debugPrint('❌ Error cargando imagen: $error'); // Log de error
-                return _buildDefaultAvatar();
-              },
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  width: 36,
-                  height: 36,
-                  color: Colors.grey[300],
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                );
-              },
+      if (isLoggedIn) {
+        final user = userProvider.user;
+        String? profileImageUrl = user?.profileImageUrl;
+        
+        debugPrint('📸 URL de avatar encontrado: $profileImageUrl');
+        
+        // Si tenemos una URL de imagen válida
+        if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+          return Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ),
-        );
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.network(
+                profileImageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  debugPrint('❌ Error cargando imagen: $error');
+                  return _buildDefaultUserAvatar();
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    width: 36,
+                    height: 36,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey,
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        }
       }
       
-      // Por defecto, mostrar avatar genérico
-      return _buildDefaultAvatar();
+      return _buildDefaultUserAvatar();
     } catch (e) {
-      debugPrint('⚠️ Error en _buildUserAvatar: $e'); // Log de error general
-      return _buildDefaultAvatar();
+      debugPrint('⚠️ Excepción en _buildUserAvatar: $e');
+      return _buildDefaultUserAvatar();
     }
   }
 
-  // Método auxiliar para el avatar genérico
-  Widget _buildDefaultAvatar() {
+  // Método auxiliar para avatar por defecto
+  Widget _buildDefaultUserAvatar() {
     return Container(
       width: 36,
       height: 36,
@@ -537,22 +628,11 @@ Widget _buildMessage(ChatMessage message) {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF757575), Color(0xFF616161)],
+          colors: [Color(0xFF7986CB), Color(0xFF3F51B5)],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
       child: const Center(
-        child: Icon(
-          Icons.person,
-          color: Colors.white,
-          size: 20,
-        ),
+        child: Icon(Icons.person, color: Colors.white, size: 20),
       ),
     );
   }
@@ -780,7 +860,27 @@ Widget _buildMessage(ChatMessage message) {
     final lowerText = text.toLowerCase();
     final currentLanguage = localizations.locale.languageCode;
 
-      // Verificar si es una pregunta sobre ubicaciones
+      if ((_containsAny(lowerText, ['todos', 'lista', 'cuales', 'disponibles', 'que', 'tienen']) && 
+      _containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'procedimiento']) &&
+      _containsAny(lowerText, ['nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo']))) {
+    
+    _viewModel.addUserMessage(text);
+    _viewModel.setTyping(true);
+    
+    debugPrint('🗂️ INTERCEPTANDO CONSULTA DE TODOS LOS TRATAMIENTOS POR ÁREA');
+    
+    // Usar el método para listar todos los tratamientos del área
+    _viewModel.getAllTreatmentsByArea(text).then((treatmentsInfo) {
+      _viewModel.addBotMessage(
+        treatmentsInfo,
+        additionalContext: "show_schedule_button"
+      );
+    });
+    
+    return;
+  }
+
+    // Verificar si es una pregunta sobre ubicaciones
     final isLocationQuestion = _containsAny(lowerText, [
       'dónde', 'donde', 'ubicación', 'ubicacion', 'dirección', 
       'direccion', 'clínica', 'clinica', 'están', 'estan'
@@ -791,9 +891,8 @@ Widget _buildMessage(ChatMessage message) {
       _viewModel.addUserMessage(text);
       _viewModel.setTyping(true);
       
-      // Procesar sin añadir el botón de agendar (ya que tendrá su propio botón)
       _viewModel.processMessage(text, currentLanguage).then((response) {
-      _viewModel.addBotMessage(response.text); // Sin botón adicional
+        _viewModel.addBotMessage(response.text);
       });
       
       return;
@@ -804,10 +903,8 @@ Widget _buildMessage(ChatMessage message) {
       _viewModel.addUserMessage(text);
       _viewModel.setTyping(true);
 
-      // Obtener precios de la knowledge base
       _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
         if (priceInfo.isNotEmpty) {
-          // No añadir el enlace
           _viewModel.addBotMessage(
             priceInfo,
             additionalContext: "show_schedule_button"
@@ -820,31 +917,48 @@ Widget _buildMessage(ChatMessage message) {
         }
       });
 
-      return; // No continuar con el procesamiento normal
+      return;
     }
 
     // 2. INTERCEPTAR CONSULTAS DE TRATAMIENTOS
-    if (_containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'hacen', 'realizan', 'procedimiento', 'treatment', 'offer', 'service', 'procediment'])) {
-      _viewModel.addUserMessage(text);
-      _viewModel.setTyping(true);
-
-      // Obtener información de tratamientos de la knowledge base
-      _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
-        if (priceInfo.isNotEmpty) {
-          // No añadir el enlace
+    if (_containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'hacen', 'realizan', 'procedimiento'])) {
+      // Si está preguntando específicamente por "todos" o "lista" de tratamientos de un área
+      if (_containsAny(lowerText, ['todos', 'lista', 'disponibles']) && 
+          (_containsAny(lowerText, ['nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo']))) {
+        
+        _viewModel.addUserMessage(text);
+        _viewModel.setTyping(true);
+        
+        // Usar el nuevo método para obtener todos los tratamientos del área
+        _viewModel.getAllTreatmentsByArea(text).then((treatmentsInfo) {
           _viewModel.addBotMessage(
-            priceInfo,
+            treatmentsInfo,
             additionalContext: "show_schedule_button"
           );
-        } else {
-          _viewModel.addBotMessage(
-            localizations.get('no_price_info'),
-            additionalContext: "show_schedule_button"
-          );
-        }
-      });
-
-      return; // No continuar con el procesamiento normal
+        });
+        
+        return;
+      } else {
+        // Caso existente para consultas de tratamientos individuales
+        _viewModel.addUserMessage(text);
+        _viewModel.setTyping(true);
+        
+        _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
+          if (priceInfo.isNotEmpty) {
+            _viewModel.addBotMessage(
+              priceInfo,
+              additionalContext: "show_schedule_button"
+            );
+          } else {
+            _viewModel.addBotMessage(
+              localizations.get('no_price_info'),
+              additionalContext: "show_schedule_button"
+            );
+          }
+        });
+        
+        return;
+      }
     }
 
     // 3. Para todas las demás consultas, usar Claude AI
@@ -854,9 +968,9 @@ Widget _buildMessage(ChatMessage message) {
     // Enviar el idioma actual al modelo de IA
     _viewModel.processMessage(text, currentLanguage).then((response) {
       // Añadir el botón de cita a todas las respuestas
-    _viewModel.addBotMessage(
-      response.text, 
-      additionalContext: "show_schedule_button"  
+      _viewModel.addBotMessage(
+        response.text, 
+        additionalContext: "show_schedule_button"  
       );
     });
   }

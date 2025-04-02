@@ -24,6 +24,7 @@ import 'i18n/app_localizations.dart';
 import 'language_settings_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/user_provider.dart';
+import 'services/auth_service.dart';
 
 
 
@@ -137,7 +138,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -153,10 +153,16 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   _checkUserAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 2));
-    
     // Verificar si hay un usuario autenticado
     final isLoggedIn = await SupabaseService().isLoggedIn();
+    
+    // AÑADIR ESTAS LÍNEAS: Sincronizar UserProvider independiente de dónde navegue
+    if (mounted && context != null) {
+      AuthService.syncUserWithProvider(context);
+      print('🔄 Sincronizando usuario en SplashScreen');
+    }
+    
+    await Future.delayed(const Duration(seconds: 2));
     
     if (mounted) {
       if (isLoggedIn) {

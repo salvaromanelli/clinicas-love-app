@@ -4,6 +4,7 @@ import '/virtual_assistant_chat.dart' hide AppointmentInfo;
 import '/i18n/app_localizations.dart';
 import '/services/knowledge_base.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import '/services/supabase.dart';
 
 class ConversationContext {
   String currentTopic = '';
@@ -85,17 +86,17 @@ class ChatViewModel extends ChangeNotifier {
         // Respuesta hardcoded con datos exactos de las clínicas
         final locationResponse = """Nuestras clínicas están ubicadas en:
 
-  📍 **Clínicas Love Barcelona**
-    Dirección: Carrer Diputacio 327, 08009 Barcelona
-    Teléfono: +34 938526533
-    Horario: Lunes a Viernes: 9:00 - 20:00.
+          📍 **Clínicas Love Barcelona**
+            Dirección: Carrer Diputacio 327, 08009 Barcelona
+            Teléfono: +34 938526533
+            Horario: Lunes a Viernes: 9:00 - 20:00.
 
-  📍 **Clínicas Love Madrid**
-    Dirección: Calle Edgar Neville, 16, 28020 Madrid
-    Teléfono: +34 919993515
-    Horario: Lunes a Viernes: 10:00 - 20:00.
+          📍 **Clínicas Love Madrid**
+            Dirección: Calle Edgar Neville, 16, 28020 Madrid
+            Teléfono: +34 919993515
+            Horario: Lunes a Viernes: 10:00 - 20:00.
 
-  ¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
+          ¿Necesitas información sobre cómo llegar a alguna de nuestras clínicas?""";
 
         // Agregar directamente la respuesta hardcoded
         messages.add(ChatMessage(text: locationResponse, isUser: false));
@@ -263,144 +264,307 @@ class ChatViewModel extends ChangeNotifier {
       // Resto del código sin cambios
     });
   }
+   
   // Obtener información específica de precios desde la knowledge base
-
-Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
-  try {
-    // Obtener contexto con preferencia a precios
-    final knowledgeContext = await _knowledgeBase.getRelevantContext(
-      userMessage, 
-      preferredType: 'prices'  // Indica que preferimos información de precios
-    );
-    
-    debugPrint('🔍 Buscando información de precios en knowledge base');
-    
-    // Si hay precios disponibles
-    if (knowledgeContext.containsKey('prices') && knowledgeContext['prices'] is List) {
-      final prices = knowledgeContext['prices'] as List;
-      debugPrint('💰 Encontrados ${prices.length} precios relevantes');
+  Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
+    try {
+      // IMPORTANTE: Primero analizar el contexto de la conversación
+      final conversationContext = _analyzeConversationContext();
       
-      // IMPORTANTE: Depurar la estructura real de los datos
-      if (prices.isNotEmpty) {
-        debugPrint('🔍 Estructura del primer precio: ${prices.first}');
-      }
+      // Crear una consulta mejorada que incluya el contexto de la conversación
+      String enhancedQuery = userMessage;
       
-      // Identificar el tratamiento específico
-      final lowerMessage = userMessage.toLowerCase();
-      String priceInfo = "";
-      
-      // Buscar por botox
-      if (lowerMessage.contains('botox') || lowerMessage.contains('toxina')) {
-        for (var price in prices) {
-          final String treatment = price['treatment']?.toString().toLowerCase() ?? '';
-          if (treatment.contains('botox') || treatment.contains('toxina')) {
-            priceInfo = "El tratamiento de Botox en Clínicas Love tiene un precio de ${price['price']}. ";
-            if (price['description'] != null) {
-              priceInfo += price['description'];
-            } else {
-              priceInfo += "El precio puede variar dependiendo de las zonas a tratar. Incluye valoración médica previa y seguimiento posterior.";
-            }
-            break;
-          }
-        }
-      } 
-      // Buscar por labios
-      else if (lowerMessage.contains('labio') || lowerMessage.contains('relleno')) {
-        for (var price in prices) {
-          final String treatment = price['treatment']?.toString().toLowerCase() ?? '';
-          if (treatment.contains('labio') || treatment.contains('relleno')) {
-            priceInfo = "El aumento de labios con ácido hialurónico tiene un precio de ${price['price']}. ";
-            if (price['description'] != null) {
-              priceInfo += price['description'];
-            } else {
-              priceInfo += "Los resultados son inmediatos y duran entre 6-12 meses, dependiendo del metabolismo de cada paciente.";
-            }
-            break;
-          }
-        }
-      }
-
-      else if (_containsAny(lowerMessage, ['rino', 'nariz', 'rinomodelacion', 'rinomodelación'])) {
-        debugPrint('🔍 Buscando precio de rinomodelación');
-        bool found = false;
+      // Si la consulta es genérica sobre precios y hay un tratamiento mencionado recientemente
+      if (_containsAny(userMessage.toLowerCase(), ['precio', 'cuesta', 'cuánto', 'cuanto', 'valor', 'costo']) && 
+          !_containsSpecificTreatment(userMessage) && 
+          conversationContext.lastMentionedTreatment.isNotEmpty) {
         
-        // Imprimir todos los tratamientos para depuración
+        debugPrint('💬 Detectada pregunta de precio en contexto de: ${conversationContext.lastMentionedTreatment}');
+        // Agregar el tratamiento del contexto a la consulta
+        enhancedQuery = '${userMessage} ${conversationContext.lastMentionedTreatment}';
+        debugPrint('🔄 Consulta mejorada: $enhancedQuery');
+      }
+      
+      // Obtener el contexto relevante usando la consulta mejorada
+      final knowledgeContext = await _knowledgeBase.getRelevantContext(
+        enhancedQuery,  // Usar la consulta mejorada
+        preferredType: 'prices'
+      );
+      
+      if (knowledgeContext.containsKey('prices') && knowledgeContext['prices'] is List) {
+        final List<Map<String, dynamic>> prices = List<Map<String, dynamic>>.from(knowledgeContext['prices']);
+        
+        debugPrint('💰 Encontrados ${prices.length} precios en la base de conocimiento');
+        debugPrint('🔍 Buscando precios para: $enhancedQuery');
+        
+        final keywords = extractKeywords(enhancedQuery);
+        debugPrint('🔍 Palabras clave extraídas: $keywords');
+        
+        // Parte 1: Buscar coincidencias exactas primero
         for (var price in prices) {
-          final String treatment = price['treatment']?.toString().toLowerCase() ?? '';
-          debugPrint('👃 Comparando con: $treatment');
+          final treatment = price['treatment'].toString().toLowerCase();
           
-          // Usar una detección más amplia
-          if (treatment.contains('rino') || 
-              treatment.contains('nariz') || 
-              treatment.contains('armoniz') || 
-              treatment.contains('facial') && treatment.contains('sin cirug')) {
+          if (enhancedQuery.toLowerCase().contains(treatment)) {
+            debugPrint('✅ Coincidencia exacta encontrada para: $treatment');
             
-            found = true;
-            debugPrint('✅ Coincidencia encontrada para rinomodelación: $treatment');
+            // IMPORTANTE: Manejar caso donde la descripción puede ser null
+            final description = price['description'] ?? 
+                "Tratamiento especializado realizado por nuestros médicos expertos.";
             
-            priceInfo = "La rinomodelación sin cirugía en Clínicas Love tiene un precio desde ${price['price']}€. ";
-            if (price['description'] != null) {
-              priceInfo += price['description'];
-            } else {
-              priceInfo += "Es un tratamiento realizado con ácido hialurónico que permite corregir pequeñas imperfecciones nasales sin cirugía. El procedimiento es rápido, con resultados inmediatos y mínima recuperación.";
-            }
-            break;
+            return """
+            **${price['treatment']}**
+
+            $description
+
+            **Precio:** ${price['price']}
+
+            ¿Deseas agendar una cita para este tratamiento?
+                      """;
           }
         }
         
-        // Si no encontramos coincidencia específica pero era una pregunta de rinomodelación
-        if (!found && prices.isNotEmpty) {
-          debugPrint('⚠️ No se encontró coincidencia específica para rinomodelación');
-          
-          // Proporcionar una respuesta predefinida con precio aproximado
-          priceInfo = "La rinomodelación sin cirugía en Clínicas Love tiene un precio aproximado de 350€ a 450€, dependiendo de la complejidad del caso y la cantidad de producto necesario. El tratamiento se realiza con ácido hialurónico y los resultados son inmediatos, duran entre 12-18 meses.";
-        }
-      }
-      // Precios generales
-      else {
-        priceInfo = "En Clínicas Love contamos con los siguientes tratamientos y precios:\n\n";
+        // Parte 2: Si no hay coincidencia exacta, encontrar el MÁS relevante
+        Map<String, dynamic>? bestMatch;
+        int maxScore = -1;
         
-        // Mostrar hasta 5 precios disponibles
-        int count = 0;
         for (var price in prices) {
-          if (count >= 5) break;
+          final treatment = price['treatment'].toString().toLowerCase();
+          final description = price['description']?.toString().toLowerCase() ?? '';
+          final category = price['category']?.toString().toLowerCase() ?? '';
           
-          // CLAVE: Usar 'treatment' en lugar de 'name'
-          String treatmentName = price['treatment']?.toString() ?? "Tratamiento";
-          String priceValue = price['price']?.toString() ?? "Consultar";
+          int score = 0;
           
-          priceInfo += "• $treatmentName: $priceValue\n";
-          count++;
+          // Calcular puntuación basada en palabras clave encontradas
+          for (var keyword in keywords) {
+            if (treatment.contains(keyword)) score += 3; // Mayor peso a coincidencias en nombre
+            if (description.contains(keyword)) score += 1;
+            if (category.contains(keyword)) score += 2;
+          }
+          
+          // Si es la mejor coincidencia hasta ahora
+          if (score > maxScore) {
+            maxScore = score;
+            bestMatch = price;
+          }
         }
         
-        priceInfo += "\n¿Sobre qué tratamiento específico te gustaría conocer más detalles?";
+        // Si encontramos al menos una coincidencia relevante
+        if (bestMatch != null && maxScore > 0) {
+          debugPrint('✅ Mejor coincidencia encontrada: ${bestMatch['treatment']} con puntuación $maxScore');
+          
+          // IMPORTANTE: Manejar caso donde la descripción puede ser null
+          final description = bestMatch['description'] ?? 
+              "Tratamiento especializado realizado por nuestros médicos expertos.";
+          
+          return """
+  **${bestMatch['treatment']}**
+
+  $description
+
+  **Precio:** ${bestMatch['price']}
+
+  ¿Deseas agendar una cita para este tratamiento?
+          """;
+        }
+        
+        // IMPORTANTE: Solo mostrar múltiples resultados si la consulta parece explícitamente buscar múltiples tratamientos
+        final isGeneralQuery = _containsAny(enhancedQuery.toLowerCase(), ['todos', 'varios', 'diferentes', 'lista', 'opciones']);
+        
+        if (isGeneralQuery) {
+          // Mostrar hasta 3 tratamientos si la consulta parece general
+          List<Map<String, dynamic>> relevantPrices = [];
+          
+          for (var price in prices) {
+            final treatment = price['treatment'].toString().toLowerCase();
+            final description = price['description']?.toString().toLowerCase() ?? '';
+            
+            for (var keyword in keywords) {
+              if (treatment.contains(keyword) || description.contains(keyword)) {
+                relevantPrices.add(price);
+                break;
+              }
+            }
+            
+            if (relevantPrices.length >= 3) break;
+          }
+          
+          if (relevantPrices.isNotEmpty) {
+            final buffer = StringBuffer();
+            buffer.writeln('**Algunos tratamientos relacionados:**\n');
+            
+            for (var price in relevantPrices) {
+              buffer.writeln('**${price['treatment']}**');
+              final desc = price['description'] ?? "Tratamiento especializado en nuestras clínicas.";
+              buffer.writeln(desc);
+              buffer.writeln('**Precio:** ${price['price']}\n');
+            }
+            
+            return buffer.toString();
+          }
+        }
       }
       
-      // Si no se encontró ninguna coincidencia específica
-      if (priceInfo.isEmpty && prices.isNotEmpty) {
-        priceInfo = "En Clínicas Love contamos con los siguientes tratamientos y precios:\n\n";
-        
-        int count = 0;
-        for (var price in prices) {
-          if (count >= 5) break;
-          
-          // CLAVE: Usar 'treatment' en lugar de 'name'
-          String treatmentName = price['treatment']?.toString() ?? "Tratamiento";
-          String priceValue = price['price']?.toString() ?? "Consultar";
-          
-          priceInfo += "• $treatmentName: $priceValue\n";
-          count++;
-        }
-      }
-      
-      return priceInfo;
+      // Mensaje para cuando no hay coincidencias
+      return """
+  Lo siento, no encontré información específica sobre precios para tu consulta. 
+  Por favor, pregunta por un tratamiento específico como "Botox", "aumento de labios" o "rinoplastia".
+      """;
+    } catch (e) {
+      debugPrint('⚠️ Error al obtener precios: $e');
+      return "Lo siento, hubo un problema al buscar información de precios. Por favor, intenta con otra pregunta.";
     }
-  } catch (e) {
-    debugPrint('⚠️ Error al obtener precios: $e');
   }
-  
-  return "Lo siento, no encontré información específica sobre precios para tu consulta. ¿Te gustaría preguntar por un tratamiento específico como Botox, aumento de labios o rinomodelación?";
-}
+
+  // Añade este método auxiliar si no existe ya
+  bool _containsAny(String text, List<String> keywords) {
+    for (var keyword in keywords) {
+      if (text.contains(keyword)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // NUEVO: Método para verificar si un mensaje contiene un tratamiento específico
+  bool _containsSpecificTreatment(String message) {
+    final commonTreatments = [
+      'botox', 'rinomodelación', 'rinoplastia', 'rinoseptoplastia', 'nariz', 'labio', 'labios',
+      'facial', 'peeling', 'mesoterapia', 'ácido', 'hialurónico', 'aumento', 'lifting',
+      'relleno', 'ojeras', 'vitaminas'
+    ];
+    
+    final lowerMessage = message.toLowerCase();
+    
+    for (var treatment in commonTreatments) {
+      if (lowerMessage.contains(treatment)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Método para extraer palabras clave de una consulta
+  List<String> extractKeywords(String query) {
+    // Normalizar el texto: minúsculas y sin acentos
+    final normalizedText = _normalizeText(query);
+    
+    // Lista de palabras a ignorar (stopwords)
+    final stopwords = [
+      'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'o', 'a', 'de', 'en', 'con', 'por',
+      'para', 'como', 'que', 'se', 'su', 'sus', 'mi', 'mis', 'tu', 'tus', 'es', 'son', 'sobre',
+      'hay', 'tienen', 'tienen', 'quiero', 'saber', 'conocer', 'informacion', 'informacion',
+      'tener', 'sobre', 'acerca', 'cuales', 'todos', 'todas', 'del', 'al', 'me', 'gustaria',
+      'podrias', 'puede', 'pueden', 'ofrece', 'ofrecen'
+    ];
+    
+    // Dividir en palabras
+    final words = normalizedText.split(RegExp(r'\s+|,|\.|\?|¿|!|¡'));
+    
+    // Filtrar palabras relevantes
+    List<String> keywords = words
+        .where((word) => word.length > 2)  // Palabras de al menos 3 caracteres
+        .where((word) => !stopwords.contains(word))  // Excluir stopwords
+        .toList();
+    
+    // Palabras clave prioritarias (áreas del cuerpo y tratamientos)
+    final priorityKeywords = [
+      'nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo', 'ojos', 'frente', 'cuello',
+      'botox', 'relleno', 'acido', 'hialuronico', 'peeling', 'hidratacion', 'rino', 'rinoplastia'
+    ];
+    
+    // Priorizar términos específicos
+    List<String> priorityMatches = [];
+    for (var word in keywords) {
+      if (priorityKeywords.contains(word)) {
+        priorityMatches.add(word);
+      }
+    }
+    
+    // Si encontramos palabras prioritarias, ponerlas primero
+    if (priorityMatches.isNotEmpty) {
+      keywords = [...priorityMatches, ...keywords.where((w) => !priorityMatches.contains(w))];
+    }
+    
+    debugPrint('🔍 Palabras clave extraídas: $keywords');
+    return keywords;
+  }
+
+  // Método para obtener todos los tratamientos por área/categoría
+  Future<String> getAllTreatmentsByArea(String query) async {
+    try {
+      // Extraer palabras clave del query
+      final keywords = extractKeywords(query);
+      debugPrint('🔍 Palabras clave extraídas: ${keywords.join(", ")}');
+      
+      // Obtener todos los tratamientos de Supabase
+      final supabase = SupabaseService().client;
+      final response = await supabase
+          .from('treatments')
+          .select('*')
+          .order('name');
+      
+      debugPrint('📋 Obtenidos ${response.length} tratamientos');
+      
+      // Convertir la respuesta a una lista de mapas
+      List<Map<String, dynamic>> treatments = List<Map<String, dynamic>>.from(response);
+      
+      // Filtrar por área o categoría si se especificó
+      List<Map<String, dynamic>> filteredTreatments = [];
+      
+      // Palabras clave para filtrar por área
+      final areaKeyword = keywords.firstWhere(
+          (k) => ['nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo'].contains(k), 
+          orElse: () => '');
+      
+      if (areaKeyword.isNotEmpty) {
+        // Filtrar tratamientos por el área especificada
+        filteredTreatments = treatments.where((t) {
+          String name = t['name']?.toString().toLowerCase() ?? '';
+          String desc = t['description']?.toString().toLowerCase() ?? '';
+          String category = t['category']?.toString().toLowerCase() ?? '';
+          
+          // Para nariz específicamente
+          if (areaKeyword == 'nariz') {
+            return name.contains('nariz') || 
+                  name.contains('rinop') || 
+                  name.contains('rino') || 
+                  desc.contains('nariz') || 
+                  desc.contains('nasal') ||
+                  category.contains('nariz');
+          }
+          
+          // Para otras áreas
+          return name.contains(areaKeyword) || 
+                desc.contains(areaKeyword) || 
+                category.contains(areaKeyword);
+        }).toList();
+      }
+      
+      // Si no hay filtrados, mostrar mensaje de que no se encontraron tratamientos
+      if (filteredTreatments.isEmpty) {
+        return "Lo siento, no encontré tratamientos específicos para '${areaKeyword}' en nuestra base de datos.";
+      }
+      
+      // Construir respuesta con todos los tratamientos encontrados
+      final buffer = StringBuffer();
+      buffer.writeln('**Tratamientos disponibles para ${areaKeyword}:**\n');
+      
+      for (var treatment in filteredTreatments) {
+        buffer.writeln('**${treatment['name']}**');
+        buffer.writeln('• ${treatment['description']}');
+        buffer.writeln('• Duración aproximada: ${treatment['duration']} minutos');
+        buffer.writeln('• Precio: ${treatment['price'].toStringAsFixed(2)}€\n');
+      }
+      
+      buffer.writeln('\n¿Te gustaría más información sobre alguno de estos tratamientos en particular?');
+      
+      return buffer.toString();
+    } catch (e) {
+      debugPrint('❌ Error obteniendo tratamientos: $e');
+      return "Lo siento, hubo un problema al buscar los tratamientos disponibles. ¿Puedes intentar con otra pregunta?";
+    }
+  }
 
   // Obtener información específica de tratamientos
   Future<String> getTreatmentInfoFromKnowledgeBase(String userMessage) async {
@@ -572,30 +736,53 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
       context.currentTopic = 'ubicaciones';
     }
     
-    // Detectar tratamientos mencionados
+    // AMPLIADO: Detectar tratamientos mencionados con una lista más extensa
     final treatmentsKeywords = {
       'botox': ['botox', 'toxina', 'botulínica', 'arrugas'],
       'ácido hialurónico': ['ácido', 'hialurónico', 'relleno'],
-      'labios': ['labio', 'labios', 'aumento'],
+      'labios rusos': ['ruso', 'rusos', 'lips', 'efecto'],
+      'labios': ['labio', 'labios', 'aumento', 'labial'],
       'rinomodelación': ['rino', 'nariz', 'rinomodelación'],
-      'peeling': ['peeling', 'químico', 'exfoliación']
+      'rinoplastia': ['rinoplastia', 'cirugía nariz'],
+      'rinoseptoplastia': ['rinoseptoplastia', 'tabique', 'septum'],
+      'peeling': ['peeling', 'químico', 'exfoliación'],
+      'mastopexia': ['mastopexia', 'elevación', 'pecho', 'mamaria', 'mama', 'senos'],
+      'aumento de pecho': ['aumento', 'mamario', 'implante', 'silicona', 'senos'],
+      'lipoescultura': ['lipo', 'lipoescultura', 'liposucción', 'grasa'],
+      'blefaroplastia': ['blefaroplastia', 'párpados', 'ojos'],
+      'abdominoplastia': ['abdominoplastia', 'abdomen', 'vientre'],
+      'lifting': ['lifting', 'tensado', 'facial'],
+      'plasma': ['plasma', 'plaquetas', 'prp', 'rico'],
+      'vitaminas': ['vitaminas', 'cocktail', 'inyección'],
+      'rejuvenecimiento': ['rejuvenecimiento', 'anti', 'edad', 'arrugas'],
+      'mesoterapia': ['mesoterapia', 'meso', 'nutrición']
     };
     
+    // MEJORADO: Estrategia de detección del tratamiento más relevante
+    String mostRecentTreatment = '';
+    int mostRecentPosition = -1;
+    
+    // Para cada tratamiento, buscar la posición más reciente de mención
     treatmentsKeywords.forEach((treatment, keywords) {
       for (final keyword in keywords) {
-        if (recentText.contains(keyword)) {
-          // Si es la primera vez que se menciona o es reciente
-          if (!context.mentionedTreatments.contains(treatment) || 
-              recentMessages.last.text.toLowerCase().contains(keyword)) {
-            context.lastMentionedTreatment = treatment;
-          }
+        final keywordPosition = recentText.lastIndexOf(keyword);
+        if (keywordPosition > -1 && keywordPosition > mostRecentPosition) {
+          mostRecentPosition = keywordPosition;
+          mostRecentTreatment = treatment;
+          
+          // Añadir a la lista de tratamientos mencionados si no existe ya
           if (!context.mentionedTreatments.contains(treatment)) {
             context.mentionedTreatments.add(treatment);
           }
-          break;
         }
       }
     });
+    
+    // Definir el tratamiento más reciente si se encontró alguno
+    if (mostRecentPosition > -1) {
+      context.lastMentionedTreatment = mostRecentTreatment;
+      debugPrint('🔄 Tratamiento más reciente detectado: ${context.lastMentionedTreatment}');
+    }
     
     // Detectar ubicaciones mencionadas
     final locationsKeywords = ['barcelona', 'madrid', 'málaga', 'tenerife'];
@@ -606,15 +793,20 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
       }
     }
     
-    debugPrint('📊 Análisis de contexto: ${context.currentTopic}, tratamiento: ${context.lastMentionedTreatment}');
+    // Verificar si hay un mensaje reciente que pregunte específicamente por un precio
+    final latestMessages = recentMessages.length > 2 ? recentMessages.sublist(recentMessages.length - 2) : recentMessages;
+    final latestText = latestMessages.map((m) => m.text.toLowerCase()).join(' ');
+    
+    if ((latestText.contains('precio') || latestText.contains('cuesta') || latestText.contains('cuánto')) && 
+        context.lastMentionedTreatment.isNotEmpty) {
+      debugPrint('💲 Detectada pregunta específica de precio para: ${context.lastMentionedTreatment}');
+    }
+    
+    debugPrint('📊 Análisis de contexto completo: Tema: ${context.currentTopic}, Tratamiento: ${context.lastMentionedTreatment}');
     return context;
   }
-  
-  void _updateSuggestedReplies(String userMessage, String botResponse) {
-    // Simplemente llamar al método de generación de sugerencias basado en contexto
-    _generateSuggestionsBasedOnContext(userMessage, botResponse);
-    notifyListeners();
-  }
+
+  // Método para reiniciar el chat
   
   void resetChat() {
     messages.clear();
@@ -623,16 +815,6 @@ Future<String> getSpecificPriceFromKnowledgeBase(String userMessage) async {
     sendWelcomeMessage();
   }
 
-    bool _containsAny(String text, List<String> keywords) {
-    final normalized = _normalizeText(text);
-    
-    for (final keyword in keywords) {
-      if (normalized.contains(_normalizeText(keyword))) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   String _normalizeText(String text) {
     // Normalizar: quitar acentos, convertir a minúsculas, eliminar caracteres especiales

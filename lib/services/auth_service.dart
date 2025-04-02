@@ -1,12 +1,57 @@
 // auth_service.dart
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'supabase.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '/providers/user_provider.dart';
 
 class AuthService {
   final _storage = const FlutterSecureStorage();
   final _supabaseService = SupabaseService();
   
-    // Método para obtener el ID del usuario actual
+  // Método para sincronizar usuario con UserProvider
+  static void syncUserWithProvider(BuildContext context) async {
+    final authService = AuthService();
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    
+    // Verificar si hay un usuario autenticado
+    final userId = await authService.getCurrentUserId();
+    
+    if (userId != null) {
+      try {
+        // Obtener datos del perfil del usuario desde Supabase
+        final userData = await authService._supabaseService.client
+            .from('users')
+            .select('name, profile_image_url')
+            .eq('id', userId)
+            .single();
+        
+        // Actualizar el UserProvider con los datos obtenidos
+        userProvider.setUser(UserModel(
+          userId: userId,
+          name: userData['name'],
+          profileImageUrl: userData['profile_image_url'],
+        ));
+        
+        debugPrint('✅ Usuario sincronizado con ID: $userId');
+      } catch (e) {
+        // Si no podemos obtener datos adicionales, usar solo el ID
+        userProvider.setUser(UserModel(
+          userId: userId,
+          name: 'Usuario', // Nombre genérico
+          profileImageUrl: null, // Sin imagen
+        ));
+        
+        debugPrint('⚠️ Sincronización parcial: $e');
+      }
+    } else {
+      // No hay usuario autenticado
+      userProvider.logout();
+      debugPrint('🚫 No hay usuario autenticado para sincronizar');
+    }
+  }
+
+  // Método para obtener el ID del usuario actual
   Future<String?> getCurrentUserId() async {
     try {
       // Verificar el usuario actual de Supabase
@@ -32,14 +77,20 @@ class AuthService {
     }
   }
   
+  
   // Obtener token almacenado
   Future<String?> getToken() async {
     return await _storage.read(key: 'auth_token');
   }
   
   // Guardar token de sesión
-  Future<void> saveToken(String token) async {
+  Future<void> saveToken(String token, {BuildContext? context}) async {
     await _storage.write(key: 'auth_token', value: token);
+    
+    // Si se proporciona el contexto, sincronizar el usuario
+    if (context != null) {
+      syncUserWithProvider(context);
+    }
   }
   
   // Verificar si el usuario está autenticado
@@ -48,9 +99,14 @@ class AuthService {
     return token != null && token.isNotEmpty;
   }
   
-  // Cerrar sesión
-  Future<void> logout() async {
+  // MODIFICADO: Cerrar sesión y limpiar UserProvider
+  Future<void> logout({BuildContext? context}) async {
     await _supabaseService.signOut();
     await _storage.delete(key: 'auth_token');
+    
+    // Limpiar UserProvider si se proporciona el contexto
+    if (context != null) {
+      Provider.of<UserProvider>(context, listen: false).logout();
+    }
   }
 }

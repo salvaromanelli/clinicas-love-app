@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class UserModel {
   final String userId;
@@ -47,15 +48,20 @@ class UserProvider extends ChangeNotifier {
     
     if (userJson != null) {
       try {
+        // Convertir la cadena JSON a un Map
         final Map<String, dynamic> userData = Map<String, dynamic>.from(
-          Map.from(prefs.getString('user_data') as Map)
+          // Usar dart:convert para parsear el string JSON
+          jsonDecode(userJson)
         );
+        
         _user = UserModel.fromJson(userData);
+        debugPrint('✅ Usuario cargado: ${_user?.name}, URL: ${_user?.profileImageUrl}');
         notifyListeners();
       } catch (e) {
-        // Error parsing user data
-        print('Error loading user data: $e');
+        debugPrint('❌ Error cargando datos del usuario: $e');
       }
+    } else {
+      debugPrint('ℹ️ No hay datos de usuario guardados');
     }
   }
 
@@ -63,9 +69,13 @@ class UserProvider extends ChangeNotifier {
   Future<void> _saveUserData() async {
     final prefs = await SharedPreferences.getInstance();
     if (_user != null) {
-      await prefs.setString('user_data', _user!.toJson().toString());
+      // Convertir a JSON string usando jsonEncode
+      final String userJson = jsonEncode(_user!.toJson());
+      await prefs.setString('user_data', userJson);
+      debugPrint('💾 Datos de usuario guardados correctamente');
     } else {
       await prefs.remove('user_data');
+      debugPrint('🗑️ Datos de usuario eliminados');
     }
   }
 
@@ -81,6 +91,7 @@ class UserProvider extends ChangeNotifier {
     _user = null;
     _saveUserData();
     notifyListeners();
+    debugPrint('🚪 Usuario deslogueado en UserProvider');
   }
 
   // Actualizar solo la imagen de perfil

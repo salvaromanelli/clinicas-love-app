@@ -54,6 +54,23 @@ class ClaudeAssistantService {
           ));
   }
 
+  bool _isPriceQuestion(String text, Map<String, dynamic> knowledgeContext) {
+  final lowerText = text.toLowerCase();
+  
+  // Verificar si la pregunta es sobre precios
+  final isPriceRelated = _containsAny(lowerText, [
+    'precio', 'cuesta', 'cuánto', 'cuanto', 'valor', 'tarifa',
+    'price', 'cost', 'how much', 'preu', 'cost'
+  ]);
+  
+  // Verificar si tenemos información de precios en el contexto
+  final hasPrice = knowledgeContext.containsKey('prices') && 
+                  knowledgeContext['prices'] != null &&
+                  knowledgeContext['prices'].isNotEmpty;
+  
+  return isPriceRelated || hasPrice;
+}
+
   // Añadir este método que devuelve respuestas hardcoded para ubicaciones
   ProcessedMessage _getHardcodedLocationResponse(String language) {
     String responseText;
@@ -165,10 +182,16 @@ class ClaudeAssistantService {
         knowledgeContext = await knowledgeBase!.getRelevantContext(userMessage);
         formattedContext = knowledgeBase!.formatContextForPrompt(knowledgeContext);
         debugPrint('📝 Contexto formateado: ${formattedContext.length} caracteres');
+             
+        if (knowledgeContext.containsKey('prices')) {
+        debugPrint('💰 Información de precios encontrada: ${knowledgeContext['prices']}');
+      }
       } catch (e) {
         debugPrint('⚠️ Error recuperando contexto: $e');
       }
     }
+
+    final isPriceQuestion = _isPriceQuestion(userMessage, knowledgeContext);
     
     // Sistema prompt simplificado
     String systemPrompt = '''Eres un asistente virtual de Clínicas Love, especializado en medicina estética.
@@ -191,6 +214,7 @@ class ClaudeAssistantService {
     - Si no tienes la información específica solicitada, ADMITE QUE NO LA TIENES
     - NO INVENTES UBICACIONES, PRECIOS, SERVICIOS O CUALQUIER OTRO DATO
     
+    
     INSTRUCCIÓN DE IDIOMA:
     - DEBES RESPONDER ÚNICAMENTE EN EL IDIOMA: $language
     - Si $language es 'ca', responde en catalán
@@ -202,6 +226,19 @@ class ClaudeAssistantService {
     - Tono AMABLE y PROFESIONAL
     ''';
     
+    if (isPriceQuestion) {
+    systemPrompt += '''
+    
+    INSTRUCCIONES ESPECÍFICAS SOBRE PRECIOS:
+    - SOLO menciona precios de tratamientos si están EXPLÍCITAMENTE proporcionados en el contexto
+    - Si se te pregunta sobre el precio de un tratamiento y NO tienes el dato exacto, di algo como: 
+      "Para darte el precio exacto de este tratamiento, te recomiendo contactar directamente con la clínica 
+      o reservar una consulta de valoración gratuita donde podrán darte un presupuesto personalizado."
+    - NUNCA estimes, aproximes o inventes un rango de precios si no tienes el dato exacto
+    - Si el contexto proporciona un precio específico, úsalo exactamente como aparece, sin redondearlo ni modificarlo
+    ''';
+  }
+
     if (formattedContext.isNotEmpty) {
       systemPrompt += '''\n\nINFORMACIÓN RELEVANTE PARA RESPONDER:
       $formattedContext
@@ -255,10 +292,11 @@ class ClaudeAssistantService {
         // Limpiar y verificar el idioma de la respuesta
         final cleanedText = _cleanResponse(text);
         final verifiedText = _verifyLanguage(cleanedText, language);
+        final validatedPriceText = _validatePriceInformation(verifiedText, knowledgeContext);
         
         debugPrint('✅ Respuesta de Claude procesada correctamente');
         return ProcessedMessage(
-          text: verifiedText,
+          text: validatedPriceText,
           additionalContext: formattedContext
         );
       } else {
@@ -305,4 +343,36 @@ class ClaudeAssistantService {
     }
     return false;
   }
+
+    String _validatePriceInformation(String response, Map<String, dynamic> knowledgeContext) {
+    if (!knowledgeContext.containsKey('prices') || knowledgeContext['prices'] == null) {
+      return response;
+    }
+    
+    // Verificar si la respuesta contiene información de precios inventada
+    RegExp pricePattern = RegExp(r'(\d+[.,]?\d*)\s*[€$£]');
+    var matches = pricePattern.allMatches(response);
+    
+    if (matches.isEmpty) {
+      return response; // No hay precios mencionados
+    }
+    
+    // Verificar cada precio mencionado contra nuestros datos
+    List<Map<String, dynamic>> prices = knowledgeContext['prices'];
+    Set<String> validPrices = prices.map((p) => p['price'].toString()).toSet();
+    
+    for (var match in matches) {
+      String mentionedPrice = match.group(1)!;
+      bool isValid = validPrices.contains(mentionedPrice);
+      
+      if (!isValid) {
+        // Si detectamos un precio inventado, añadimos una nota para aclarar
+        response += "\n\n[NOTA INTERNA: Para obtener el precio exacto de este tratamiento, por favor contacta directamente con la clínica o reserva una consulta de valoración gratuita.]";
+        break;
+      }
+    }
+    
+    return response;
+  }
+
 }

@@ -813,23 +813,6 @@ class KnowledgeBase {
   String formatContextForPrompt(Map<String, dynamic> context) {
     final buffer = StringBuffer();
     
-    // Formatear clínicas con énfasis
-    if (context.containsKey('clinics') && context['clinics'] is List) {
-      buffer.writeln('\nUBICACIONES EXACTAS DE CLÍNICAS LOVE:');
-      final clinics = context['clinics'] as List;
-      for (var i = 0; i < clinics.length; i++) {
-        final clinic = clinics[i];
-        buffer.writeln('${i+1}. ${clinic['name']}: DIRECCIÓN EXACTA → ${clinic['address']}');
-        if (clinic['phone'] != null) {
-          buffer.writeln('   Teléfono: ${clinic['phone']}');
-        }
-        if (clinic['schedule'] != null) {
-          buffer.writeln('   Horario: ${clinic['schedule']}');
-        }
-      }
-      buffer.writeln('\nIMPORTANTE: SOLO EXISTEN ESTAS UBICACIONES. NO HAY OTRAS SUCURSALES.');
-    }
-  
 
     // Formatear categorías de precios
     if (context.containsKey('price_categories')) {
@@ -885,20 +868,25 @@ class KnowledgeBase {
       buffer.writeln();
     }
     
-    // Añadir información de precios
-    if (context.containsKey('prices')) {
-      final prices = context['prices'] as List<Map<String, dynamic>>;
+    // Formatear información de precios
+    if (context.containsKey('prices') && context['prices'] != null) {
+      List<Map<String, dynamic>> prices = context['prices'];
       if (prices.isNotEmpty) {
-        buffer.writeln('PRECIOS:');
-        for (final price in prices) {
-          buffer.writeln('- ${price['treatment']}: ${price['price']}');
+        buffer.writeln('INFORMACIÓN DE PRECIOS DE TRATAMIENTOS:');
+        for (var price in prices) {
+          buffer.writeln("""
+      - Tratamiento: ${price['treatment_name'] ?? price['treatment']}
+        Precio exacto: ${price['price']}€
+        ${price.containsKey('description') ? "Descripción: ${price['description']}" : ""}
+          """.trim());
         }
-        buffer.writeln();
       }
+      buffer.writeln();
     }
     
-    return buffer.toString();
-  }
+      
+      return buffer.toString();
+    }
 
   // Método para acceder directamente a TODAS las clínicas sin filtros
   Future<List<Map<String, dynamic>>> getAllClinics() async {

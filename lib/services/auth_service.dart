@@ -21,15 +21,15 @@ class AuthService {
       try {
         // Obtener datos del perfil del usuario desde Supabase
         final userData = await authService._supabaseService.client
-            .from('users')
-            .select('name, profile_image_url')
+            .from('profiles')
+            .select('full_name, profile_image_url')
             .eq('id', userId)
             .single();
         
         // Actualizar el UserProvider con los datos obtenidos
         userProvider.setUser(UserModel(
           userId: userId,
-          name: userData['name'],
+          name: userData['full_name'],
           profileImageUrl: userData['profile_image_url'],
         ));
         

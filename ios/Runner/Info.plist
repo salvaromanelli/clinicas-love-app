@@ -28,12 +28,14 @@
     <string>Necesitamos acceso a tu ubicación para mostrarte las clínicas más cercanas.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>Esta aplicación necesita acceso a la cámara para simular tratamientos estéticos</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Esta aplicación necesita acceso a la galería para simular tratamientos estéticos</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Esta aplicación necesita permiso para guardar las imágenes procesadas en su galería.</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+    <string>https</string>
+    <string>http</string>
+    <string>whatsapp</string>
+    </array>
     <key>NSCameraUsageDescription</key>
     <string>Esta aplicación necesita acceso a la cámara para tomar fotos de perfil.</string>
     <key>NSPhotoLibraryUsageDescription</key>
@@ -70,6 +72,16 @@
         <string>UIInterfaceOrientationPortraitUpsideDown</string>
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>https</string>
+        <string>http</string>
+        <string>whatsapp</string>
+        <string>whatsapp-consumer</string>
+        <string>wabloks</string>
+        <string>wa</string>
+        <string>tel</string>
     </array>
 </dict>
 </plist>

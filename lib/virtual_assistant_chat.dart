@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/claude_assistant_service.dart' as ai;
 import 'viewmodels/chat_viewmodel.dart';
-import 'config/env.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'i18n/app_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' ;
 import 'providers/user_provider.dart';
 import 'services/supabase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatMessage {
   final String text;
@@ -384,8 +384,8 @@ Widget _buildMessage(ChatMessage message) {
   final processedText = message.text.replaceAll('[Agendar una cita](app://schedule)', '');
   
   final shouldShowClinicasButton = message.additionalContext == "show_clinics_button" || 
-                                 message.additionalContext == "show_clinic_button" || 
-                                 message.text.contains('(app://clinicas)');
+                                  message.additionalContext == "show_clinic_button" || 
+                                  message.text.contains('(app://clinicas)');
 
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -423,31 +423,49 @@ Widget _buildMessage(ChatMessage message) {
               children: [
                 // Mostrar el texto del mensaje sin el enlace
                 if (processedText.isNotEmpty)
-                  MarkdownBody(
-                    data: processedText,
-                    onTapLink: (text, href, title) {
-                      if (href != null && href.startsWith('app://')) {
+                MarkdownBody(
+                  data: processedText,
+                  onTapLink: (text, href, title) async {
+                    if (href != null) {
+                      if (href.startsWith('app://')) {
+                        // Manejo existente para enlaces internos de la app
                         _handleAppLink(href);
+                      } else if (href.startsWith('https://wa.me/')) {
+                        // Nuevo manejo para enlaces de WhatsApp
+                        final Uri uri = Uri.parse(href);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } else {
+                          debugPrint('❌ No se pudo abrir el enlace de WhatsApp: $href');
+                        }
+                      } else {
+                        // Cualquier otro enlace externo
+                        final Uri uri = Uri.parse(href);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        } else {
+                          debugPrint('❌ No se pudo abrir el enlace: $href');
+                        }
                       }
-                    },
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(
-                        // El color del texto depende de si es un mensaje del usuario o del bot
-                        color: message.isUser ? Colors.white : const Color(0xFF303030), 
-                        fontSize: 15.0, // Tamaño ligeramente mayor para mejor legibilidad
-                      ),
-                      strong: TextStyle(
-                        // Color para texto en negrita también sensible al remitente
-                        color: message.isUser ? Colors.white : Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      a: TextStyle(
-                        // Enlaces también sensibles al remitente
-                        color: message.isUser ? Colors.white.withOpacity(0.9) : Theme.of(context).colorScheme.secondary,
-                        decoration: TextDecoration.underline,
-                      ),
+                    }
+                  },
+                  styleSheet: MarkdownStyleSheet(
+                    p: TextStyle(
+                      color: message.isUser ? Colors.white : const Color(0xFF303030),
+                      fontSize: 15.0,
+                    ),
+                    strong: TextStyle(
+                      color: message.isUser ? Colors.white : Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    a: TextStyle(
+                      // Hacer los enlaces más evidentes
+                      color: message.isUser ? Colors.white.withOpacity(0.9) : Colors.blue,
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
                   
                 // Mostrar el botón si el mensaje contiene el enlace
                 if (shouldShowScheduleButton)
@@ -860,9 +878,51 @@ Widget _buildMessage(ChatMessage message) {
     final lowerText = text.toLowerCase();
     final currentLanguage = localizations.locale.languageCode;
 
-      if ((_containsAny(lowerText, ['todos', 'lista', 'cuales', 'disponibles', 'que', 'tienen']) && 
-      _containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'procedimiento']) &&
-      _containsAny(lowerText, ['nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo']))) {
+      // NUEVO: Intentar identificar consultas sobre tratamientos específicos
+    if (_mightBeTreatmentQuery(lowerText)) {
+      _viewModel.addUserMessage(text);
+      _viewModel.setTyping(true);
+      
+      debugPrint('🧠 INTERCEPTANDO CONSULTA DE TRATAMIENTO ESPECÍFICO CON IA');
+      
+      // Usar el método de reconocimiento de tratamientos basado en IA
+      _viewModel.recognizeAndRespondToTreatment(text).then((treatmentInfo) {
+        _viewModel.addBotMessage(
+          treatmentInfo,
+          additionalContext: "show_schedule_button",
+          userQuery: text
+        );
+      });
+      
+      return;
+    }
+    
+    // PRIMERO: Interceptar consultas sobre CATÁLOGO GENERAL
+    // Esta condición debe tener la más alta prioridad
+    if (_containsAny(lowerText, ['tratamientos', 'servicios', 'catálogo', 'ofrecen', 'tienen', 'realizan']) && 
+        !_containsAny(lowerText, ['nariz', 'facial', 'cara', 'labios', 'piel', 'botox', 'ácido', 'especifico', 'específico']) &&
+        (_containsAny(lowerText, ['que', 'cuáles', 'cuales', 'lista', 'todos', 'disponibles']))) {
+      
+      _viewModel.addUserMessage(text);
+      _viewModel.setTyping(true);
+      
+      debugPrint('📚 INTERCEPTANDO CONSULTA DE CATÁLOGO GENERAL DE TRATAMIENTOS');
+      
+      // Usar el método para mostrar tratamientos por categoría
+      _viewModel.getAllTreatmentsByCategory().then((treatmentsInfo) {
+        _viewModel.addBotMessage(
+          treatmentsInfo,
+          additionalContext: "show_schedule_button",
+          userQuery: text
+        );
+      });
+      
+      return;
+    }
+
+    if ((_containsAny(lowerText, ['todos', 'lista', 'cuales', 'disponibles', 'que', 'tienen']) && 
+    _containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'procedimiento']) &&
+    _containsAny(lowerText, ['nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo']))) {
     
     _viewModel.addUserMessage(text);
     _viewModel.setTyping(true);
@@ -873,7 +933,8 @@ Widget _buildMessage(ChatMessage message) {
     _viewModel.getAllTreatmentsByArea(text).then((treatmentsInfo) {
       _viewModel.addBotMessage(
         treatmentsInfo,
-        additionalContext: "show_schedule_button"
+        additionalContext: "show_schedule_button",
+        userQuery: text
       );
     });
     
@@ -907,18 +968,43 @@ Widget _buildMessage(ChatMessage message) {
         if (priceInfo.isNotEmpty) {
           _viewModel.addBotMessage(
             priceInfo,
-            additionalContext: "show_schedule_button"
+            additionalContext: "show_schedule_button",
+            userQuery: text
+
           );
         } else {
           _viewModel.addBotMessage(
             localizations.get('no_price_info'),
-            additionalContext: "show_schedule_button"
+            additionalContext: "show_schedule_button",
+            userQuery: text
           );
         }
       });
 
       return;
     }
+    
+    // Interceptar consultas generales sobre el catálogo de tratamientos
+    if (_containsAny(lowerText, ['qué tratamientos', 'que tratamientos', 'tratamientos disponibles', 
+                              'catálogo', 'catalogo', 'servicios disponibles', 'ofrecen', 'tienen']) && 
+       !_containsAny(lowerText, ['nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo'])) {
+    
+    _viewModel.addUserMessage(text);
+    _viewModel.setTyping(true);
+    
+    debugPrint('📚 INTERCEPTANDO CONSULTA DE CATÁLOGO GENERAL DE TRATAMIENTOS');
+    
+    // Usar el nuevo método para obtener tratamientos por categoría
+    _viewModel.getAllTreatmentsByCategory().then((treatmentsInfo) {
+      _viewModel.addBotMessage(
+        treatmentsInfo,
+        additionalContext: "show_schedule_button",
+        userQuery: text
+      );
+    });
+    
+    return;
+  }
 
     // 2. INTERCEPTAR CONSULTAS DE TRATAMIENTOS
     if (_containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'hacen', 'realizan', 'procedimiento'])) {
@@ -933,7 +1019,8 @@ Widget _buildMessage(ChatMessage message) {
         _viewModel.getAllTreatmentsByArea(text).then((treatmentsInfo) {
           _viewModel.addBotMessage(
             treatmentsInfo,
-            additionalContext: "show_schedule_button"
+            additionalContext: "show_schedule_button",
+            userQuery: text
           );
         });
         
@@ -947,12 +1034,14 @@ Widget _buildMessage(ChatMessage message) {
           if (priceInfo.isNotEmpty) {
             _viewModel.addBotMessage(
               priceInfo,
-              additionalContext: "show_schedule_button"
+              additionalContext: "show_schedule_button",
+              userQuery: text
             );
           } else {
             _viewModel.addBotMessage(
               localizations.get('no_price_info'),
-              additionalContext: "show_schedule_button"
+              additionalContext: "show_schedule_button",
+              userQuery: text
             );
           }
         });
@@ -970,9 +1059,35 @@ Widget _buildMessage(ChatMessage message) {
       // Añadir el botón de cita a todas las respuestas
       _viewModel.addBotMessage(
         response.text, 
-        additionalContext: "show_schedule_button"  
+        additionalContext: "show_schedule_button" ,
+        userQuery: text 
       );
     });
+  }
+
+  // Modificar para ser más específico y NO atrapar preguntas generales
+  bool _mightBeTreatmentQuery(String text) {
+    // Si está preguntando por el catálogo general, NO es una consulta específica
+    if (_containsAny(text.toLowerCase(), ['que tratamientos', 'qué tratamientos', 'cuales son', 'cuáles son', 'que ofrecen', 'qué ofrecen']) &&
+        !_containsAny(text.toLowerCase(), ['nariz', 'facial', 'botox', 'rinoplastia', 'aumento'])) {
+      return false;
+    }
+    
+    // Palabras que indican que podría ser una consulta sobre tratamientos específicos
+    final treatmentIndicators = [
+      'botox', 'ácido', 'hialurónico', 'rinoplastia', 'rinomodelación', 
+      'lifting', 'blefaroplastia', 'peeling', 'mastopexia', 'lipoestructura',
+      'mesoterapia', 'liposuccion', 'abdominoplastia'
+    ];
+    
+    for (final indicator in treatmentIndicators) {
+      if (text.toLowerCase().contains(indicator)) {
+        debugPrint('🔍 Detectado tratamiento específico: $indicator');
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   // Añade este método auxiliar

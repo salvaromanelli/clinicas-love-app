@@ -374,5 +374,54 @@ class ClaudeAssistantService {
     
     return response;
   }
+  
+  Future<Map<String, dynamic>> getJsonResponse(String prompt) async {
+    try {
+      // Enviar el prompt a la API de Claude
+      final response = await processMessage(
+        prompt,
+        [],  // Historial de mensajes vacío para una consulta directa
+        {}   // No se necesita contexto adicional
+      );
+      
+      // Intentar analizar el texto de respuesta como JSON
+      try {
+        // Eliminar marcadores de bloque de código markdown si están presentes
+        String jsonText = response.text;
+        if (jsonText.contains('```json')) {
+          jsonText = jsonText.split('```json')[1].split('```')[0].trim();
+        } else if (jsonText.contains('```')) {
+          jsonText = jsonText.split('```')[1].split('```')[0].trim();
+        }
+        
+        // Analizar el JSON
+        final jsonResponse = json.decode(jsonText);
+        return jsonResponse;
+      } catch (parseError) {
+        debugPrint('⚠️ Error al analizar JSON de la respuesta de Claude: $parseError');
+        debugPrint('📝 La respuesta sin procesar fue: ${response.text}');
+        
+        // Devolver un JSON de error por defecto si falla el análisis
+        return {
+          'isTreatmentQuery': false,
+          'matchedTreatment': null,
+          'isComboTreatment': false,
+          'components': [],
+          'error': 'No se pudo analizar JSON de la respuesta de IA'
+        };
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error al obtener respuesta JSON de Claude: $e');
+      
+      // Devolver un JSON de error por defecto si falla la llamada a la API
+      return {
+        'isTreatmentQuery': false,
+        'matchedTreatment': null,
+        'isComboTreatment': false,
+        'components': [],
+        'error': 'Error de API: $e'
+      };
+    }
+  }
 
 }

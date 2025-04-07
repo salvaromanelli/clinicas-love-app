@@ -5,7 +5,7 @@ import '/i18n/app_localizations.dart';
 import '/services/knowledge_base.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '/services/supabase.dart';
-
+import 'dart:math' as math;
 
 
 class ConversationContext {
@@ -573,123 +573,116 @@ bool _isAppointmentQuery(String text) {
   }
   
     // Método para procesar consultas sobre tratamientos usando IA
-  Future<String> recognizeAndRespondToTreatment(String userQuery) async {
-    try {
-      // 1. Detectar si es una pregunta sobre catálogo general
-      if (_isGeneralCatalogQuery(userQuery.toLowerCase())) {
-        debugPrint('📚 Detectada consulta sobre catálogo general, redirigiendo...');
-        return await getAllTreatmentsByCategory();
-      }
-      
-      // 2. Obtener tratamientos de la base de datos
-      final supabase = SupabaseService().client;
-      final response = await supabase
-          .from('treatments')
-          .select('*');
-      
-      final treatments = List<Map<String, dynamic>>.from(response);
-      debugPrint('📋 Total de tratamientos disponibles: ${treatments.length}');
-      
-      // 3. Crear prompt para que Claude identifique el tratamiento
-      final treatmentNames = treatments.map((t) => t['name']).toList();
-      final prompt = """
-      Consulta del usuario: "$userQuery"
-      
-      Lista de tratamientos disponibles en Clínicas Love:
-      ${treatmentNames.join(', ')}
-      
-      Basado en la consulta del usuario, identifica:
-      1. Si está preguntando específicamente por un tratamiento
-      2. Qué tratamiento de la lista anterior mejor coincide con su consulta
-      3. Si está preguntando por un tratamiento que combina varias técnicas o productos
-      
-      Responde en formato JSON:
-      {
-        "isTreatmentQuery": true/false,
-        "matchedTreatment": "nombre del tratamiento más cercano o null",
-        "isComboTreatment": true/false,
-        "components": ["componente1", "componente2"]
-      }
-      """;
-      
-      // 4. Obtener análisis de Claude
-      final aiResponse = await _aiService.getJsonResponse(prompt);
-      debugPrint('🧠 Análisis de la IA: $aiResponse');
-
-      
-      // 5. Manejar respuesta identificada - MEJORAR LA VERIFICACIÓN
-      if (aiResponse['isTreatmentQuery'] == true && aiResponse['matchedTreatment'] != null) {
-        final matchedTreatment = aiResponse['matchedTreatment'];
-        debugPrint('✅ Tratamiento identificado: $matchedTreatment');
-        
-        // NUEVO: Definir matchingTreatments - esto debe ir aquí
-        final List<Map<String, dynamic>> matchingTreatments = treatments.where((t) {
-          final treatmentName = t['name'].toString().toLowerCase();
-          final matchedName = matchedTreatment.toString().toLowerCase();
-          return treatmentName.contains(matchedName) || matchedName.contains(treatmentName);
-        }).toList();
-        debugPrint('🔍 Encontrados ${matchingTreatments.length} tratamientos que coinciden con "$matchedTreatment"');
-        
-        // Casos especiales con palabras clave específicas
-        if (userQuery.toLowerCase().contains('nariz') && userQuery.toLowerCase().contains('ácido')) {
-          debugPrint('🔍 Detectada consulta sobre rinomodelación con ácido hialurónico');
+    Future<String> recognizeAndRespondToTreatment(String userQuery) async {
+      try {
+        // 1. Detectar si es una pregunta sobre catálogo general
+        if (_isGeneralCatalogQuery(userQuery.toLowerCase())) {
+          debugPrint('📚 Detectada consulta sobre catálogo general, redirigiendo...');
+          return await getAllTreatmentsByCategory();
         }
         
-        // 6. Si encontramos coincidencias, mostrar el tratamiento mejor coincidente
-        if (matchingTreatments.isNotEmpty) {
-          // Verificar si la consulta es sobre precios
-          bool isAskingForPrice = userQuery.toLowerCase().contains('precio') || 
-                                  userQuery.toLowerCase().contains('cuesta') || 
-                                  userQuery.toLowerCase().contains('cuánto') ||
-                                  userQuery.toLowerCase().contains('cuanto') ||
-                                  userQuery.toLowerCase().contains('valor');
-          
-          // Ordenar por longitud de nombre para priorizar coincidencias más precisas
-          matchingTreatments.sort((a, b) => 
-            (b['name'].toString().length - a['name'].toString().length));
-          
-          // Pasar el flag para incluir precios solo si se pregunta por ellos
-          return formatTreatmentInfo(matchingTreatments.first, includePrices: isAskingForPrice);
-        }
+        // 2. Normalizar la consulta para mejorar coincidencias
+        final normalizedQuery = _normalizeText(userQuery);
+        debugPrint('🔍 Consulta normalizada: $normalizedQuery');
         
-        // 7. Para casos especiales de tratamientos combinados
-        if (aiResponse['isComboTreatment'] == true) {
-          // Buscar en la base de datos primero antes de usar respuestas hardcoded
-          final List<String> components = List<String>.from(aiResponse['components'] ?? []);
-          
-          // Combinar información de los componentes identificados
-          if (components.isNotEmpty) {
-            final componentsTreatments = treatments.where((t) => 
-              components.any((c) => t['name'].toString().toLowerCase().contains(c.toLowerCase())))
-              .toList();
-            
-            if (componentsTreatments.isNotEmpty) {
-              return _formatCombinedTreatmentInfo(componentsTreatments, userQuery);
+        // 3. Extraer palabras clave para búsqueda
+        final keywords = extractKeywords(userQuery);
+        debugPrint('🔑 Palabras clave: ${keywords.join(", ")}');
+        
+        // 4. Verificar si la consulta es sobre precios
+        bool isAskingForPrice = userQuery.toLowerCase().contains('precio') || 
+                              userQuery.toLowerCase().contains('cuesta') || 
+                              userQuery.toLowerCase().contains('cuánto') ||
+                              userQuery.toLowerCase().contains('cuanto') ||
+                              userQuery.toLowerCase().contains('valor');
+        
+        // 5. BUSCAR DIRECTAMENTE EN LA TABLA PRICES
+        final supabase = SupabaseService().client;
+        
+        // Crear consulta para buscar en prices usando TODAS las palabras clave
+        var query = supabase.from('prices').select();
+        
+        // Construir condición OR para cada palabra clave (si hay palabras clave)
+        if (keywords.isNotEmpty) {
+          List<String> conditions = [];
+          for (var keyword in keywords) {
+            if (keyword.length >= 3) {  // Solo considerar palabras de al menos 3 caracteres
+              conditions.add('treatment.ilike.%$keyword%');
+              conditions.add('description.ilike.%$keyword%');
             }
           }
+          
+          if (conditions.isNotEmpty) {
+            // Unir condiciones con OR
+            String orCondition = conditions.join(',');
+            query = query.or(orCondition);
+          }
         }
-      }
-      
-      // 8. Si no encontramos coincidencias, sugerir tratamientos relevantes
-      final keywords = extractKeywords(userQuery);
-      if (keywords.isNotEmpty) {
-        final relevantTreatments = _findRelevantTreatments(treatments, keywords);
         
-        if (relevantTreatments.isNotEmpty) {
-          return _formatSuggestedTreatments(relevantTreatments);
+        // Ejecutar la consulta
+        final priceResponse = await query;
+        final treatments = List<Map<String, dynamic>>.from(priceResponse);
+        
+        debugPrint('💰 Encontrados ${treatments.length} tratamientos en tabla prices');
+        
+        // 6. Si hay resultados, devolver el más relevante
+        if (treatments.isNotEmpty) {
+          // Ordenar por relevancia (similar a lo que ya haces)
+          int bestScore = -1;
+          Map<String, dynamic>? bestMatch;
+          
+          for (var treatment in treatments) {
+            final name = treatment['treatment'].toString().toLowerCase();
+            final description = treatment['description']?.toString().toLowerCase() ?? '';
+            
+            int score = 0;
+            for (var keyword in keywords) {
+              if (name.contains(keyword)) score += 3;  // Mayor peso al nombre
+              if (description.contains(keyword)) score += 1;
+            }
+            
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatch = treatment;
+            }
+          }
+          
+          // Si hay una coincidencia con puntaje positivo, usar esa
+          if (bestMatch != null && bestScore > 0) {
+            debugPrint('✅ Mejor coincidencia: ${bestMatch['treatment']} con puntaje: $bestScore');
+            
+            // Crear un objeto con el formato esperado por formatTreatmentInfo
+            final formattedTreatment = {
+              'name': bestMatch['treatment'],
+              'description': bestMatch['description'] ?? "Tratamiento especializado realizado por nuestros médicos expertos.",
+              'price': bestMatch['price'],
+              'duration': bestMatch['duration'] ?? 60,
+            };
+            
+            return formatTreatmentInfo(formattedTreatment, includePrices: isAskingForPrice);
+          }
+          
+          // Si no hay una coincidencia clara pero hay resultados, mostrar el primero
+          final formattedTreatment = {
+            'name': treatments.first['treatment'],
+            'description': treatments.first['description'] ?? "Tratamiento especializado realizado por nuestros médicos expertos.",
+            'price': treatments.first['price'],
+            'duration': treatments.first['duration'] ?? 60,
+          };
+          
+          return formatTreatmentInfo(formattedTreatment, includePrices: isAskingForPrice);
         }
+        
+        // 7. Si no hay resultados, ofrecer sugerencias
+        return "Lo siento, no encontré información específica sobre el tratamiento por el que preguntas. "
+              "Ofrecemos diversos tratamientos estéticos como Botox, rellenos dérmicos, rinomodelación, "
+              "entre otros. ¿Te gustaría ver nuestro catálogo completo de tratamientos?";
+        
+      } catch (e) {
+        debugPrint('⚠️ Error en recognizeAndRespondToTreatment: $e');
+        return "Lo siento, tuve un problema al procesar tu consulta sobre tratamientos. ¿Podrías reformularla?";
       }
-      
-      // 9. Mensaje de respuesta final cuando no hay coincidencias
-      return "Lo siento, no encontré información específica sobre el tratamiento por el que preguntas. "
-            "Ofrecemos diversos tratamientos estéticos como Botox, rellenos dérmicos, rinomodelación, "
-            "entre otros. ¿Te gustaría ver nuestro catálogo completo de tratamientos?";
-      
-    } catch (e) {
-      debugPrint('⚠️ Error en recognizeAndRespondToTreatment: $e');
-      return "Lo siento, tuve un problema al procesar tu consulta sobre tratamientos. ¿Podrías reformularla?";
     }
-  }
 
     // Método para formatear tratamientos especiales con datos reales
   String _formatSpecialTreatment(Map<String, dynamic> baseData, String treatmentName, String description) {
@@ -880,67 +873,108 @@ bool _isAppointmentQuery(String text) {
   }
 
   // Método para obtener todos los tratamientos organizados por categoría
-  Future<String> getAllTreatmentsByCategory() async {
-    try {
-      // Obtener todos los tratamientos de Supabase
-      final supabase = SupabaseService().client;
-      final response = await supabase
-          .from('treatments')
-          .select('*')
-          .order('category');
-      
-      debugPrint('📋 Obtenidos ${response.length} tratamientos');
-      
-      // Convertir la respuesta a una lista de mapas
-      List<Map<String, dynamic>> treatments = List<Map<String, dynamic>>.from(response);
-      
-      // Agrupar tratamientos por categoría
-      Map<String, List<Map<String, dynamic>>> categorizedTreatments = {};
-      
-      for (var treatment in treatments) {
-        String category = treatment['category'] ?? 'Otros';
-        if (!categorizedTreatments.containsKey(category)) {
-          categorizedTreatments[category] = [];
-        }
-        categorizedTreatments[category]!.add(treatment);
-      }
-      
-      // Ordenar categorías según la preferencia del usuario
-      final orderedCategories = [
-        'Medicina Estética Facial',
-        'Cirugía Estética Facial',
-        'Cirugía Corporal',
-        'Medicina Estética Corporal',
-        'Otros'
-      ];
-      
-      // Construir respuesta con tratamientos por categoría
-      final buffer = StringBuffer();
-      buffer.writeln('**Catálogo de tratamientos disponibles:**\n');
-      
-      for (var category in orderedCategories) {
-        if (categorizedTreatments.containsKey(category)) {
-          buffer.writeln('\n### $category\n');
-          
-          // Limitar a 3 tratamientos para Medicina Estética Facial como se solicitó
-          var treatmentsToShow = categorizedTreatments[category]!;
-          if (category == 'Medicina Estética Facial') {
-            treatmentsToShow = treatmentsToShow.take(3).toList();
-          }
-          
-          for (var treatment in treatmentsToShow) {
-            buffer.writeln('• **${treatment['name']}**');
-          }
-        }
-      }
-      
-      buffer.writeln('\n\n¿Te gustaría más información sobre algún tratamiento en particular?');
-      return buffer.toString();
-    } catch (e) {
-      debugPrint('❌ Error obteniendo tratamientos: $e');
-      return "Lo siento, tuve un problema al buscar el catálogo de tratamientos. ¿Puedo ayudarte con algo más?";
+Future<String> getAllTreatmentsByCategory() async {
+  try {
+    // Obtener todos los tratamientos desde la tabla PRICES
+    final supabase = SupabaseService().client;
+    final response = await supabase
+        .from('prices')
+        .select('*');
+    
+    debugPrint('📋 DIAGNÓSTICO - Obtenidos ${response.length} tratamientos desde prices');
+    
+    // Convertir la respuesta a una lista de mapas
+    List<Map<String, dynamic>> treatments = List<Map<String, dynamic>>.from(response);
+    
+    if (treatments.isEmpty) {
+      return "Actualmente ofrecemos diversos tratamientos estéticos faciales y corporales. Por favor, pregúntame por alguno específico que te interese.";
     }
+    
+    // AQUÍ ESTÁ EL CAMBIO PRINCIPAL: Usar las categorías especificadas
+    final desiredCategories = [
+      'Medicina estética Facial',
+      'Cirugía Plástica',
+      'Obesidad y nutricion',
+      'Ofertas/Promociones',
+      'Otros'
+    ];
+    
+    // Inicializar el mapa de categorías con las deseadas
+    Map<String, List<Map<String, dynamic>>> categorizedTreatments = {};
+    for (var category in desiredCategories) {
+      categorizedTreatments[category] = [];
+    }
+    
+    // Categorizar los tratamientos
+    for (var treatment in treatments) {
+      final String treatmentName = treatment['treatment']?.toString().toLowerCase() ?? '';
+      final String description = treatment['description']?.toString().toLowerCase() ?? '';
+      String category = treatment['category']?.toString() ?? '';
+      
+      // Normalizar la categoría para que coincida con nuestras deseadas
+      if (category.toLowerCase().contains('facial') && category.toLowerCase().contains('medicina')) {
+        category = 'Medicina estética Facial';
+      } else if (category.toLowerCase().contains('cirug')) {
+        category = 'Cirugía Plástica';
+      } else if (category.toLowerCase().contains('obe') || category.toLowerCase().contains('nutri')) {
+        category = 'Obesidad y nutricion';
+      } else if (category.toLowerCase().contains('ofert') || category.toLowerCase().contains('promo')) {
+        category = 'Ofertas/Promociones';
+      } else {
+        // Si no coincide con ninguna categoría específica, va a "Otros"
+        category = 'Otros';
+      }
+      
+      // Agregar el tratamiento a la categoría correspondiente
+      if (categorizedTreatments.containsKey(category)) {
+        categorizedTreatments[category]!.add(treatment);
+      } else {
+        categorizedTreatments['Otros']!.add(treatment);
+      }
+    }
+    
+    // Construir respuesta con formato claro y conciso
+    final buffer = StringBuffer();
+    
+    // Título principal más pequeño
+    buffer.writeln('**Catálogo de Tratamientos**\n');
+    
+    // Mostrar tratamientos por cada categoría
+    for (var category in desiredCategories) {
+      if (categorizedTreatments[category]!.isNotEmpty) {
+        // CAMBIO: Usar negrita en lugar de encabezado para categorías
+        buffer.writeln('\n**${category}**');
+        
+        // Limitar a solo 3 tratamientos por categoría
+        var treatmentsToShow = categorizedTreatments[category]!;
+        if (treatmentsToShow.length > 3) {
+          treatmentsToShow = treatmentsToShow.sublist(0, 3);
+        }
+        
+        // Campo para el nombre del tratamiento
+        String treatmentField = 'treatment';
+        
+        for (var treatment in treatmentsToShow) {
+          if (treatment[treatmentField] != null) {
+            // CAMBIO: Formato más simple
+            buffer.writeln('• ${treatment[treatmentField]}');
+          }
+        }
+        
+        // Mostrar cuántos más hay si hay más de 3
+        if (categorizedTreatments[category]!.length > 3) {
+          buffer.writeln('• _...y ${categorizedTreatments[category]!.length - 3} más_');
+        }
+      }
+    }
+    
+    buffer.writeln('\n¿Sobre qué tratamiento te gustaría más información?');
+    return buffer.toString();
+  } catch (e) {
+    debugPrint('❌ Error obteniendo tratamientos: $e');
+    return "Ofrecemos diversos tratamientos de medicina estética facial, cirugía plástica y más. ¿Hay algún tratamiento específico que te interese?";
   }
+}
 
   // NUEVO: Método para verificar si un mensaje contiene un tratamiento específico
   bool _containsSpecificTreatment(String message) {
@@ -987,7 +1021,10 @@ bool _isAppointmentQuery(String text) {
     // Palabras clave prioritarias (áreas del cuerpo y tratamientos)
     final priorityKeywords = [
       'nariz', 'facial', 'cara', 'labios', 'piel', 'cuerpo', 'ojos', 'frente', 'cuello',
-      'botox', 'relleno', 'acido', 'hialuronico', 'peeling', 'hidratacion', 'rino', 'rinoplastia'
+      'botox', 'relleno', 'acido', 'hialuronico', 'peeling', 'hidratacion', 'rino', 'rinoplastia',
+      'ninfopl', 'ninfo', 'labio', 'intima', 'vaginal', 'genital', 'mesoterapia', 'lifting',
+      'vitaminas', 'arrugas', 'arruga', 'cirugia', 'estetica', 'estetico', 'cirujano', 'medicina',
+      'estetica', 'facial', 'corporal', 'rinomodelacion', 'rinomodelacion', 'toxina', 'botulinica',
     ];
     
     // Priorizar términos específicos
@@ -1097,9 +1134,7 @@ bool _isAppointmentQuery(String text) {
   }
 
   // Obtener información específica de tratamientos
-  Future<String> getTreatmentInfoFromKnowledgeBase(String userMessage) async {
-    if (_knowledgeBase == null) return "";
-    
+  Future<String> getTreatmentInfoFromKnowledgeBase(String userMessage) async { 
     try {
       // Obtener contexto con preferencia a tratamientos
       final knowledgeContext = await _knowledgeBase.getRelevantContext(
@@ -1348,13 +1383,30 @@ bool _isAppointmentQuery(String text) {
 
   String _normalizeText(String text) {
     // Normalizar: quitar acentos, convertir a minúsculas, eliminar caracteres especiales
-    return text.toLowerCase()
+    String normalized = text.toLowerCase()
         .replaceAll('á', 'a')
         .replaceAll('é', 'e')
         .replaceAll('í', 'i')
         .replaceAll('ó', 'o')
         .replaceAll('ú', 'u')
         .replaceAll('ñ', 'n');
+
+    // Añadir prefijos médicos comunes para mejorar la búsqueda
+    final medicalPrefixMap = {
+      'ninf': 'ninfopl',
+      'labi': 'labiopl',
+      'vagin': 'vaginal',
+      'intim': 'intima',
+    };
+
+    // Aplicar las sustituciones de prefijos médicos
+    for (var prefix in medicalPrefixMap.keys) {
+      if (normalized.contains(prefix)) {
+        debugPrint('🩺 Normalización médica: detectado término "$prefix"');
+      }
+    }
+
+    return normalized;
   }
 
   Future<String> _getClinicLocationsDirectly() async {

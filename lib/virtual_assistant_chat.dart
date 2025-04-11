@@ -323,14 +323,17 @@ void didChangeDependencies() {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: const [
-              Icon(Icons.calendar_today, color: Colors.white),
-              SizedBox(width: 8),
-              Text(
-                'Agendar una cita',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Icon(Icons.calendar_today, color: Colors.white, size: 18), // Reducir tamaño del icono
+              SizedBox(width: 6), // Reducir espacio
+              Flexible( // Añadir Flexible aquí
+                child: Text(
+                  'Agendar una cita',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15, // Reducir un poco el tamaño de fuente
+                    fontWeight: FontWeight.bold,
+                    overflow: TextOverflow.ellipsis, 
+                  ),
                 ),
               ),
             ],
@@ -340,41 +343,44 @@ void didChangeDependencies() {
     );
   }
 
-// Añadir después del método _buildScheduleButton()
-Widget _buildClinicasButton() {
-  return Center(
-    child: Transform.scale(
-      scale: 0.9,
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.of(context).pushNamed('/clinicas');
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1980E6),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.location_on, color: Colors.white),
-            SizedBox(width: 8),
-            Text(
-              'Ver clínicas en mapa',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+  // Añadir después del método _buildScheduleButton()
+  Widget _buildClinicasButton() {
+    return Center(
+      child: Transform.scale(
+        scale: 0.9,
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pushNamed('/clinicas');
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1980E6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-          ],
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.location_on, color: Colors.white, size: 18),
+              SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Ver clínicas en mapa',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
 Widget _buildMessage(ChatMessage message) {
   final shouldShowScheduleButton = message.additionalContext == "show_schedule_button" ||

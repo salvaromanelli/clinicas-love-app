@@ -11,7 +11,7 @@ import 'login_page.dart';
 import 'register_page.dart';
 import 'virtual_assistant_chat.dart';
 import 'boton_asistente.dart';
-import 'simulacion_resultados.dart';
+import 'ar_simulador_tratamientos.dart';
 import 'services/supabase.dart';
 import 'clinicas_cerca.dart';
 import 'booking_page.dart';
@@ -25,8 +25,6 @@ import 'language_settings_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/user_provider.dart';
 import 'services/auth_service.dart';
-
-
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
@@ -45,8 +43,6 @@ void main() async {
   await SupabaseService.initialize();
   await NotificationService().initialize();
    
-  // Crear una instancia del servicio YouCam con tu API key
-
   runApp(
     MultiProvider(    
       providers: [
@@ -71,7 +67,23 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1980E6)),
         useMaterial3: true,
+
+        // Añadir esta configuración para texto adaptativo:
+        textTheme: ThemeData.light().textTheme.copyWith(
+          displayLarge: TextStyle(fontSize: 22.0),
+          displayMedium: TextStyle(fontSize: 20.0),
+          displaySmall: TextStyle(fontSize: 18.0),
+          headlineMedium: TextStyle(fontSize: 16.0),
+          headlineSmall: TextStyle(fontSize: 14.0),
+          titleLarge: TextStyle(fontSize: 14.0),
+          titleMedium: TextStyle(fontSize: 13.0),
+          titleSmall: TextStyle(fontSize: 12.0),
+          bodyLarge: TextStyle(fontSize: 14.0),
+          bodyMedium: TextStyle(fontSize: 13.0),
+          bodySmall: TextStyle(fontSize: 12.0),
+        ),
       ),
+      
       home: const SplashScreen(),
       
       // Configuración de localización actualizada
@@ -101,7 +113,10 @@ class MyApp extends StatelessWidget {
         '/register': (context) => RegisterPage(),
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
         '/assistant': (context) => const VirtualAssistantChat(),
-        '/simulation': (context) => SimulacionResultadosPage(),
+        '/simulation': (context) => ARTratamientosPage(
+          initialTreatment: 'lips',
+          initialIntensity: 0.5,
+        ),
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
         '/reviews': (context) => const ReviewsPage(),
@@ -353,7 +368,14 @@ class HomePage extends StatelessWidget {
 
   Widget _buildAssistantCard(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
     
+    // Ajustar tamaños para pantallas pequeñas
+    final titleSize = screenWidth < 360 ? 16.0 : 18.0;
+    final descSize = screenWidth < 360 ? 12.0 : 14.0;
+    final iconSize = screenWidth < 360 ? 24.0 : 28.0;
+
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       decoration: BoxDecoration(
@@ -377,7 +399,8 @@ class HomePage extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: () => Navigator.pushNamed(context, '/assistant'),
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            // Reducir el padding para pantallas pequeñas
+            padding: EdgeInsets.all(screenWidth < 360 ? 16.0 : 20.0),
             child: Row(
               children: [
                 Container(
@@ -386,31 +409,31 @@ class HomePage extends StatelessWidget {
                     color: Colors.white.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.support_agent,
                     color: Colors.white,
-                    size: 28,
+                    size: iconSize, // Tamaño adaptado
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12), // Reducir espacio
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         localizations.get('virtual_assistant'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: titleSize, // Tamaño adaptado
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2), // Reducir espacio
                       Text(
                         localizations.get('virtual_assistant_desc'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: descSize, // Tamaño adaptado
                         ),
                       ),
                     ],
@@ -430,6 +453,10 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildServiceCard(BuildContext context, String title, String imageUrl, IconData icon, String route) {
+    // Calcular el tamaño de fuente basado en el ancho de pantalla
+    final screenWidth = MediaQuery.of(context).size.width;
+    final fontSize = screenWidth < 360 ? 12.0 : 14.0;
+    
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(
@@ -499,13 +526,13 @@ class HomePage extends StatelessWidget {
               flex: 1,
               child: Container(
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reducir padding
                 child: Center(
                   child: Text(
                     _getTranslatedTitle(context, title),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: fontSize, // Usar tamaño dinámico
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -518,6 +545,25 @@ class HomePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+    // Añadir este método a la clase HomePage
+  double _getAdaptiveTextSize(BuildContext context, {required double baseSize}) {
+    // Obtener el ancho de pantalla
+    final width = MediaQuery.of(context).size.width;
+    
+    // Factor de escala basado en el ancho de pantalla
+    double scaleFactor = 1.0;
+    
+    if (width < 320) {
+      scaleFactor = 0.8; // Para pantallas muy pequeñas
+    } else if (width < 375) {
+      scaleFactor = 0.85; // Para pantallas iPhone SE o similares
+    } else if (width < 414) {
+      scaleFactor = 0.9; // Para pantallas iPhone 8 Plus o similares
+    }
+    
+    return baseSize * scaleFactor;
   }
 
     String _getTranslatedTitle(BuildContext context, String englishTitle) {

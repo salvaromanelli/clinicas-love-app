@@ -22,6 +22,20 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>Esta app necesita acceso a la cámara para la simulación de tratamientos estéticos en realidad aumentada.</string>
+    <key>io.flutter.embedded_views_preview</key>
+    <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>Esta app necesita acceso a la cámara para la simulación de tratamientos estéticos en realidad aumentada.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Esta app necesita acceso al micrófono para grabar videos durante la simulación.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Esta app necesita acceso a la galería para guardar las simulaciones de tratamientos.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Esta app necesita permiso para guardar fotos y videos en su galería.</string>
+    <key>io.flutter.embedded_views_preview</key>
+    <true/>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Necesitamos acceso a tu ubicación para mostrarte las clínicas más cercanas.</string>
     <key>NSLocationWhenInUseUsageDescription</key>

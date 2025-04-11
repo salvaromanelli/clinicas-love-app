@@ -3,7 +3,7 @@ import 'main.dart';
 import 'appointments.dart';
 import 'ofertas_promo_page.dart';
 import 'profile_page.dart' as profile;
-import 'i18n/app_localizations.dart'; // Añadir importación
+import 'i18n/app_localizations.dart'; 
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -50,12 +50,19 @@ class _MainNavigationState extends State<MainNavigation> {
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavItem(Icons.home, localizations.get('home'), _selectedIndex == 0, 0),
-              _buildNavItem(Icons.shopping_bag, localizations.get('products'), _selectedIndex == 1, 1),
-              _buildNavItem(Icons.calendar_today, localizations.get('my_appointments'), _selectedIndex == 2, 2),
-              _buildNavItem(Icons.person, localizations.get('profile'), _selectedIndex == 3, 3),
+              Expanded(
+                child: _buildNavItem(Icons.home, localizations.get('home'), _selectedIndex == 0, 0),
+              ),
+              Expanded(
+                child: _buildNavItem(Icons.shopping_bag, localizations.get('products'), _selectedIndex == 1, 1),
+              ),
+              Expanded(
+                child: _buildNavItem(Icons.calendar_today, localizations.get('my_appointments'), _selectedIndex == 2, 2),
+              ),
+              Expanded(
+                child: _buildNavItem(Icons.person, localizations.get('profile'), _selectedIndex == 3, 3),
+              ),
             ],
           ),
         ),
@@ -69,7 +76,6 @@ class _MainNavigationState extends State<MainNavigation> {
       onTap: () => _onItemTapped(index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        width: 90,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -7,6 +7,9 @@ PODS:
   - AppAuth/Core (1.7.6)
   - AppAuth/ExternalUserAgent (1.7.6):
     - AppAuth/Core
+  - arkit_plugin (0.0.1):
+    - Flutter
+    - GLTFSceneKit
   - camera_avfoundation (0.0.1):
     - Flutter
   - FBAEMKit (17.1.0):
@@ -34,6 +37,7 @@ PODS:
     - Flutter
   - geolocator_apple (1.2.0):
     - Flutter
+  - GLTFSceneKit (0.3.0)
   - Google-Maps-iOS-Utils (6.1.0):
     - GoogleMaps (~> 9.0)
   - google_maps_flutter_ios (0.0.1):
@@ -105,12 +109,16 @@ PODS:
     - FlutterMacOS
   - url_launcher_ios (0.0.1):
     - Flutter
+  - video_player_avfoundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - webview_flutter_wkwebview (0.0.1):
     - Flutter
     - FlutterMacOS
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
+  - arkit_plugin (from `.symlinks/plugins/arkit_plugin/ios`)
   - camera_avfoundation (from `.symlinks/plugins/camera_avfoundation/ios`)
   - Flutter (from `Flutter`)
   - flutter_facebook_auth (from `.symlinks/plugins/flutter_facebook_auth/ios`)
@@ -131,6 +139,7 @@ DEPENDENCIES:
   - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
+  - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
   - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 SPEC REPOS:
@@ -140,6 +149,7 @@ SPEC REPOS:
     - FBSDKCoreKit
     - FBSDKCoreKit_Basics
     - FBSDKLoginKit
+    - GLTFSceneKit
     - Google-Maps-iOS-Utils
     - GoogleMaps
     - GoogleSignIn
@@ -153,6 +163,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
+  arkit_plugin:
+    :path: ".symlinks/plugins/arkit_plugin/ios"
   camera_avfoundation:
     :path: ".symlinks/plugins/camera_avfoundation/ios"
   Flutter:
@@ -193,12 +205,15 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
+  video_player_avfoundation:
+    :path: ".symlinks/plugins/video_player_avfoundation/darwin"
   webview_flutter_wkwebview:
     :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
 
 SPEC CHECKSUMS:
   app_links: f3e17e4ee5e357b39d8b95290a9b2c299fca71c6
   AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
+  arkit_plugin: c08c4e6f334a922154c2caf2f6fadfaefb51c181
   camera_avfoundation: dd002b0330f4981e1bbcb46ae9b62829237459a4
   FBAEMKit: cb719c53575a3be86ea873279f30d6a2c4e15881
   FBSDKCoreKit: ecdb980a24633ccb012700299ceb16d0235e14d2
@@ -211,6 +226,7 @@ SPEC CHECKSUMS:
   flutter_secure_storage: d33dac7ae2ea08509be337e775f6b59f1ff45f12
   flutter_webview_plugin: ed9e8a6a96baf0c867e90e1bce2673913eeac694
   geolocator_apple: 9bcea1918ff7f0062d98345d238ae12718acfbc1
+  GLTFSceneKit: d1b437c514ba2aed5555afb0fddd64e030612d57
   Google-Maps-iOS-Utils: 0a484b05ed21d88c9f9ebbacb007956edd508a96
   google_maps_flutter_ios: e31555a04d1986ab130f2b9f24b6cdc861acc6d3
   google_sign_in_ios: 4111e87aa5e24a4404f00ea13479f35e571969cc
@@ -232,6 +248,7 @@ SPEC CHECKSUMS:
   sign_in_with_apple: f3bf75217ea4c2c8b91823f225d70230119b8440
   sqflite_darwin: 5a7236e3b501866c1c9befc6771dfd73ffb8702d
   url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
+  video_player_avfoundation: 7c6c11d8470e1675df7397027218274b6d2360b3
   webview_flutter_wkwebview: a4af96a051138e28e29f60101d094683b9f82188
 
 PODFILE CHECKSUM: 987f3d393a51bca459d1bec7448950d37c13fc2e

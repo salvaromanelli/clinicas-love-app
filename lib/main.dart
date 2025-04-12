@@ -11,7 +11,7 @@ import 'login_page.dart';
 import 'register_page.dart';
 import 'virtual_assistant_chat.dart';
 import 'boton_asistente.dart';
-import 'ar_simulador_tratamientos.dart';
+import 'mediapipe_treatment_simulator.dart';
 import 'services/supabase.dart';
 import 'clinicas_cerca.dart';
 import 'booking_page.dart';
@@ -113,7 +113,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => RegisterPage(),
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
         '/assistant': (context) => const VirtualAssistantChat(),
-        '/simulation': (context) => ARTratamientosPage(
+        '/simulation': (context) => FaceMeshTreatmentSimulator(
           initialTreatment: 'lips',
           initialIntensity: 0.5,
         ),

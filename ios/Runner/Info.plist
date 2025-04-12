@@ -22,38 +22,16 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>Esta app necesita acceso a la cámara para la simulación de tratamientos estéticos en realidad aumentada.</string>
-    <key>io.flutter.embedded_views_preview</key>
-    <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>Esta app necesita acceso a la cámara para la simulación de tratamientos estéticos en realidad aumentada.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Esta app necesita acceso al micrófono para grabar videos durante la simulación.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Esta app necesita acceso a la galería para guardar las simulaciones de tratamientos.</string>
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>Esta app necesita permiso para guardar fotos y videos en su galería.</string>
-    <key>io.flutter.embedded_views_preview</key>
-    <true/>
+    <string>Esta app necesita acceso a la galería para guardar las simulaciones de tratamientos y seleccionar fotos de perfil.</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>Necesitamos acceso a tu ubicación para mostrarte las clínicas más cercanas.</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
     <string>Necesitamos acceso a tu ubicación para mostrarte las clínicas más cercanas.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>Esta aplicación necesita permiso para guardar las imágenes procesadas en su galería.</string>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-    <string>https</string>
-    <string>http</string>
-    <string>whatsapp</string>
-    </array>
     <key>NSCameraUsageDescription</key>
-    <string>Esta aplicación necesita acceso a la cámara para tomar fotos de perfil.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Esta aplicación necesita acceso a la galería para seleccionar fotos de perfil.</string>
+    <string>Esta app necesita acceso a la cámara para la simulación de tratamientos estéticos y tomar fotos de perfil.</string>
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
     <key>UIMainStoryboardFile</key>

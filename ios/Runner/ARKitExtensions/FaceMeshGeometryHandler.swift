@@ -38,10 +38,18 @@ enum FaceMeshSource: Int {
 }
 
 class FaceMeshGeometryHandler {
+
+    // Referencia estática a la vista AR
+    private static var arView: ARSCNView?
+    
+    // Método para configurar la vista AR
+    static func setupARView(_ view: ARSCNView) {
+        arView = view
+        print("✅ ARView configurada en FaceMeshGeometryHandler")
+    }
     
     // Mantener referencias a geometrías creadas
     static var geometries: [String: ARKitFaceGeometry] = [:]
-    static var arView: ARSCNView?
     
     // Registrar el canal de métodos personalizado
     static func registerChannel(messenger: FlutterBinaryMessenger) {
@@ -213,8 +221,8 @@ class FaceMeshGeometryHandler {
         
         // Función ayudante para evitar accesos fuera de rango
         func safeRange(from start: Double, to end: Double) -> [simd_float3] {
-            let safeStart = min(max(Int(totalVertices * start), 0), totalVertices - 1)
-            let safeEnd = min(max(Int(totalVertices * end), safeStart + 1), totalVertices)
+            let safeStart = min(max(Int(Double(totalVertices) * start), 0), totalVertices - 1)
+            let safeEnd = min(max(Int(Double(totalVertices) * end), 0), totalVertices)
             
             if safeStart >= safeEnd {
                 return []
@@ -281,5 +289,14 @@ class FaceMeshGeometryHandler {
         geometry.textureCoordinates = textureCoords
         geometry.triangleIndices = triangleIndices
         return geometry
+    }
+
+        // Método para ayudar a depurar el acceso a nil
+        private static func safeLogValue<T>(_ value: T?, name: String) {
+        if let value = value {
+            print("✅ \(name) no es nil: \(value)")
+        } else {
+            print("❌ ERROR: \(name) es nil")
+        }
     }
 }

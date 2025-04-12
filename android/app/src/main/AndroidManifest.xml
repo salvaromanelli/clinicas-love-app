@@ -3,6 +3,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET" />
    <application
         android:label="flutter_application_1"
         android:name="${applicationName}"
@@ -34,6 +37,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Añadir la clave de DeepAR -->
+        <meta-data
+            android:name="com.deepar.ar.DeepARKey"
+            android:value="b3c379d814d3ebc85a3ade7331718c1367ca02977b2ae28c4b2c79bb8ea6e4920557b80c11e16955" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/AI_Treatment_Simulator.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:intl/date_symbol_data_local.dart';
 import 'post_tratamiento_page.dart';
@@ -11,7 +12,6 @@ import 'login_page.dart';
 import 'register_page.dart';
 import 'virtual_assistant_chat.dart';
 import 'boton_asistente.dart';
-import 'mediapipe_treatment_simulator.dart';
 import 'services/supabase.dart';
 import 'clinicas_cerca.dart';
 import 'booking_page.dart';
@@ -25,6 +25,9 @@ import 'language_settings_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/user_provider.dart';
 import 'services/auth_service.dart';
+import 'utils/adaptive_sizing.dart';
+
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
@@ -113,10 +116,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => RegisterPage(),
         '/boton-asistente': (context) => const AnimatedAssistantButton(),
         '/assistant': (context) => const VirtualAssistantChat(),
-        '/simulation': (context) => FaceMeshTreatmentSimulator(
-          initialTreatment: 'lips',
-          initialIntensity: 0.5,
-        ),
+        '/simulation': (context) => const AITreatmentSimulator(),
         '/clinicas': (context) => const ClinicasPage(),
         '/book-appointment': (context) => const AppointmentBookingPage(),
         '/reviews': (context) => const ReviewsPage(),
@@ -200,7 +200,7 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
           child: Image.asset(
             'assets/images/logo.png',
-            height: 100.0,
+            height: AdaptiveSize.getLogoSize(context, baseSize: 100.0),
           ),
         ),
       ),
@@ -260,7 +260,7 @@ class HomePage extends StatelessWidget {
                           ),
                           child: Image.asset(
                             'assets/images/logo.png',
-                            height: 70.0,
+                            height: AdaptiveSize.getLogoSize(context, baseSize: 70.0),
                           ),
                         ),
                       ),
@@ -304,7 +304,7 @@ class HomePage extends StatelessWidget {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.language, color: Colors.white),
-                            iconSize: 20,
+                            iconSize: AdaptiveSize.getIconSize(context, baseSize: 20.0),
                             padding: const EdgeInsets.all(8),
                             constraints: const BoxConstraints(),
                             onPressed: () {
@@ -371,9 +371,9 @@ class HomePage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     
     // Ajustar tamaños para pantallas pequeñas
-    final titleSize = screenWidth < 360 ? 16.0 : 18.0;
-    final descSize = screenWidth < 360 ? 12.0 : 14.0;
-    final iconSize = screenWidth < 360 ? 24.0 : 28.0;
+    final titleSize = AdaptiveSize.getTextSize(context, baseSize: 18.0);
+    final descSize = AdaptiveSize.getTextSize(context, baseSize: 14.0);
+    final iconSize = AdaptiveSize.getIconSize(context, baseSize: 28.0);
 
 
     return Container(
@@ -400,7 +400,7 @@ class HomePage extends StatelessWidget {
           onTap: () => Navigator.pushNamed(context, '/assistant'),
           child: Padding(
             // Reducir el padding para pantallas pequeñas
-            padding: EdgeInsets.all(screenWidth < 360 ? 16.0 : 20.0),
+            padding: EdgeInsets.all(AdaptiveSize.getPaddingSize(context, baseSize: 20.0)),
             child: Row(
               children: [
                 Container(
@@ -453,9 +453,9 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildServiceCard(BuildContext context, String title, String imageUrl, IconData icon, String route) {
+    
     // Calcular el tamaño de fuente basado en el ancho de pantalla
-    final screenWidth = MediaQuery.of(context).size.width;
-    final fontSize = screenWidth < 360 ? 12.0 : 14.0;
+    final fontSize = AdaptiveSize.getTextSize(context, baseSize: 14.0);
     
     return Card(
       elevation: 5,
@@ -512,15 +512,16 @@ class HomePage extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        icon,
-                        color: Colors.white,
-                        size: 18,
+                          icon,
+                          color: Colors.white,
+                          size: AdaptiveSize.getIconSize(context, baseSize: 18.0),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ]
+                )
               ),
-            ),
+          
             // Título
             Expanded(
               flex: 1,
@@ -547,24 +548,6 @@ class HomePage extends StatelessWidget {
     );
   }
 
-    // Añadir este método a la clase HomePage
-  double _getAdaptiveTextSize(BuildContext context, {required double baseSize}) {
-    // Obtener el ancho de pantalla
-    final width = MediaQuery.of(context).size.width;
-    
-    // Factor de escala basado en el ancho de pantalla
-    double scaleFactor = 1.0;
-    
-    if (width < 320) {
-      scaleFactor = 0.8; // Para pantallas muy pequeñas
-    } else if (width < 375) {
-      scaleFactor = 0.85; // Para pantallas iPhone SE o similares
-    } else if (width < 414) {
-      scaleFactor = 0.9; // Para pantallas iPhone 8 Plus o similares
-    }
-    
-    return baseSize * scaleFactor;
-  }
 
     String _getTranslatedTitle(BuildContext context, String englishTitle) {
     final localizations = AppLocalizations.of(context);

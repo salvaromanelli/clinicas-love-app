@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '15.5.0'
+platform :ios, '15.5'  # Cambiado de '15.5.0' a '15.5'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -40,10 +40,15 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Asegurar una versión de iOS consistente
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
+      # Configuración para ML Kit (mínimo iOS 14)
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
       # Excluir arquitectura arm64 para simuladores
       config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
+      # Añadir para compatibilidad con iOS 18.3
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'MLKIT_DISABLE_APP_GROUPS=1',
+      ]
     end
   end
 
@@ -51,7 +56,11 @@ post_install do |installer|
   installer.generated_projects.each do |project|
     project.targets.each do |target|
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+          '$(inherited)',
+          'MLKIT_DISABLE_APP_GROUPS=1',
+        ]
       end
     end
   end

@@ -1,26 +1,18 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as image;
-import 'package:http_parser/http_parser.dart';
+import 'services/replicate_service.dart';
+import 'package:flutter/services.dart';
 
-class TreatmentResult {
-  final File processedImage;
-  final Map<String, dynamic>? metadata;
 
-  TreatmentResult({
-    required this.processedImage,
-    this.metadata,
-  });
-}
 
 class AITreatmentSimulator extends StatefulWidget {
   const AITreatmentSimulator({Key? key}) : super(key: key);
@@ -31,28 +23,21 @@ class AITreatmentSimulator extends StatefulWidget {
 
 class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
   final ImagePicker _picker = ImagePicker();
-  String? _openaiApiKey;
+  bool _showARView = false; 
+  static const platform = MethodChannel('com.yourapp.arkit/face_points');
 
-  @override
-  void initState() {
-    super.initState();
-    
-    // Obtener API key de OpenAI del archivo .env
-    _openaiApiKey = dotenv.env['OPENAI_API_KEY'];
-    
-    if (_openaiApiKey == null || _openaiApiKey!.isEmpty) {
-      debugPrint('⚠️ ADVERTENCIA: No se encontró API key para OpenAI');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OpenAI API no configurada - la simulación no funcionará'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      });
-    }
+void _toggleARView() {
+  setState(() {
+    _showARView = !_showARView;
+  });
+  // Si necesitas inicializar o detener ARKit, usa el método channel
+  if (_showARView) {
+    platform.invokeMethod('startARSession');
+  } else {
+    platform.invokeMethod('stopARSession');
   }
-  
+}
+
   // Estado de la imagen
   File? _selectedImage;
   File? _processedImage;
@@ -78,83 +63,190 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
     'double_chin': 'Reducción de Papada',
   };
 
-    // Función para detectar rostros y crear máscaras
+  // Función consolidada para crear máscara facial
   Future<File?> _createFaceMask(File imageFile, String featureType) async {
-    // Declarar faceDetector fuera del bloque try
-    FaceDetector? faceDetector;
-    
     try {
-      // Cargar imagen
-      final inputImage = InputImage.fromFilePath(imageFile.path);
-      
-      // Inicializar detector facial
-      final options = FaceDetectorOptions(
-        enableLandmarks: true,
-        enableContours: true,
-        enableClassification: true,
-        performanceMode: FaceDetectorMode.accurate,
-      );
-      faceDetector = FaceDetector(options: options);
-      
-      // Detectar rostros
-      final faces = await faceDetector.processImage(inputImage);
-      
-      // Si no hay rostros, retornar null
-      if (faces.isEmpty) {
-        debugPrint('No se detectaron rostros en la imagen');
-        return null;
+      // En iOS, usar MethodChannel para obtener la máscara desde ARKit
+      if (Platform.isIOS) {
+        try {
+          final base64Mask = await platform.invokeMethod<String>('getFaceMask', featureType);
+          if (base64Mask != null && base64Mask.isNotEmpty) {
+            // Convertir base64 a archivo
+            final tempDir = await getTemporaryDirectory();
+            final maskFile = File('${tempDir.path}/arkit_mask_${DateTime.now().millisecondsSinceEpoch}.png');
+            await maskFile.writeAsBytes(base64Decode(base64Mask));
+            return maskFile;
+          }
+        } catch (e) {
+          debugPrint('Error con ARKit: $e, usando generación por ML Kit');
+        }
       }
       
-      // Usar el primer rostro detectado (principal)
-      final face = faces.first;
+      // Usar ML Kit como método principal o respaldo
+      final inputImage = InputImage.fromFile(imageFile);
+      final options = FaceDetectorOptions(
+        performanceMode: FaceDetectorMode.accurate,
+        enableContours: true,
+        enableLandmarks: true,
+      );
+      final faceDetector = FaceDetector(options: options);
       
-      // Cargar la imagen original para sus dimensiones
-      final originalImage = await decodeImageFromList(await imageFile.readAsBytes());
-      
-      // Crear una imagen en blanco (negro) como base para la máscara
-      final mask = image.Image(width: originalImage.width, height: originalImage.height);
-      
-      // Rellenar puntos específicos según el tipo de característica
-      _fillFeatureArea(mask, face, featureType);
-      
-      // Guardar la máscara como archivo
-      final tempDir = await getTemporaryDirectory();
-      final maskFile = File('${tempDir.path}/mask_${DateTime.now().millisecondsSinceEpoch}.png');
-      await maskFile.writeAsBytes(image.encodePng(mask));
-      
-      return maskFile;
+      try {
+        final faces = await faceDetector.processImage(inputImage);
+        if (faces.isEmpty) {
+          debugPrint('No se detectó ningún rostro, usando máscara genérica');
+          return _createGenericMask(imageFile, featureType);
+        }
+        
+        // Tomar el primer rostro detectado
+        final face = faces.first;
+        
+        // Crear máscara
+        final bytes = await imageFile.readAsBytes();
+        final originalImage = image.decodeImage(bytes);
+        
+        if (originalImage == null) {
+          throw Exception('No se pudo decodificar la imagen original');
+        }
+        
+        // Crear imagen para máscara
+        final mask = image.Image(width: originalImage.width, height: originalImage.height);
+        image.fill(mask, color: image.ColorRgba8(0, 0, 0, 255));
+        
+        // Rellenar el área específica
+        _fillFeatureArea(mask, face, featureType);
+        
+        // Guardar máscara
+        final tempDir = await getTemporaryDirectory();
+        final maskFile = File('${tempDir.path}/mask_${DateTime.now().millisecondsSinceEpoch}.png');
+        await maskFile.writeAsBytes(image.encodePng(mask));
+        
+        return maskFile;
+      } finally {
+        faceDetector.close();
+      }
     } catch (e) {
-      debugPrint('Error al crear máscara facial: $e');
-      return null;
-    } finally {
-      // Verificar que faceDetector no sea nulo antes de cerrarlo
-      if (faceDetector != null) {
-        await faceDetector.close();
+      debugPrint('Error creando máscara: $e, usando máscara genérica');
+      return _createGenericMask(imageFile, featureType);
+    }
+  }
+
+  // Método simplificado para crear una máscara genérica
+  Future<File> _createGenericMask(File imageFile, String featureType) async {
+    final bytes = await imageFile.readAsBytes();
+    final originalImage = image.decodeImage(bytes);
+    
+    if (originalImage == null) {
+      throw Exception('No se pudo decodificar la imagen original');
+    }
+    
+    final mask = image.Image(width: originalImage.width, height: originalImage.height);
+    image.fill(mask, color: image.ColorRgba8(0, 0, 0, 255));
+    
+    // Área central para el tratamiento
+    final centerX = originalImage.width ~/ 2;
+    final centerY = originalImage.height ~/ 2;
+    int width, height, left, top;
+    
+    switch (featureType) {
+      case 'lips':
+        width = originalImage.width ~/ 4;
+        height = originalImage.height ~/ 10;
+        left = centerX - (width ~/ 2);
+        top = centerY + (originalImage.height ~/ 10);
+        break;
+      case 'nose':
+        width = originalImage.width ~/ 6;
+        height = originalImage.height ~/ 5;
+        left = centerX - (width ~/ 2);
+        top = centerY - (height ~/ 2);
+        break;
+      default:
+        width = originalImage.width ~/ 3;
+        height = originalImage.height ~/ 3;
+        left = centerX - (width ~/ 2);
+        top = centerY - (height ~/ 2);
+    }
+    
+    // Dibujar área blanca
+    for (int y = top; y < top + height; y++) {
+      for (int x = left; x < left + width; x++) {
+        if (x >= 0 && x < mask.width && y >= 0 && y < mask.height) {
+          mask.setPixelRgba(x, y, 255, 255, 255, 255);
+        }
       }
     }
+    
+    // Guardar máscara
+    final tempDir = await getTemporaryDirectory();
+    final maskFile = File('${tempDir.path}/generic_mask_${DateTime.now().millisecondsSinceEpoch}.png');
+    await maskFile.writeAsBytes(image.encodePng(mask));
+    
+    return maskFile;
   }
   
   // Rellena el área específica del rostro en la máscara
-  void _fillFeatureArea(image.Image mask, Face face, String featureType) {
-    // Color blanco para las áreas a modificar
-    final white = image.ColorRgb8(255, 255, 255);
+  void _fillFeatureArea(image.Image mask, Face face, String featureType, {int offsetX = 0, int offsetY = 0}) {
+    
     // Valor entero del color blanco (0xFFFFFF o 16777215)
     final whiteValue = 0xFFFFFF;
     
     switch (featureType) {
-      case 'lips':
-        // Usar los puntos del contorno de labios
-        final upperLipBottom = face.contours[FaceContourType.upperLipBottom]?.points;
-        final lowerLipTop = face.contours[FaceContourType.lowerLipTop]?.points;
-        final upperLipTop = face.contours[FaceContourType.upperLipTop]?.points;
-        final lowerLipBottom = face.contours[FaceContourType.lowerLipBottom]?.points;
-        
-        if (upperLipBottom != null && lowerLipTop != null && 
-            upperLipTop != null && lowerLipBottom != null) {
-          // Crear polígono para los labios
-          _fillPolygon(mask, [...upperLipTop, ...upperLipBottom, ...lowerLipTop, ...lowerLipBottom], whiteValue);
+    case 'lips':
+      // Usar los puntos del contorno de labios
+      final upperLipBottom = face.contours[FaceContourType.upperLipBottom]?.points;
+      final lowerLipTop = face.contours[FaceContourType.lowerLipTop]?.points;
+      final upperLipTop = face.contours[FaceContourType.upperLipTop]?.points;
+      final lowerLipBottom = face.contours[FaceContourType.lowerLipBottom]?.points;
+      
+      print('Debug: Puntos de labio superior: ${upperLipTop?.length ?? 0}');
+      print('Debug: Puntos de labio inferior: ${lowerLipBottom?.length ?? 0}');
+      
+      if (upperLipBottom != null && lowerLipTop != null && 
+          upperLipTop != null && lowerLipBottom != null &&
+          upperLipTop.isNotEmpty && lowerLipBottom.isNotEmpty) {
+        // Crear polígono para los labios
+        _fillPolygon(mask, [...upperLipTop, ...upperLipBottom, ...lowerLipTop, ...lowerLipBottom], whiteValue);
+      } else {
+      // RESPALDO: Crear un área rectangular simple para los labios
+      final faceBox = face.boundingBox;
+      final centerX = faceBox.left + faceBox.width / 2;
+      final lipY = faceBox.top + faceBox.height * 0.75; 
+      
+      final lipWidth = faceBox.width * 0.4;
+      final lipHeight = faceBox.height * 0.1;
+      
+      print('Debug: Usando método de respaldo para labios');
+      print('Debug: FaceBox: left=${faceBox.left}, top=${faceBox.top}, width=${faceBox.width}, height=${faceBox.height}');
+      print('Debug: Offset: X=$offsetX, Y=$offsetY');
+      
+      // Asegurar que las coordenadas estén dentro de la imagen
+      final left = max(0, min((centerX - lipWidth/2 + offsetX).toInt(), mask.width - 1));
+      final right = max(0, min((centerX + lipWidth/2 + offsetX).toInt(), mask.width - 1));
+      final top = max(0, min((lipY - lipHeight/2 + offsetY).toInt(), mask.height - 1));
+      final bottom = max(0, min((lipY + lipHeight/2 + offsetY).toInt(), mask.height - 1));
+      
+      print('Debug: Rectángulo: left=$left, right=$right, top=$top, bottom=$bottom');
+      
+      // Crear un rectángulo más grande para asegurar visibilidad
+      for (int y = top; y <= bottom; y++) {
+        for (int x = left; x <= right; x++) {
+          mask.setPixelRgba(x, y, 255, 255, 255, 255);
         }
-        break;
+      }
+      
+      // Verificar después de rellenar
+      int pixelsDrawn = 0;
+      for (int y = top; y <= bottom; y++) {
+        for (int x = left; x <= right; x++) {
+          if (mask.getPixel(x, y) == 0xFFFFFFFF) {
+            pixelsDrawn++;
+          }
+        }
+      }
+      print('Debug: Pixels dibujados en área de respaldo: $pixelsDrawn');
+    }
+      break;
         
       case 'nose':
         // Usar puntos de la nariz
@@ -264,7 +356,7 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
     for (int y = minY; y <= maxY; y++) {
       for (int x = minX; x <= maxX; x++) {
         if (_isPointInFace(x, y, points)) {
-          // Reemplazar setPixel por setPixelRgba
+          // Usar blanco OPACO para áreas a modificar
           img.setPixelRgba(x, y, 255, 255, 255, 255);
         }
       }
@@ -336,27 +428,62 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
       _showError('Selecciona una imagen primero');
       return;
     }
-    
-    if (_openaiApiKey == null || _openaiApiKey!.isEmpty) {
-      _showError('API key de OpenAI no configurada');
+
+    final replicateApiKey = dotenv.env['REPLICATE_API_KEY'];
+    if (replicateApiKey == null || replicateApiKey.isEmpty) {
+      _showError('API key de Replicate no configurada');
       return;
     }
-    
+
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = '';
+    });
+
     try {
-      setState(() {
-        _isProcessing = true;
-        _errorMessage = '';
-      });
+      // Generar máscara usando la función consolidada
+      final maskFile = await _createFaceMask(_selectedImage!, _selectedTreatment);
+      if (maskFile == null) {
+        _showError('No se pudo generar la máscara');
+        return;
+      }
       
-      final result = await _applyTreatmentWithGPT4(
-        image: _selectedImage!,
-        treatmentType: _selectedTreatment,
-        intensity: _intensity,
+      final maskBytes = await maskFile.readAsBytes();
+      final base64Mask = base64Encode(maskBytes);
+
+      // Leer imagen como base64
+      final imageBytes = await _selectedImage!.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
+
+      // Envía la imagen y la máscara a Replicate (ControlNet)
+      final outputUrl = await ReplicateService.sendToControlNet(
+        apiKey: replicateApiKey,
+        base64Image: base64Image,
+        base64Mask: base64Mask,
+
+        prompt: _createPromptForTreatment(
+          treatmentType: _selectedTreatment,
+          intensity: _intensity,
+        ),
+        versionId: '8ebda4c70b3ea2a2bf86e44595afb562a2cdf85525c620f1671a78113c9f325b',
+        guidance: 7.5,
+        numInferenceSteps: 30,
+        controlMode: 0,
+        controlType: 'face',
       );
-      
-      if (result != null) {
+
+      if (outputUrl != null) {
+        // Descargar la imagen resultante
+        final service = ReplicateService(apiKey: replicateApiKey);
+        final bytes = await service.downloadImage(outputUrl);
+        
+        // Guardar en un archivo temporal
+        final tempDir = await getTemporaryDirectory();
+        final processedFile = File('${tempDir.path}/processed_${DateTime.now().millisecondsSinceEpoch}.png');
+        await processedFile.writeAsBytes(bytes);
+
         setState(() {
-          _processedImage = result.processedImage;
+          _processedImage = processedFile;
           _showSideBySide = true;
         });
       } else {
@@ -370,152 +497,31 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
       });
     }
   }
-  
-  Future<TreatmentResult?> _applyTreatmentWithGPT4({
-    required File image,
-    required String treatmentType,
-    required double intensity,
-  }) async {
-    try {
-      // Generar máscara para el área facial específica
-      final maskFile = await _createFaceMask(image, treatmentType);
-      
-      if (maskFile == null) {
-        _showError('No se pudo detectar el rostro correctamente');
-        return null;
-      }
-      
-      // Crear prompt basado en el tipo de tratamiento y parámetros
-      final prompt = _createPromptForTreatment(
-        treatmentType: treatmentType, 
-        intensity: intensity,
-      );
-      
-      debugPrint('Enviando imagen a OpenAI para edición: $treatmentType');
-      
-      // Preparar request para la API de edición de OpenAI
-      final request = http.MultipartRequest('POST', 
-        Uri.parse('https://api.openai.com/v1/images/edits'));
-      
-      // Autenticación
-      request.headers['Authorization'] = 'Bearer $_openaiApiKey';
-      
-      // Añadir campos requeridos
-      request.fields['prompt'] = prompt;
-      request.fields['n'] = '1';
-      request.fields['size'] = '1024x1024';
-      request.fields['response_format'] = 'b64_json';
-      
-      // Añadir imagen original (debe ser PNG)
-      final pngImage = await _convertToTransparentPng(image);
-      request.files.add(await http.MultipartFile.fromPath(
-        'image', pngImage.path, contentType: MediaType('image', 'png')));
-      
-      // Añadir máscara
-      request.files.add(await http.MultipartFile.fromPath(
-        'mask', maskFile.path, contentType: MediaType('image', 'png')));
-      
-      // Enviar solicitud
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        // Extraer la imagen en base64 de la respuesta
-        final String? imageData = data['data']?[0]?['b64_json'];
-        
-        if (imageData == null) {
-          debugPrint('Error: No se encontró imagen en la respuesta');
-          return null;
-        }
-        
-        // Guardar imagen generada en archivo temporal
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/edited_${DateTime.now().millisecondsSinceEpoch}.jpg');
-        await file.writeAsBytes(base64Decode(imageData));
-        
-        return TreatmentResult(
-          processedImage: file,
-          metadata: {'treatment': treatmentType, 'intensity': intensity.toString()},
-        );
-      } else {
-        debugPrint('Error en API OpenAI: ${response.statusCode}, ${response.body}');
-        throw Exception('Error en API OpenAI: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Error con API de OpenAI: $e');
-      rethrow;
-    }
-  }
-  
-  // Método auxiliar para convertir imágenes a PNG con transparencia
-  Future<File> _convertToTransparentPng(File imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final originalImage = image.decodeImage(bytes);
     
-    if (originalImage == null) {
-      throw Exception('No se pudo decodificar la imagen original');
-    }
-    
-    // Crear una imagen con canal alfa usando el método correcto para la versión 4.0+
-    final pngImage = image.copyResize(
-      originalImage,
-      width: originalImage.width,
-      height: originalImage.height,
-    );
-    
-    // Guardar como PNG
-    final tempDir = await getTemporaryDirectory();
-    final pngFile = File('${tempDir.path}/input_${DateTime.now().millisecondsSinceEpoch}.png');
-    await pngFile.writeAsBytes(image.encodePng(pngImage));
-    
-    return pngFile;
-  }
-  
   String _createPromptForTreatment({
     required String treatmentType,
     required double intensity,
   }) {
     // Determinar nivel de intensidad en texto
-    final intensityText = intensity <= 0.3 ? 'sutil' : 
-                         intensity <= 0.7 ? 'moderado' : 'pronunciado';
+    final intensityText = intensity <= 0.3 ? 'subtle' : 
+                        intensity <= 0.7 ? 'moderate' : 'pronounced';
     
-    // Prompts específicos para cada tratamiento, enfocados en la región enmascarada
+    // Prompts específicos OPTIMIZADOS para ControlNet (más restrictivos)
     final Map<String, String> treatmentPrompts = {
-      'lips': 'Haz que los labios se vean más carnosos y simétricos con un aumento $intensityText. '
-              'Mantén el color natural pero intensifica ligeramente el volumen y la definición.',
-      
-      'nose': 'Refina la nariz de forma $intensityText. Suaviza el puente nasal y refina la punta '
-              'para que sea más simétrica sin cambiar drásticamente su carácter.',
-      
-      'botox': 'Aplica un efecto de botox $intensityText en esta zona. Suaviza las líneas de expresión '
-               'y arrugas pero mantén la expresividad natural del rostro.',
-      
-      'fillers': 'Aplica rellenos $intensityText en esta zona. Añade volumen de forma natural '
-                'y suaviza los surcos sin exagerar.',
-      
-      'jawline': 'Define la línea de la mandíbula de manera $intensityText. Crea un contorno más marcado '
-                'y definido pero natural.',
-                
-      'cheeks': 'Realza los pómulos de manera $intensityText. Añade volumen y definición para un '
-               'aspecto más esculpido pero natural.',
+      'lips': 'same exact person with $intensityText fuller lips, do not change anything else',
+      'nose': 'same exact person with $intensityText refined nose shape, do not change anything else',
+      'botox': 'same exact person with $intensityText smoother skin around wrinkles, do not change anything else',
+      'fillers': 'same exact person with $intensityText added volume to face, do not change anything else',
+      'jawline': 'same exact person with $intensityText defined jawline, do not change anything else',
+      'cheeks': 'same exact person with $intensityText enhanced cheekbones, do not change anything else',
     };
     
-    // Base del prompt
-    final basePrompt = treatmentPrompts[treatmentType] ?? 
-        'Mejora esta área específica con un efecto $intensityText y natural';
+    // Base del prompt (mucho más restrictiva)
+    String basePrompt = treatmentPrompts[treatmentType] ?? 
+        'same exact person with $intensityText enhancement, do not change anything else';
     
-    // Prompt adaptado para el endpoint de edición (inpainting)
-    return '''
-    Realiza un $intensityText tratamiento estético en la zona enmascarada:
-    
-    $basePrompt
-    
-    Mantenla totalmente armónica con el rostro original. El resultado debe ser fotorrealista y médicamente plausible.
-    Preserva exactamente el mismo estilo, luz, sombras y textura de piel de la imagen original.
-    Modifica SOLO el área enmascarada, dejando el resto perfectamente intacto.
-    ''';
+    // Añadir instrucciones restrictivas
+    return '''$basePrompt, preserve exact identity, same lighting, same background, same pose, same hair, photorealistic, high detail, preserve all facial features except the modified area, clinical aesthetic treatment''';
   }
   
   Future<void> _saveToGallery() async {
@@ -525,7 +531,7 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
     }
     
     try {
-      final result = await ImageGallerySaver.saveFile(_processedImage!.path);
+      await ImageGallerySaver.saveFile(_processedImage!.path);
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Imagen guardada en la galería'))
@@ -847,10 +853,10 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
                     color: Colors.black.withOpacity(0.7),
                     child: const Row(
                       children: [
-                        Icon(Icons.auto_awesome, size: 14, color: Colors.blue),
+                        Icon(Icons.auto_awesome, size: 14, color: Colors.purple), // Cambiar color a púrpura para SD
                         SizedBox(width: 4),
                         Text(
-                          'GPT-4',
+                          'Stable Diffusion', // Cambiar el texto de GPT-4 a Stable Diffusion
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         ),
                       ],
@@ -963,6 +969,17 @@ class _AITreatmentSimulatorState extends State<AITreatmentSimulator> {
                   onPressed: _saveToGallery,
                   icon: const Icon(Icons.save_alt, color: Colors.white),
                   tooltip: 'Guardar en galería',
+                ),
+
+                // Añade este botón de AR solo en iOS
+                if (Platform.isIOS)
+                IconButton(
+                  onPressed: _toggleARView,
+                  icon: Icon(
+                    Icons.face_retouching_natural,
+                    color: _showARView ? Colors.blue : Colors.white,
+                  ),
+                  tooltip: 'Probar con AR',
                 ),
                 
                 // Botón de compartir

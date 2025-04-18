@@ -9,6 +9,8 @@ import 'providers/user_provider.dart';
 import 'services/supabase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'utils/adaptive_sizing.dart';
+import 'package:flutter/rendering.dart';
 
 class ChatMessage {
   final String text;
@@ -32,6 +34,7 @@ class VirtualAssistantChat extends StatefulWidget {
 class _VirtualAssistantChatState extends State<VirtualAssistantChat> with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode(); 
   late ChatViewModel _viewModel;
   late AnimationController _animationController;
   late Animation<double> _animationPulse;
@@ -47,6 +50,7 @@ void initState() {
   super.initState();
   
   _syncUserStateFromSupabase();
+  _scrollController.addListener(_onScroll);
 
     // Añadir un listener para cambios de autenticación
   SupabaseService().client.auth.onAuthStateChange.listen((data) {
@@ -187,13 +191,18 @@ void didChangeDependencies() {
     });
   }
 
+  void _onScroll() {
+    // Si el usuario está haciendo scroll, ocultar el teclado
+    if (_scrollController.position.userScrollDirection != ScrollDirection.idle) {
+      FocusScope.of(context).unfocus();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Obtener ancho de pantalla para diseño responsive
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isSmallScreen = screenWidth < 360;
-    final verticalPadding = isSmallScreen ? 8.0 : 16.0;
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+   
     
     return ChangeNotifierProvider.value(
       value: _viewModel,
@@ -204,21 +213,35 @@ void didChangeDependencies() {
             _scrollToBottom();
           }
           
-          return Scaffold(
-            appBar: AppBar(
-              title: Text(localizations.get('virtual_assistant')),
+          return GestureDetector(
+            onTap: () {
+              // Ocultar teclado cuando se toca fuera del TextField
+              FocusScope.of(context).unfocus();
+            },
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text(
+                  localizations.get('virtual_assistant'),
+                  style: TextStyle(fontSize: 18.sp),
+                ),
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
               elevation: 2,
               actions: [
                 if (!isSmallScreen)
                   IconButton(
-                    icon: const Icon(Icons.info_outline),
+                    icon: Icon(
+                      Icons.info_outline,
+                      size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                    ),
                     onPressed: () => _showInfoDialog(context),
                     tooltip: localizations.get('about_assistant'),
                   ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: Icon(
+                    Icons.refresh,
+                    size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                  ),
                   onPressed: () => _resetChat(context),
                   tooltip: localizations.get('restart_conversation'),
                 ),
@@ -246,8 +269,8 @@ void didChangeDependencies() {
                           : ListView.builder(
                               controller: _scrollController,
                               padding: EdgeInsets.symmetric(
-                                vertical: verticalPadding,
-                                horizontal: isSmallScreen ? 8.0 : 16.0,
+                                vertical: 16.h,
+                                horizontal: 16.w,
                               ),
                               itemCount: viewModel.messages.length + 
                                 (_showSuggestions && viewModel.suggestedReplies.isNotEmpty ? 1 : 0),
@@ -263,29 +286,30 @@ void didChangeDependencies() {
                   ),
                   
                   // Indicador de escritura
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: viewModel.isTyping ? 40 : 0,
-                    child: viewModel.isTyping 
-                      ? Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Row(
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: viewModel.isTyping ? 40.h : 0,
+                      child: viewModel.isTyping 
+                        ? Padding(
+                            padding: EdgeInsets.all(8.w),
+                            child: Row(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              SizedBox(width: 16),
+                              SizedBox(width: 16.w),
                               SizedBox(
-                                height: 24,
-                                width: 24,
+                                height: 24.h,
+                                width: 24.w,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1980E6)),
                                 ),
                               ),
-                              SizedBox(width: 12),
-                              Text(localizations.get('assistant_typing'),
+                              SizedBox(width: 12.w),
+                              Text(
+                                localizations.get('assistant_typing'),
                                 style: TextStyle(
                                   color: Color(0xFF666666),
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                 ),
                               ),
                             ],
@@ -299,7 +323,8 @@ void didChangeDependencies() {
                 ],
               ),
             ),
-          );
+          )
+         );
         },
       ),
     );
@@ -313,37 +338,40 @@ void didChangeDependencies() {
           onPressed: () {
             _handleAppLink('app://schedule');
           },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1980E6),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1980E6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24.w),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.calendar_today, color: Colors.white, size: 18), // Reducir tamaño del icono
-              SizedBox(width: 6), // Reducir espacio
-              Flexible( // Añadir Flexible aquí
-                child: Text(
-                  'Agendar una cita',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15, // Reducir un poco el tamaño de fuente
-                    fontWeight: FontWeight.bold,
-                    overflow: TextOverflow.ellipsis, 
-                  ),
+          padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 24.w),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today, 
+              color: Colors.white, 
+              size: AdaptiveSize.getIconSize(context, baseSize: 18)
+            ),
+            SizedBox(width: 6.w),
+            Flexible(
+              child: Text(
+                'Agendar una cita',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.bold,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  // Añadir después del método _buildScheduleButton()
   Widget _buildClinicasButton() {
     return Center(
       child: Transform.scale(
@@ -355,21 +383,25 @@ void didChangeDependencies() {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF1980E6),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(24.w), // Cambiar de 24 a 24.w
             ),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+            padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 24.w), // Quitar const y usar .h y .w
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.location_on, color: Colors.white, size: 18),
-              SizedBox(width: 6),
+            children: [ 
+              Icon(
+                Icons.location_on, 
+                color: Colors.white, 
+                size: AdaptiveSize.getIconSize(context, baseSize: 18) 
+              ),
+              SizedBox(width: 6.w), 
               Flexible(
                 child: Text(
                   'Ver clínicas en mapa',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 15,
+                    fontSize: 15.sp, 
                     fontWeight: FontWeight.bold,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -394,32 +426,32 @@ Widget _buildMessage(ChatMessage message) {
                                   message.text.contains('(app://clinicas)');
 
   return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    padding: EdgeInsets.symmetric(vertical: 8.h),
     child: Row(
       mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (!message.isUser) _buildAvatar(),
-        const SizedBox(width: 8),
+        SizedBox(width: 8.w),
         Flexible(
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75,
+              maxWidth: AdaptiveSize.screenWidth * 0.75,
             ),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 16.w),
             decoration: BoxDecoration(
               color: message.isUser 
                   ? Theme.of(context).colorScheme.primary 
                   : const Color(0xFFF0F2F5), 
-              borderRadius: BorderRadius.circular(16).copyWith(
-                topLeft: message.isUser ? Radius.circular(16) : Radius.circular(0),
-                topRight: !message.isUser ? Radius.circular(16) : Radius.circular(0),
+              borderRadius: BorderRadius.circular(16.w).copyWith(
+                topLeft: message.isUser ? Radius.circular(16.w) : Radius.circular(0), // Usar .w
+                topRight: !message.isUser ? Radius.circular(16.w) : Radius.circular(0), // Usar .w
               ),
               boxShadow: [
-                BoxShadow(
-                  offset: const Offset(0, 1),
-                  blurRadius: 3, // Sombra más pronunciada
-                  spreadRadius: 0.5,
+              BoxShadow(
+                offset: Offset(0, 1.h),
+                blurRadius: 3.w,
+                spreadRadius: 0.5.w,
                   color: Colors.black.withOpacity(0.15),
                 ),
               ],
@@ -458,7 +490,7 @@ Widget _buildMessage(ChatMessage message) {
                   styleSheet: MarkdownStyleSheet(
                     p: TextStyle(
                       color: message.isUser ? Colors.white : const Color(0xFF303030),
-                      fontSize: 15.0,
+                      fontSize: 15.sp,
                     ),
                     strong: TextStyle(
                       color: message.isUser ? Colors.white : Theme.of(context).colorScheme.primary,
@@ -476,21 +508,21 @@ Widget _buildMessage(ChatMessage message) {
                 // Mostrar el botón si el mensaje contiene el enlace
                 if (shouldShowScheduleButton)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
+                    padding: EdgeInsets.only(top: 8.h),
                     child: _buildScheduleButton(),
                   ),
                   
                 // Mostrar el botón de clínicas si corresponde
                 if (shouldShowClinicasButton)
                   Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
+                    padding: EdgeInsets.only(top: 8.h),
                     child: _buildClinicasButton(),
                   ),
               ],
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8.w),
         if (message.isUser) _buildUserAvatar(),
       ],
     ),
@@ -513,20 +545,20 @@ Widget _buildMessage(ChatMessage message) {
     if (suggestions.isEmpty) return const SizedBox.shrink();
     
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+      padding: EdgeInsets.only(top: 8.h, bottom: 4.h),
       child: SizedBox(
-        height: 45,
+        height: 45.h,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
           itemCount: suggestions.length,
-          separatorBuilder: (context, index) => const SizedBox(width: 8),
+          separatorBuilder: (context, index) => SizedBox(width: 8.w),
           itemBuilder: (context, index) {
             return ActionChip(
               label: Text(
                 suggestions[index],
-                style: const TextStyle(
-                  fontSize: 13,
+                style: TextStyle(
+                  fontSize: 13.sp,
                 ),
               ),
               backgroundColor: const Color(0xFFE3F2FD),
@@ -547,9 +579,9 @@ Widget _buildMessage(ChatMessage message) {
 
   Widget _buildAvatar() {
     return Container(
-      width: 36,
-      height: 36,
-      decoration: const BoxDecoration(
+      width: 36.w,
+      height: 36.h,
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -559,20 +591,20 @@ Widget _buildMessage(ChatMessage message) {
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 2),
+            blurRadius: 4.w,
+            offset: Offset(0, 2.h),
           ),
         ],
       ),
-      child: const Center(
-        child: Icon(
-          Icons.smart_toy,
-          color: Colors.white,
-          size: 20,
+        child: Center(
+          child: Icon(
+            Icons.smart_toy,
+            color: Colors.white,
+            size: AdaptiveSize.getIconSize(context, baseSize: 20),
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
   
   Widget _buildUserAvatar() {
     try {
@@ -590,21 +622,21 @@ Widget _buildMessage(ChatMessage message) {
         // Si tenemos una URL de imagen válida
         if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
           return Container(
-            width: 36,
-            height: 36,
+            width: 36.w,
+            height: 36.h,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+                  blurRadius: 4.w,
+                  offset: Offset(0, 2.h),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(18.w),
               child: Image.network(
                 profileImageUrl,
                 fit: BoxFit.cover,
@@ -615,16 +647,16 @@ Widget _buildMessage(ChatMessage message) {
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
+                    width: 36.w,
+                    height: 36.h,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.grey,
                     ),
-                    child: const Center(
+                    child: Center(
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 2,
+                        strokeWidth: 2.w,
                       ),
                     ),
                   );
@@ -645,8 +677,8 @@ Widget _buildMessage(ChatMessage message) {
   // Método auxiliar para avatar por defecto
   Widget _buildDefaultUserAvatar() {
     return Container(
-      width: 36,
-      height: 36,
+      width: 36.w,
+      height: 36.h,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
@@ -655,21 +687,25 @@ Widget _buildMessage(ChatMessage message) {
           colors: [Color(0xFF7986CB), Color(0xFF3F51B5)],
         ),
       ),
-      child: const Center(
-        child: Icon(Icons.person, color: Colors.white, size: 20),
+    child: Center(
+      child: Icon(
+        Icons.person, 
+        color: Colors.white, 
+        size: AdaptiveSize.getIconSize(context, baseSize: 20) // En vez de size: 20 fijo
       ),
+    )
     );
   }
   
   Widget _buildWelcomeMessage() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
+    
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
     
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
-          horizontal: isSmallScreen ? 16.0 : 32.0,
-          vertical: 24.0,
+          horizontal: 32.w,
+          vertical: 24.h,
         ),
         child: AnimatedBuilder(
           animation: _animationPulse,
@@ -681,23 +717,23 @@ Widget _buildMessage(ChatMessage message) {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(24.w),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(24.w),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
-                      blurRadius: 20,
-                      spreadRadius: 5,
+                      blurRadius: 20.w,
+                      spreadRadius: 5.w,
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
                     Container(
-                      width: isSmallScreen ? 80 : 100,
-                      height: isSmallScreen ? 80 : 100,
+                      width: isSmallScreen ? 80.w : 100.w, 
+                      height: isSmallScreen ? 80.h : 100.h, 
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
@@ -708,11 +744,11 @@ Widget _buildMessage(ChatMessage message) {
                       ),
                       child: Icon(
                         Icons.smart_toy_outlined,
-                        size: isSmallScreen ? 48 : 60,
+                        size: AdaptiveSize.getIconSize(context, baseSize: isSmallScreen ? 48 : 60),
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24.h),
                     Text(
                       localizations.get('welcome_title'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -721,30 +757,30 @@ Widget _buildMessage(ChatMessage message) {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Text(
                       localizations.get('welcome_description'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: isSmallScreen ? 14 : 16,
+                        fontSize: isSmallScreen ? 14.sp : 16.sp,
                         color: Colors.black87,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: 32.h),
               Text(
                 localizations.get('try_questions'),
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
-                  fontSize: isSmallScreen ? 14 : 16,
+                  fontSize: isSmallScreen ? 14.sp : 16.sp,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16.h),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 8.w,
+                runSpacing: 8.h,
                 alignment: WrapAlignment.center,
                 children: [
                 _buildSuggestionChip(localizations.get('what_treatments')),
@@ -762,17 +798,17 @@ Widget _buildMessage(ChatMessage message) {
 
   Widget _buildSuggestionChip(String text) {
     return ActionChip(
-      label: Text(text),
+      label: Text(text, style: TextStyle(fontSize: 14.sp)),
       backgroundColor: Colors.white,
       side: BorderSide(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
       avatar: Icon(
         Icons.chat_bubble_outline,
-        size: 18,
+        size: AdaptiveSize.getIconSize(context, baseSize: 18),
         color: Theme.of(context).colorScheme.primary,
       ),
       elevation: 1,
       shadowColor: Colors.black26,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
       onPressed: () {
         _sendMessage(text);
       },
@@ -781,16 +817,16 @@ Widget _buildMessage(ChatMessage message) {
 
   Widget _buildMessageComposer(bool isSmallScreen) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmallScreen ? 8.0 : 12.0,
-        vertical: isSmallScreen ? 8.0 : 12.0,
-      ),
+        padding: EdgeInsets.symmetric(
+          horizontal: 12.w,
+          vertical: 12.h,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFF0F2F5), // Color más oscuro para el área de composición
           boxShadow: [
             BoxShadow(
-              offset: const Offset(0, -1),
-              blurRadius: 4,
+              offset: Offset(0, -1.h),
+              blurRadius: 4.w,
               color: Colors.black.withOpacity(0.09), // Sombra más pronunciada
             ),
           ],
@@ -801,33 +837,34 @@ Widget _buildMessage(ChatMessage message) {
           Expanded(
             child: TextField(
               controller: _messageController,
+              focusNode: _focusNode,
               decoration: InputDecoration(
                 hintText: localizations.get('write_message_here'),
                 hintStyle: TextStyle(
                   color: Colors.grey.shade400,
-                  fontSize: isSmallScreen ? 14 : 15,
+                  fontSize: 15.sp,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(24.w),
                   borderSide: BorderSide(
                     color: Colors.grey.shade300,
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(24.w),
                   borderSide: BorderSide(
                     color: Colors.grey.shade300,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(24.w),
                   borderSide: BorderSide(
                     color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: isSmallScreen ? 8 : 12,
+                  horizontal: 16.w,
+                  vertical: 12.h,
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
@@ -836,7 +873,7 @@ Widget _buildMessage(ChatMessage message) {
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
               style: TextStyle(
-                fontSize: isSmallScreen ? 14 : 16,
+                fontSize: 16.sp,
               ),
               keyboardType: TextInputType.text,
               textInputAction: TextInputAction.send,
@@ -847,20 +884,20 @@ Widget _buildMessage(ChatMessage message) {
               },
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8.w),
           Material(
             color: Theme.of(context).colorScheme.primary,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(24.w),
             elevation: 2,
             child: InkWell(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(24.w),
               child: SizedBox(
-                height: isSmallScreen ? 40 : 48,
-                width: isSmallScreen ? 40 : 48,
-                child: const Icon(
+                height: 48.h,
+                width: 48.w,
+                child: Icon(
                   Icons.send,
                   color: Colors.white,
-                  size: 22,
+                  size: AdaptiveSize.getIconSize(context, baseSize: 22),
                 ),
               ),
               onTap: () {
@@ -1107,18 +1144,26 @@ Widget _buildMessage(ChatMessage message) {
   }
 
   void _resetChat(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.get('restart_conversation')),
-        content: Text(localizations.get('restart_confirmation')),
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(
+            localizations.get('restart_conversation'),
+            style: TextStyle(fontSize: 18.sp),
+          ),
+        content: Text(localizations.get('restart_confirmation'), 
+        style: TextStyle(fontSize: 16.sp)),
         actions: [
           TextButton(
-            child: Text(localizations.get('cancel')),
+            child: Text(localizations.get('cancel'), 
+            style: TextStyle(fontSize: 16.sp)),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          ElevatedButton(
-            child: Text(localizations.get('restart')),
+            ElevatedButton(
+              child: Text(
+                localizations.get('restart'),
+                style: TextStyle(fontSize: 16.sp) 
+              ),
             onPressed: () {
               _viewModel.resetChat();
               Navigator.of(context).pop();
@@ -1128,75 +1173,69 @@ Widget _buildMessage(ChatMessage message) {
             },
           ),
         ],
+              shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.w),
+        ),
+        contentPadding: EdgeInsets.all(16.w),
+        actionsPadding: EdgeInsets.only(right: 16.w, bottom: 8.h),
       ),
     );
   }
 
-  String _detectLanguage(String text) {
-    // Detección básica basada en palabras comunes
-    text = text.toLowerCase();
-    
-    // Palabras comunes en español
-    List<String> spanishWords = ['el', 'la', 'los', 'las', 'de', 'en', 'para', 'que', 'como', 
-                                'con', 'por', 'pero', 'si', 'qué', 'cuál', 'dónde', 'cuándo'];
-    
-    // Palabras comunes en inglés
-    List<String> englishWords = ['the', 'of', 'and', 'to', 'in', 'that', 'for', 'is', 'on', 
-                                'with', 'by', 'at', 'this', 'be', 'what', 'where', 'when', 'how'];
-    
-    // Palabras comunes en catalán
-    List<String> catalanWords = ['el', 'la', 'els', 'les', 'de', 'en', 'amb', 'per', 'què', 
-                                'com', 'si', 'però', 'quan', 'quant', 'on', 'quin'];
-
-    // Contar coincidencias
-    int spanishCount = 0;
-    int englishCount = 0;
-    int catalanCount = 0;
-    
-    for (String word in text.split(RegExp(r'[^a-zA-ZáéíóúàèòùÀÈÌÒÙçÇäëïöüÄËÏÖÜñÑ]+'))) {
-      if (spanishWords.contains(word)) spanishCount++;
-      if (englishWords.contains(word)) englishCount++;
-      if (catalanWords.contains(word)) catalanCount++;
-    }
-    
-    // Determinar el idioma más probable
-    if (englishCount > spanishCount && englishCount > catalanCount) {
-      return 'en';
-    } else if (catalanCount > spanishCount && catalanCount > englishCount) {
-      return 'ca';
-    } else if (spanishCount > 0) {
-      return 'es';
-    }
-    
-    // Si no hay coincidencias claras, usar el idioma de la interfaz
-    return localizations.locale.languageCode;
-  }
-
   void _showInfoDialog(BuildContext context) {
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.get('virtual_assistant')),
-        content: Column(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(
+            localizations.get('virtual_assistant'),
+            style: TextStyle(fontSize: 18.sp),
+          ),
+          content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(localizations.get('assistant_help_with')),
-            SizedBox(height: 8),
-            Text(localizations.get('treatments_info')),
-            Text(localizations.get('prices_promotions')),
-            Text(localizations.get('opening_hours')),
-            Text(localizations.get('appointment_scheduling')),
-            SizedBox(height: 16),
-            Text(localizations.get('specialist_consultation_reminder')),
+            Text(
+              localizations.get('assistant_help_with'),
+              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              localizations.get('treatments_info'),
+              style: TextStyle(fontSize: 15.sp),
+            ),
+            Text(
+              localizations.get('prices_promotions'),
+              style: TextStyle(fontSize: 15.sp),
+            ),
+
+            Text(
+              localizations.get('opening_hours'),
+              style: TextStyle(fontSize: 15.sp),
+            ),
+
+            Text(
+              localizations.get('appointment_scheduling'),
+              style: TextStyle(fontSize: 15.sp),
+            ),
+
+            Text(
+              localizations.get('specialist_consultation_reminder'),
+              style: TextStyle(fontSize: 14.sp, fontStyle: FontStyle.italic),
+            ),
           ],
         ),
         actions: [
           ElevatedButton(
-            child: Text(localizations.get('understood')),
+            child: Text(localizations.get('understood'), 
+            style: TextStyle(fontSize: 16.sp)),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
+                shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.w),
+        ),
+        contentPadding: EdgeInsets.all(16.w),
+        actionsPadding: EdgeInsets.only(right: 16.w, bottom: 8.h),
       ),
     );
   }
@@ -1204,8 +1243,10 @@ Widget _buildMessage(ChatMessage message) {
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _animationController.dispose();
+    _focusNode.dispose(); 
     super.dispose();
   }
 }

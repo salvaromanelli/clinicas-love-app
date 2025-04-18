@@ -8,6 +8,7 @@ import 'i18n/app_localizations.dart';
 import 'package:provider/provider.dart'; 
 import 'providers/user_provider.dart';
 import 'services/supabase.dart';
+import 'utils/adaptive_sizing.dart';
 
 
 class ProfilePage extends StatefulWidget {
@@ -19,7 +20,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final ProfileService _profileService = ProfileService();
-  final AuthService _authService = AuthService();  // Add this line
+  final AuthService _authService = AuthService();  
   Profile? _profile;
   bool _isLoading = true;
 
@@ -85,7 +86,13 @@ Future<void> _loadProfile() async {
 
 @override
 Widget build(BuildContext context) {
-  final localizations = AppLocalizations.of(context); // Añadir esta línea
+
+  AdaptiveSize.initialize(context);
+
+  final isSmallScreen = AdaptiveSize.screenWidth < 360; 
+
+  final localizations = AppLocalizations.of(context);
+
   
   return Scaffold(
     backgroundColor: const Color(0xFF111418),
@@ -93,48 +100,49 @@ Widget build(BuildContext context) {
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(16.w),
               child: Column(
                 children: [
                   // Back arrow and title
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back_ios,
                           color: Colors.white,
+                          size: AdaptiveSize.getIconSize(context, baseSize: 20),
                         ),
                         onPressed: () {
                           Navigator.pushReplacementNamed(context, '/home', arguments: {'tabIndex': 1});
                         },
                       ),
                       Text(
-                        localizations.get('profile'), // Traducción
-                        style: const TextStyle(
+                        localizations.get('profile'),
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20.0,
+                          fontSize: isSmallScreen ? 18.sp : 20.sp,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
-              const SizedBox(height: 24.0),
+              SizedBox(height: 24.h),
               // Profile section
               Row(
                 children: [
-                  Container(
-                    width: 80.0,
-                    height: 80.0,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2.0,
-                      ),
+                Container(
+                  width: isSmallScreen ? 70.w : 80.w,
+                  height: isSmallScreen ? 70.h : 80.h,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 2.w,
                     ),
-                    child: ClipOval(
-                      child: _profile?.avatarUrl != null
-                        ? Image.network(
+                  ),
+                  child: ClipOval(
+                    child: _profile?.avatarUrl != null
+                      ? Image.network(
                             _profile!.avatarUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
@@ -145,37 +153,43 @@ Widget build(BuildContext context) {
                               );
                             },
                           )
-                        : const Icon(
+                        : Icon(
                             Icons.person,
-                            size: 40,
+                            size: AdaptiveSize.getIconSize(context, baseSize: 40),
                             color: Colors.white,
                           ),
                     ),
                   ),
-                  const SizedBox(width: 16.0), // Added comma here
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _profile?.name ?? 'Loading...',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.w600,
+                  SizedBox(width: 16.w), // Added comma here
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _profile?.name ?? 'Loading...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isSmallScreen ? 16.sp : 18.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Text(
-                        _profile?.location ?? 'No location',
-                        style: const TextStyle(
-                          color: Color(0xFF9DABB8),
-                          fontSize: 14.0,
+                        Text(
+                          _profile?.location ?? 'No location',
+                          style: TextStyle(
+                            color: const Color(0xFF9DABB8),
+                            fontSize: isSmallScreen ? 12.sp : 14.sp,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32.0),
+              SizedBox(height: 32.h),
 
               // Menu items
               Expanded(
@@ -203,24 +217,24 @@ Widget build(BuildContext context) {
                 ),
               ),
               // Logout button
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.h),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
                     onPressed: _handleLogout,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1C2126),
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 12.h : 16.h),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.circular(12.w),
                       ),
                     ),
                     child: Text(
-                      localizations.get('logout'), // Traducción
-                      style: const TextStyle(
+                      localizations.get('logout'),
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16.0,
+                        fontSize: isSmallScreen ? 14.sp : 16.sp,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -254,6 +268,7 @@ Future<void> _handleLogout() async {
   // _buildMenuItem method
 Widget _buildMenuItem(String title, {String? badge, bool withBadge = false}) {
   final localizations = AppLocalizations.of(context);
+  final isSmallScreen = AdaptiveSize.screenWidth < 360;
   
   return GestureDetector(
     onTap: () async {
@@ -292,23 +307,23 @@ Widget _buildMenuItem(String title, {String? badge, bool withBadge = false}) {
       }
     },
     child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF2A2F37),
-            width: 1.0,
-          ),
+    padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 12.h : 16.h),
+    decoration: BoxDecoration(
+      border: Border(
+        bottom: BorderSide(
+          color: Color(0xFF2A2F37),
+          width: 1.w,
         ),
       ),
+    ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 16.0,
+              fontSize: isSmallScreen ? 14.sp : 16.sp,
             ),
           ),
           if (title == localizations.get('my_reviews')) 
@@ -316,24 +331,28 @@ Widget _buildMenuItem(String title, {String? badge, bool withBadge = false}) {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 8.w, 
+                    vertical: isSmallScreen ? 1.h : 2.h
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1980E6),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.w),
                   ),
-                  child: const Text(
+                  child: Text(
                     '15% OFF',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: isSmallScreen ? 10.sp : 12.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(
+                SizedBox(width: 8.w),
+                Icon(
                   Icons.chevron_right,
                   color: Color(0xFF9DABB8),
+                  size: AdaptiveSize.getIconSize(context, baseSize: isSmallScreen ? 20 : 24),
                 ),
               ],
             )
@@ -342,24 +361,28 @@ Widget _buildMenuItem(String title, {String? badge, bool withBadge = false}) {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 8.w, 
+                    vertical: isSmallScreen ? 1.h : 2.h
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1980E6).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.w),
                   ),
                   child: Text(
                     badge,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Color(0xFF1980E6),
-                      fontSize: 12,
+                      fontSize: isSmallScreen ? 10.sp : 12.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(
+                SizedBox(width: 8.w),
+                Icon(
                   Icons.chevron_right,
                   color: Color(0xFF9DABB8),
+                  size: AdaptiveSize.getIconSize(context, baseSize: isSmallScreen ? 20 : 24),
                 ),
               ],
             )

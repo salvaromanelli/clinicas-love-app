@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/supabase.dart';
 import 'i18n/app_localizations.dart';
+import 'utils/adaptive_sizing.dart';
 
 class IntegracionRedesPage extends StatefulWidget {
   const IntegracionRedesPage({super.key});
@@ -29,7 +30,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   final _tagController = TextEditingController();
   late AppLocalizations localizations; 
 
-    @override
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     localizations = AppLocalizations.of(context);
@@ -43,13 +44,17 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
 
   // Método para mostrar opciones de imagen (cámara o galería)
   Future<void> _showImageSourceOptions() async {
+    // Inicializar AdaptiveSize para el modal
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF293038),
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+          topLeft: Radius.circular(AdaptiveSize.w(16)),
+          topRight: Radius.circular(AdaptiveSize.w(16)),
         ),
       ),
       builder: (context) {
@@ -57,21 +62,28 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              padding: EdgeInsets.symmetric(vertical: AdaptiveSize.h(16)),
               child: Text(
                 localizations.get('how_to_share'),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18.0,
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 16 : 18),
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF1980E6)),
+              leading: Icon(
+                Icons.camera_alt, 
+                color: const Color(0xFF1980E6),
+                size: AdaptiveSize.getIconSize(context, baseSize: 24),
+              ),
               title: Text(
                 localizations.get('take_photo'), 
-                style: const TextStyle(color: Colors.white)
+                style: TextStyle(
+                  color: Colors.white, 
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                ),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -79,17 +91,24 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF1980E6)),
+              leading: Icon(
+                Icons.photo_library, 
+                color: const Color(0xFF1980E6),
+                size: AdaptiveSize.getIconSize(context, baseSize: 24),
+              ),
               title: Text(
                 localizations.get('select_from_gallery'), 
-                style: const TextStyle(color: Colors.white)
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                ),
               ),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage();
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: AdaptiveSize.h(16)),
           ],
         );
       },
@@ -154,9 +173,9 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   // Método para compartir en Instagram usando share_plus
   Future<void> _shareToInstagram() async {
     if (_selectedImagePath == null) {
-    _showErrorSnackBar(localizations.get('select_image_first'));
-    return;
-  }
+      _showErrorSnackBar(localizations.get('select_image_first'));
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -194,26 +213,49 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
       _isLoading = false;
     });
     
+    // Inicializar AdaptiveSize para el diálogo
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF293038),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AdaptiveSize.w(16)),
+        ),
         title: Text(
           localizations.get('share_instagram_question'), 
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: AdaptiveSize.sp(isSmallScreen ? 18 : 20),
+          ),
         ),
         content: Text(
           localizations.get('confirm_instagram_share'),
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+          ),
         ),
+        contentPadding: EdgeInsets.all(AdaptiveSize.w(16)),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
             },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: AdaptiveSize.w(16),
+                vertical: AdaptiveSize.h(8),
+              ),
+            ),
             child: Text(
               localizations.get('no'),
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+              ),
             ),
           ),
           TextButton(
@@ -223,9 +265,18 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
               _saveDiscountToSupabase();
               _showSuccessDialog();
             },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: AdaptiveSize.w(16),
+                vertical: AdaptiveSize.h(8),
+              ),
+            ),
             child: Text(
               localizations.get('yes_shared'),
-              style: const TextStyle(color: Color(0xFF1980E6)),
+              style: TextStyle(
+                color: const Color(0xFF1980E6),
+                fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+              ),
             ),
           ),
         ],
@@ -236,7 +287,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   // Método para compartir con Share_plus en otras redes sociales
   Future<void> _shareImageWithSharePlus() async {
     if (_selectedImagePath == null) {
-      _showErrorSnackBar('Por favor selecciona o toma una imagen primero');
+      _showErrorSnackBar(localizations.get('select_image_first'));
       return;
     }
 
@@ -251,8 +302,8 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
       // Compartir usando share_plus
       final ShareResult result = await Share.shareXFiles(
         [imageFile],
-        subject: 'Mi experiencia en Clínicas Love',
-        text: '¡Mi experiencia en Clínicas Love! @clinicaslove #clinicaslove #tratamientoestetico',
+        subject: localizations.get('my_experience_title'),
+        text: localizations.get('my_experience_text'),
       );
       
       // Verificar si el usuario completó la acción de compartir
@@ -309,10 +360,10 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
     try {
       final userId = _supabaseService.getCurrentUserId();
       
-    if (userId == null) {
-      _showErrorSnackBar(localizations.get('login_required'));
-      return;
-    }
+      if (userId == null) {
+        _showErrorSnackBar(localizations.get('login_required'));
+        return;
+      }
       
       // Datos del descuento
       final discountData = {
@@ -339,82 +390,118 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
 
   // Mostrar diálogo de éxito
   void _showSuccessDialog() {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: const Color(0xFF293038),
-      title: Text(
-        localizations.get('thanks_for_sharing'), 
-        style: const TextStyle(color: Colors.white),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            localizations.get('discount_earned'),
-            style: const TextStyle(color: Colors.white70),
+    // Inicializar AdaptiveSize para el diálogo
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF293038),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AdaptiveSize.w(16)),
+        ),
+        title: Text(
+          localizations.get('thanks_for_sharing'), 
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: AdaptiveSize.sp(isSmallScreen ? 18 : 20),
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1980E6),
-              borderRadius: BorderRadius.circular(8),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              localizations.get('discount_earned'),
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _discountCode,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+            SizedBox(height: AdaptiveSize.h(16)),
+            Container(
+              padding: EdgeInsets.all(AdaptiveSize.w(12)),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1980E6),
+                borderRadius: BorderRadius.circular(AdaptiveSize.w(8)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _discountCode,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AdaptiveSize.sp(isSmallScreen ? 16 : 18),
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy, color: Colors.white),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: _discountCode));
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(localizations.get('discount_copied')),
-                        backgroundColor: const Color(0xFF1980E6),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                  IconButton(
+                    icon: Icon(
+                      Icons.copy, 
+                      color: Colors.white,
+                      size: AdaptiveSize.getIconSize(context, baseSize: 20),
+                    ),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: _discountCode));
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            localizations.get('discount_copied'),
+                            style: TextStyle(fontSize: AdaptiveSize.sp(14)),
+                          ),
+                          backgroundColor: const Color(0xFF1980E6),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            localizations.get('discount_saved'),
-            style: const TextStyle(color: Colors.white70),
-            textAlign: TextAlign.center,
+            SizedBox(height: AdaptiveSize.h(16)),
+            Text(
+              localizations.get('discount_saved'),
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        contentPadding: EdgeInsets.all(AdaptiveSize.w(16)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: AdaptiveSize.w(16),
+                vertical: AdaptiveSize.h(8),
+              ),
+            ),
+            child: Text(
+              localizations.get('accept'),
+              style: TextStyle(
+                color: const Color(0xFF1980E6),
+                fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+              ),
+            ),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: Text(
-            localizations.get('accept'),
-            style: const TextStyle(color: Color(0xFF1980E6)),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AdaptiveSize.sp(14)),
+        ),
         backgroundColor: Colors.red,
       ),
     );
@@ -422,6 +509,12 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize para dimensiones responsivas
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     return Scaffold(
       backgroundColor: const Color(0xFF111418),
       body: SafeArea(
@@ -434,10 +527,12 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.arrow_back_ios,
                         color: Colors.white,
+                        size: AdaptiveSize.getIconSize(context, baseSize: 20),
                       ),
+                      padding: EdgeInsets.all(AdaptiveSize.w(8)),
                       onPressed: () {
                         Navigator.pop(context);
                       },
@@ -451,12 +546,12 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                           ),
                           child: Image.asset(
                             'assets/images/logo.png',
-                            height: 80.0,
+                            height: AdaptiveSize.h(isSmallScreen ? 60 : 80),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 48.0),
+                    SizedBox(width: AdaptiveSize.w(48)),
                   ],
                 ),
                 
@@ -464,13 +559,13 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                          Padding(
-                          padding: const EdgeInsets.all(16.0),
+                        Padding(
+                          padding: EdgeInsets.all(AdaptiveSize.w(16)),
                           child: Text(
                             localizations.get('share_experience'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 24.0,
+                              fontSize: AdaptiveSize.sp(isSmallScreen ? 20 : 24),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -478,11 +573,11 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                         
                         // Imagen seleccionada o mensaje para seleccionar
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          padding: EdgeInsets.symmetric(horizontal: AdaptiveSize.w(24)),
                           child: GestureDetector(
-                            onTap: _showImageSourceOptions, // Nuevo método para mostrar opciones
+                            onTap: _showImageSourceOptions,
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12.0),
+                              borderRadius: BorderRadius.circular(AdaptiveSize.w(12)),
                               child: _selectedImagePath != null
                                   ? Stack(
                                       alignment: Alignment.bottomRight,
@@ -490,20 +585,24 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                         Image.file(
                                           File(_selectedImagePath!),
                                           width: double.infinity,
-                                          height: 300,
+                                          height: AdaptiveSize.h(isSmallScreen ? 250 : 300),
                                           fit: BoxFit.cover,
                                         ),
                                         // Botón para cambiar imagen
                                         Positioned(
-                                          right: 10,
-                                          bottom: 10,
+                                          right: AdaptiveSize.w(10),
+                                          bottom: AdaptiveSize.h(10),
                                           child: Container(
                                             decoration: BoxDecoration(
                                               color: const Color(0xFF1980E6),
-                                              borderRadius: BorderRadius.circular(30),
+                                              borderRadius: BorderRadius.circular(AdaptiveSize.w(30)),
                                             ),
                                             child: IconButton(
-                                              icon: const Icon(Icons.edit, color: Colors.white),
+                                              icon: Icon(
+                                                Icons.edit, 
+                                                color: Colors.white,
+                                                size: AdaptiveSize.getIconSize(context, baseSize: 20),
+                                              ),
                                               onPressed: _showImageSourceOptions,
                                             ),
                                           ),
@@ -512,31 +611,31 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                     )
                                   : Container(
                                       width: double.infinity,
-                                      height: 300,
+                                      height: AdaptiveSize.h(isSmallScreen ? 250 : 300),
                                       color: const Color(0xFF293038),
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.add_a_photo,
-                                            color: Color(0xFF1980E6),
-                                            size: 64,
+                                            color: const Color(0xFF1980E6),
+                                            size: AdaptiveSize.getIconSize(context, baseSize: 64),
                                           ),
-                                          const SizedBox(height: 16),
+                                          SizedBox(height: AdaptiveSize.h(16)),
                                           Text(
                                             localizations.get('tap_to_select'),
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: Colors.white,
-                                              fontSize: 16.0,
+                                              fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
-                                          const SizedBox(height: 8),
+                                          SizedBox(height: AdaptiveSize.h(8)),
                                           Text(
                                             localizations.get('show_experience'),
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               color: Colors.white70,
-                                              fontSize: 14.0,
+                                              fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
                                             ),
                                             textAlign: TextAlign.center,
                                           ),
@@ -549,50 +648,67 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                         
                         // Texto informativo
                         Padding(
-                          padding: const EdgeInsets.all(24.0),
+                          padding: EdgeInsets.all(AdaptiveSize.w(24)),
                           child: Column(
                             children: [
-                                      Text(
-                                      localizations.get('share_get_discount'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24.0,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 12.0),
-                                    Text(
-                                      localizations.get('share_discount_explanation'),
-                                      style: TextStyle(
-                                        color: Colors.grey[400],
-                                        fontSize: 16.0,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                              const SizedBox(height: 24.0),
+                              Text(
+                                localizations.get('share_get_discount'),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: AdaptiveSize.sp(isSmallScreen ? 20 : 24),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: AdaptiveSize.h(12)),
+                              Text(
+                                localizations.get('share_discount_explanation'),
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: AdaptiveSize.h(24)),
                               
                               // Formulario para ingresar usuario de Instagram
                               Form(
                                 key: _formKey,
                                 child: TextFormField(
                                   controller: _tagController,
-                                  style: const TextStyle(color: Colors.white),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                                  ),
                                   decoration: InputDecoration(
                                     labelText: localizations.get('your_instagram_username'),
-                                    labelStyle: const TextStyle(color: Colors.grey),
-                                    prefixIcon: const Icon(Icons.alternate_email, color: Color(0xFF1980E6)),
+                                    labelStyle: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                                    ),
+                                    prefixIcon: Icon(
+                                      Icons.alternate_email, 
+                                      color: const Color(0xFF1980E6),
+                                      size: AdaptiveSize.getIconSize(context, baseSize: 20),
+                                    ),
                                     enabledBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: Colors.grey),
-                                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                                      borderSide: const BorderSide(color: Colors.grey),
+                                      borderRadius: BorderRadius.all(Radius.circular(AdaptiveSize.w(10))),
                                     ),
                                     focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: Color(0xFF1980E6)),
-                                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                                      borderSide: const BorderSide(color: Color(0xFF1980E6)),
+                                      borderRadius: BorderRadius.all(Radius.circular(AdaptiveSize.w(10))),
                                     ),
                                     errorBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: Colors.red),
-                                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                                      borderSide: const BorderSide(color: Colors.red),
+                                      borderRadius: BorderRadius.all(Radius.circular(AdaptiveSize.w(10))),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: AdaptiveSize.w(16),
+                                      vertical: AdaptiveSize.h(isSmallScreen ? 12 : 16),
+                                    ),
+                                    errorStyle: TextStyle(
+                                      fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
                                     ),
                                   ),
                                   validator: (value) {
@@ -609,7 +725,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                         
                         // Botones
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          padding: EdgeInsets.symmetric(horizontal: AdaptiveSize.w(24)),
                           child: Column(
                             children: [
                               // Botón para compartir en Instagram Stories
@@ -619,31 +735,32 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                     : _shareToInstagram,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFE1306C), // Color de Instagram
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32.0,
-                                    vertical: 16.0,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AdaptiveSize.w(32),
+                                    vertical: AdaptiveSize.h(isSmallScreen ? 12 : 16),
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24.0),
+                                    borderRadius: BorderRadius.circular(AdaptiveSize.w(24)),
                                   ),
-                                  minimumSize: const Size(double.infinity, 56),
+                                  minimumSize: Size(double.infinity, AdaptiveSize.h(isSmallScreen ? 48 : 56)),
                                   disabledBackgroundColor: const Color(0xFFE1306C).withOpacity(0.5),
                                 ),
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.camera_alt,
                                   color: Colors.white,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 20),
                                 ),
-                                  label: Text(
-                                    localizations.get('share_instagram_stories'),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                label: Text(
+                                  localizations.get('share_instagram_stories'),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
+                              ),
                               
-                              const SizedBox(height: 16),
+                              SizedBox(height: AdaptiveSize.h(16)),
                               
                               // Botón para compartir en otras apps
                               ElevatedButton.icon(
@@ -652,46 +769,53 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                     : _shareImageWithSharePlus,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF1980E6),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32.0,
-                                    vertical: 16.0,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AdaptiveSize.w(32),
+                                    vertical: AdaptiveSize.h(isSmallScreen ? 12 : 16),
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24.0),
+                                    borderRadius: BorderRadius.circular(AdaptiveSize.w(24)),
                                   ),
-                                  minimumSize: const Size(double.infinity, 56),
+                                  minimumSize: Size(double.infinity, AdaptiveSize.h(isSmallScreen ? 48 : 56)),
                                   disabledBackgroundColor: const Color(0xFF1980E6).withOpacity(0.5),
                                 ),
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.share,
                                   color: Colors.white,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 20),
                                 ),
                                 label: Text(
                                   localizations.get('share_other_networks'),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16.0,
+                                    fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
                               
-                              const SizedBox(height: 16),
+                              SizedBox(height: AdaptiveSize.h(16)),
                               
                               // Botón para verificar publicación
                               TextButton(
                                 onPressed: _isLoading ? null : _verifyInstagramPost,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AdaptiveSize.w(16),
+                                    vertical: AdaptiveSize.h(8),
+                                  ),
+                                ),
                                 child: Text(
                                   localizations.get('already_shared'),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white70,
-                                    fontSize: 16.0,
+                                    fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
                                     decoration: TextDecoration.underline,
                                   ),
                                 ),
                               ),
                               
-                              const SizedBox(height: 24),
+                              SizedBox(height: AdaptiveSize.h(24)),
                             ],
                           ),
                         ),
@@ -706,9 +830,13 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
             if (_isLoading)
               Container(
                 color: Colors.black54,
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF1980E6),
+                child: Center(
+                  child: SizedBox(
+                    width: AdaptiveSize.w(40),
+                    height: AdaptiveSize.h(40),
+                    child: const CircularProgressIndicator(
+                      color: Color(0xFF1980E6),
+                    ),
                   ),
                 ),
               ),

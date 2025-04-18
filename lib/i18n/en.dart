@@ -302,4 +302,17 @@ const Map<String, String> en = {
 'price_error': 'Error getting price information',
 'price_data_unavailable': 'Sorry, price information is not available at this time.',
 'see_other_prices': 'See other prices',
+'language_info': "Change the application language. Changes will apply immediately.",
+'aesthetics': 'Aesthetics',
+'learn_about_aesthetics': 'Learn about aesthetics',
+'all_about_beauty_treatments': 'All about beauty treatments',
+'discover_beauty_world': 'Discover the world of beauty treatments and learn the best tips to take care of your skin.',
+'view_now': 'View now',
+'facial_treatments': 'Facial treatments',
+'facial_treatments_desc': 'Learn about the different types of facial treatments and how they can help you maintain radiant skin.',
+'body_care': 'Body care',
+'body_care_desc': 'Tips and techniques to keep your body healthy and in perfect condition.',
+'read_more': 'Read more',
+'distance_unavailable': 'Distance unavailable'
+
 };

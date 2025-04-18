@@ -300,5 +300,17 @@ const Map<String, String> ca = {
   'price_error': 'Error en obtenir informació de preus',
   'price_data_unavailable': 'Ho sento, la informació de preus no està disponible en aquest moment.',
   'see_other_prices': 'Veure altres preus',
-
+  'language_info': "Canvia l'idioma de l'aplicació. Els canvis s'aplicaran immediatament.",
+  'aesthetics': 'Estètica',
+  'learn_about_aesthetics': 'Aprèn sobre estètica',
+  'all_about_beauty_treatments': 'Tot sobre els tractaments de bellesa',
+  'discover_beauty_world': 'Descobreix el món dels tractaments de bellesa i coneix els millors consells per cuidar la teva pell.',
+  'view_now': 'Veure ara',
+  'facial_treatments': 'Tractaments facials',
+  'facial_treatments_desc': 'Aprèn sobre els diferents tipus de tractaments facials i com poden ajudar-te a mantenir una pell radiant.',
+  'body_care': 'Cura corporal',
+  'body_care_desc': 'Consells i tècniques per mantenir el teu cos saludable i en perfectes condicions.',
+  'read_more': 'Llegir més',
+  'distance_unavailable': 'Distància no disponible'
+  
 };

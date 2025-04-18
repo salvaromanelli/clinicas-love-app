@@ -30,10 +30,11 @@ class ReplicateService {
     required String prompt,
     required String imageBase64,
     required String maskBase64,
-    required String controlType,
+    String controlnetType = 'scribble', // o el tipo que uses
     double guidance = 7.5,
     int steps = 30,
-    int controlMode = 0,
+    int width = 768,
+    int height = 768,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/predictions'),
@@ -43,16 +44,16 @@ class ReplicateService {
         'input': {
           'prompt': prompt,
           'image': 'data:image/png;base64,$imageBase64',
-          'control_image': 'data:image/png;base64,$maskBase64',
-          'control_type': controlType, 
+          'controlnet_1': controlnetType,
+          'controlnet_1_image': 'data:image/png;base64,$maskBase64',
+          'width': width,
+          'height': height,
           'guidance_scale': guidance,
           'num_inference_steps': steps,
-          'control_mode': controlMode,
-          'negative_prompt': 'deformed, distorted, disfigured, poorly drawn, bad anatomy, unrealistic',
         },
       }),
     );
-    
+
     debugPrint('MASK BASE64 LENGTH: ${maskBase64.length}');
 
     if (response.statusCode != 201) {
@@ -133,10 +134,10 @@ class ReplicateService {
       prompt: prompt,
       imageBase64: base64Image,
       maskBase64: base64Mask,
-      controlType: controlType,
+
       guidance: guidance,
       steps: numInferenceSteps,
-      controlMode: controlMode,
+
     );
     
     // Esperar y obtener el resultado

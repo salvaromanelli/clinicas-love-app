@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'models/profile_model.dart';
 import 'services/profile_service.dart';
 import 'i18n/app_localizations.dart';
+import 'utils/adaptive_sizing.dart';
 
 class EditProfilePage extends StatefulWidget {
   final Profile profile;
@@ -45,6 +46,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+
+      final double maxSize = AdaptiveSize.screenWidth < 768 ? 800 : 1200;
+
       final pickedFile = await ImagePicker().pickImage(
         source: source,
         maxWidth: 800,
@@ -125,14 +129,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    
+    AdaptiveSize.initialize(context);
+  
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+
     return Scaffold(
       backgroundColor: const Color(0xFF111418),
       appBar: AppBar(
         backgroundColor: const Color(0xFF111418),
         foregroundColor: Colors.white,
-        title: Text(localizations.get('edit_profile')),
+        title: Text(
+          localizations.get('edit_profile'),
+          style: TextStyle(fontSize: 18.sp),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            size: AdaptiveSize.getIconSize(context, baseSize: 20),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -140,7 +155,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(16.w),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -149,13 +164,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: Stack(
                     children: [
                       Container(
-                        width: 120.0,
-                        height: 120.0,
+                        width: isSmallScreen ? 100.w : 120.w,
+                        height: isSmallScreen ? 100.h : 120.h,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white,
-                            width: 2.0,
+                            width: 2.w,
                           ),
                         ),
                         child: ClipOval(
@@ -169,16 +184,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   _avatarUrl!,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
+                                    return Icon(
                                       Icons.person,
-                                      size: 60,
+                                      size: AdaptiveSize.getIconSize(context, baseSize: 60),
                                       color: Colors.white,
                                     );
                                   },
                                 )
-                              : const Icon(
+                              : Icon(
                                   Icons.person,
-                                  size: 60,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 60),
                                   color: Colors.white,
                                 ),
                         ),
@@ -187,45 +202,72 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         bottom: 0,
                         right: 0,
                         child: CircleAvatar(
-                          backgroundColor: const Color(0xFF1980E6),
-                          radius: 22,
-                          child: IconButton(
-                            icon: const Icon(Icons.camera_alt),
-                            color: Colors.white,
-                            onPressed: () {
+                                  backgroundColor: const Color(0xFF1980E6),
+                                  radius: 22.w,
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.camera_alt,
+                                      size: AdaptiveSize.getIconSize(context, baseSize: 20),
+                                    ),
+                                    color: Colors.white,
+                                    onPressed: () {
                               showModalBottomSheet(
                                 context: context,
                                 backgroundColor: const Color(0xFF1C2126),
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20.w)),
                                 ),
                                 builder: (BuildContext context) {
+                                  // Usar AdaptiveSize dentro del builder también
+                                  AdaptiveSize.initialize(context);
+                                  final isSmallSheet = AdaptiveSize.screenWidth < 360;
+                                  
                                   return SafeArea(
                                     child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
+                                      padding: EdgeInsets.all(16.w),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                                 Text(
-                                                  localizations.get('select_photo'),
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                          const SizedBox(height: 16),
+                                          Text(
+                                            localizations.get('select_photo'),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: isSmallSheet ? 16.sp : 18.sp,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(height: 16.h),
                                           ListTile(
-                                            leading: const Icon(Icons.photo_library, color: Colors.white),
-                                              title: Text(localizations.get('gallery'), style: TextStyle(color: Colors.white)),
+                                            leading: Icon(
+                                              Icons.photo_library, 
+                                              color: Colors.white,
+                                              size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                                            ),
+                                            title: Text(
+                                              localizations.get('gallery'), 
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16.sp,
+                                              ),
+                                            ),
                                             onTap: () {
                                               Navigator.pop(context);
                                               _pickImage(ImageSource.gallery);
                                             },
                                           ),
                                           ListTile(
-                                            leading: const Icon(Icons.camera_alt, color: Colors.white),
-                                            title: Text(localizations.get('camera'), style: TextStyle(color: Colors.white)),
+                                            leading: Icon(
+                                              Icons.camera_alt, 
+                                              color: Colors.white,
+                                              size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                                            ),
+                                            title: Text(
+                                              localizations.get('camera'), 
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16.sp,
+                                              ),
+                                            ),
                                             onTap: () {
                                               Navigator.pop(context);
                                               _pickImage(ImageSource.camera);
@@ -244,7 +286,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32.0),
+                SizedBox(height: 32.h),
                 
                 // Form fields
                 _buildTextField(
@@ -258,14 +300,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16.0),
+                SizedBox(height: 16.h),
                 
                 _buildTextField(
                   controller: _locationController,
                   label: localizations.get('location'),
                   icon: Icons.location_on_outlined,
                 ),
-                const SizedBox(height: 16.0),
+                SizedBox(height: 16.h),
                 
                 _buildTextField(
                   controller: _phoneController,
@@ -273,7 +315,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   icon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
                 ),
-                const SizedBox(height: 16.0),
+                SizedBox(height: 16.h),
                 
                 _buildTextField(
                   controller: _emailController,
@@ -281,7 +323,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   icon: Icons.email_outlined,
                   enabled: false,
                 ),
-                const SizedBox(height: 32.0),
+                SizedBox(height: 32.h),
                 
                 // Save button
                 SizedBox(
@@ -290,26 +332,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     onPressed: _isSaving ? null : _saveProfile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1980E6),
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 12.h : 16.h),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.circular(12.w),
                       ),
                       disabledBackgroundColor: const Color(0xFF1980E6).withOpacity(0.5),
                     ),
                     child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                        ? SizedBox(
+                            width: 20.w,
+                            height: 20.h,
                             child: CircularProgressIndicator(
                               color: Colors.white,
-                              strokeWidth: 2.0,
+                              strokeWidth: 2.w,
                             ),
                           )
                         : Text(
                             localizations.get('save_changes'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 16.0,
+                              fontSize: isSmallScreen ? 14.sp : 16.sp,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -336,23 +378,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
       keyboardType: keyboardType,
       enabled: enabled,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Colors.white, fontSize: 16.sp),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.grey[400]),
-        prefixIcon: Icon(icon, color: Colors.grey[400]),
+        labelStyle: TextStyle(color: Colors.grey[400], fontSize: 14.sp),
+        prefixIcon: Icon(
+          icon, 
+          color: Colors.grey[400],
+          size: AdaptiveSize.getIconSize(context, baseSize: 22),
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.w),
           borderSide: BorderSide(color: Colors.grey[700]!),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.w),
           borderSide: BorderSide(color: Colors.grey[700]!),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1980E6)),
+          borderRadius: BorderRadius.circular(12.w),
+          borderSide: BorderSide(color: const Color(0xFF1980E6), width: 2.w),
         ),
+        contentPadding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
         filled: true,
         fillColor: const Color(0xFF1C2126),
       ),

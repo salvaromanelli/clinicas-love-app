@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase.dart';
 import 'services/auth_service.dart';
 import 'i18n/app_localizations.dart';
+import 'utils/adaptive_sizing.dart'; 
 
 class LoginPage extends StatefulWidget {
   final Widget child;
@@ -24,16 +25,21 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _passwordVisible = false;
   String? _errorMessage;
-  late AppLocalizations localizations; 
+  late AppLocalizations localizations;
 
-  // Método de login principal - corregido
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    localizations = AppLocalizations.of(context);
+  }
+
+  // Método de login principal
   Future<void> _handleLogin() async {
     // Validación del formulario
     if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
       return;
     }
     
-    // Establecer estado de carga ANTES de iniciar el proceso
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -43,25 +49,21 @@ class _LoginPageState extends State<LoginPage> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // Iniciar sesión con Supabase
       final response = await _supabaseService.signIn(
         email: email,
         password: password,
       );
       
       if (response.user != null) {
-        // Obtener y guardar token
         final token = await _supabaseService.getToken();
         if (token != null) {
           await _authService.saveToken(token);
           
           if (!mounted) return;
           
-          // Logs para depuración
           print("Inicio de sesión exitoso, token: ${token.substring(0, min(10, token.length))}...");
           print("Redirigiendo a página de perfil...");
           
-          // Navegar a la página de perfil y eliminar historial de navegación
           Navigator.pushNamedAndRemoveUntil(
             context, 
             '/profile', 
@@ -79,7 +81,6 @@ class _LoginPageState extends State<LoginPage> {
       });
       print("Error de autenticación: ${e.message}");
     } catch (e) {
-      // Manejo más amigable de errores comunes
       String errorMsg;
       
       if (e.toString().contains('Invalid login credentials')) {
@@ -91,7 +92,6 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         errorMsg = '${localizations.get('error')}: ${e.toString()}';
       }
-
       
       setState(() {
         _errorMessage = errorMsg;
@@ -106,14 +106,118 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-@override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  localizations = AppLocalizations.of(context);
-}
+  // Método para manejar la autenticación con redes sociales
+  Future<void> _handleSocialLogin(String provider) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      AuthResponse? response;
+      
+      // Determinar el proveedor y llamar al método correspondiente
+      switch (provider) {
+        case 'google':
+          // Mostrar mensaje provisional mientras implementas la funcionalidad completa
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Inicio de sesión con Google aún no implementado',
+                style: TextStyle(fontSize: 14.sp),
+              ),
+              backgroundColor: Colors.orange.shade700,
+            ),
+          );
+          break;
+          
+        case 'facebook':
+          // Mostrar mensaje provisional para Facebook
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Inicio de sesión con Facebook aún no implementado',
+                style: TextStyle(fontSize: 14.sp),
+              ),
+              backgroundColor: Colors.orange.shade700,
+            ),
+          );
+          break;
+          
+        case 'apple':
+          // Mostrar mensaje provisional para Apple
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Inicio de sesión con Apple aún no implementado',
+                style: TextStyle(fontSize: 14.sp),
+              ),
+              backgroundColor: Colors.orange.shade700,
+            ),
+          );
+          break;
+          
+        default:
+          throw Exception('Proveedor desconocido: $provider');
+      }
+      
+      /* 
+      // Código para implementar después cuando estén listos los métodos en SupabaseService
+      
+      // Verificar respuesta y manejar sesión
+      if (response?.user != null) {
+        final token = await _supabaseService.getToken();
+        if (token != null) {
+          await _authService.saveToken(token);
+          
+          if (!mounted) return;
+          
+          Navigator.pushNamedAndRemoveUntil(
+            context, 
+            '/profile', 
+            (route) => false
+          );
+        } else {
+          throw Exception(localizations.get('auth_token_error'));
+        }
+      } else {
+        throw Exception(localizations.get('social_auth_error'));
+      }
+      */
+      
+    } catch (e) {
+      String errorMsg;
+      
+      if (e.toString().contains('canceled') || e.toString().contains('cancelado')) {
+        errorMsg = localizations.get('auth_cancelled') ?? 'Autenticación cancelada';
+      } else if (e.toString().contains('network')) {
+        errorMsg = localizations.get('network_error') ?? 'Error de red';
+      } else {
+        errorMsg = '${localizations.get('error') ?? 'Error'}: ${e.toString()}';
+      }
+      
+      if (mounted) {
+        setState(() {
+          _errorMessage = errorMsg;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize para dimensiones responsivas
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -127,16 +231,17 @@ void didChangeDependencies() {
             child: SafeArea(
               child: Column(
                 children: [
-                  // Header with back button and logo
+                  // Header con botón atrás y logo
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back_ios,
                             color: Colors.white,
+                            size: AdaptiveSize.getIconSize(context, baseSize: 20),
                           ),
                           onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
                         ),
@@ -149,50 +254,58 @@ void didChangeDependencies() {
                               ),
                               child: Image.asset(
                                 'assets/images/logo.png',
-                                height: 60.0,
+                                height: isSmallScreen ? 50.h : 60.h,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 48.0),
+                        SizedBox(width: 48.w),
                       ],
                     ),
                   ),
-                  // Login form content
+                  
+                  // Contenido del formulario
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Form( // Añadido Form
+                      padding: EdgeInsets.all(16.w),
+                      child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 32.0),
+                            SizedBox(height: 32.h),
                             Text(
                               localizations.get('login'),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 28,
+                                fontSize: isSmallScreen ? 24.sp : 28.sp,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 8.0),
-                              Text(
-                                localizations.get('welcome_to_clinics'),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              localizations.get('welcome_to_clinics'),
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 14.sp : 16.sp,
                               ),
-                            const SizedBox(height: 32.0),
+                            ),
+                            SizedBox(height: 32.h),
                             
-                            // Email field with icon - cambiado a TextFormField
+                            // Campo de email con icono
                             TextFormField(
                               controller: _emailController,
                               decoration: InputDecoration(
                                 labelText: localizations.get('email'),
-                                labelStyle: TextStyle(color: Colors.white70),
-                                prefixIcon: Icon(Icons.email, color: Colors.white70),
+                                labelStyle: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: isSmallScreen ? 14.sp : 16.sp,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.email, 
+                                  color: Colors.white70,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                                ),
                                 enabledBorder: UnderlineInputBorder(
                                   borderSide: BorderSide(color: Colors.white24),
                                 ),
@@ -200,7 +313,10 @@ void didChangeDependencies() {
                                   borderSide: BorderSide(color: Colors.white),
                                 ),
                               ),
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: isSmallScreen ? 14.sp : 16.sp,
+                              ),
                               keyboardType: TextInputType.emailAddress,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -212,19 +328,27 @@ void didChangeDependencies() {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 16.0),
+                            SizedBox(height: 16.h),
                             
-                            // Password field with toggle visibility - cambiado a TextFormField
+                            // Campo de contraseña con toggle
                             TextFormField(
                               controller: _passwordController,
                               decoration: InputDecoration(
                                 labelText: localizations.get('password'),
-                                labelStyle: const TextStyle(color: Colors.white70),
-                                prefixIcon: const Icon(Icons.lock, color: Colors.white70),
+                                labelStyle: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: isSmallScreen ? 14.sp : 16.sp,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.lock, 
+                                  color: Colors.white70,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                                ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _passwordVisible ? Icons.visibility : Icons.visibility_off,
                                     color: Colors.white70,
+                                    size: AdaptiveSize.getIconSize(context, baseSize: 22),
                                   ),
                                   onPressed: () {
                                     setState(() {
@@ -246,35 +370,50 @@ void didChangeDependencies() {
                                 return null;
                               },
                               obscureText: !_passwordVisible,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: isSmallScreen ? 14.sp : 16.sp,
+                              ),
                             ),
                             
-                            // Forgot password link
+                            // Enlace de olvidé contraseña
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 onPressed: _showForgotPasswordDialog,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8.w, 
+                                    vertical: 4.h
+                                  ),
+                                ),
                                 child: Text(
                                   localizations.get('forgot_password'),
-                                  style: const TextStyle(color: Colors.white70),
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                  ),
                                 ),
                               ),
                             ),
                             
-                            // Error message
+                            // Mensaje de error
                             if (_errorMessage != null)
                               Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
+                                padding: EdgeInsets.only(top: 8.h),
                                 child: Text(
                                   _errorMessage!,
-                                  style: const TextStyle(color: Colors.redAccent),
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: isSmallScreen ? 13.sp : 14.sp,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                             
-                            const SizedBox(height: 24.0),
+                            SizedBox(height: 24.h),
                             
-                            // Login button
+                            // Botón de login
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
@@ -282,52 +421,55 @@ void didChangeDependencies() {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF1980E6),
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                  padding: EdgeInsets.symmetric(vertical: 16.h),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0),
+                                    borderRadius: BorderRadius.circular(12.w),
                                   ),
                                   disabledBackgroundColor: Colors.grey,
                                 ),
                                 child: _isLoading
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
+                                    ? SizedBox(
+                                        height: 20.h,
+                                        width: 20.w,
+                                        child: const CircularProgressIndicator(
                                           color: Colors.white,
                                           strokeWidth: 2,
                                         ),
                                       )
                                     : Text(
                                         localizations.get('login'),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 16.0,
+                                          fontSize: isSmallScreen ? 14.sp : 16.sp,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                               ),
                             ),
                             
-                            const SizedBox(height: 24.0),
+                            SizedBox(height: 24.h),
                             
-                            // Or divider
+                            // Divisor "O"
                             Row(
                               children: [
-                                const Expanded(child: Divider(color: Colors.white24)),
+                                Expanded(child: Divider(color: Colors.white24)),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  padding: EdgeInsets.symmetric(horizontal: 16.w),
                                   child: Text(
                                     localizations.get('or_continue_with'),
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                    style: TextStyle(
+                                      color: Colors.white70, 
+                                      fontSize: isSmallScreen ? 11.sp : 12.sp,
+                                    ),
                                   ),
                                 ),
-                                const Expanded(child: Divider(color: Colors.white24)),
+                                Expanded(child: Divider(color: Colors.white24)),
                               ],
                             ),
                             
-                            const SizedBox(height: 24.0),
+                            SizedBox(height: 24.h),
                             
-                            // Social login buttons
+                            // Botones de redes sociales
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
@@ -335,23 +477,26 @@ void didChangeDependencies() {
                                   onPressed: () => _handleSocialLogin('google'),
                                   iconPath: 'assets/images/google_icon.png',
                                   label: 'Google',
+                                  isSmallScreen: isSmallScreen,
                                 ),
                                 _buildSocialButton(
                                   onPressed: () => _handleSocialLogin('facebook'),
                                   iconPath: 'assets/images/facebook_icon.png',
                                   label: 'Facebook',
+                                  isSmallScreen: isSmallScreen,
                                 ),
                                 _buildSocialButton(
                                   onPressed: () => _handleSocialLogin('apple'),
                                   iconPath: 'assets/images/apple_icon.png',
                                   label: 'Apple',
+                                  isSmallScreen: isSmallScreen,
                                 ),
                               ],
                             ),
                             
-                            const SizedBox(height: 24.0),
+                            SizedBox(height: 24.h),
                             
-                            // Register link
+                            // Enlace de registro
                             Center(
                               child: TextButton(
                                 onPressed: () {
@@ -359,7 +504,10 @@ void didChangeDependencies() {
                                 },
                                 child: Text(
                                   localizations.get('no_account_register'),
-                                  style: const TextStyle(color: Colors.white70),
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: isSmallScreen ? 13.sp : 14.sp,
+                                  ),
                                 ),
                               ),
                             ),
@@ -377,138 +525,85 @@ void didChangeDependencies() {
     );
   }
 
-  // Social login button widget
+  // Widget de botón de red social adaptativo
   Widget _buildSocialButton({
     required VoidCallback onPressed,
     required String iconPath,
     required String label,
+    required bool isSmallScreen,
   }) {
     return InkWell(
       onTap: onPressed,
       child: Column(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: isSmallScreen ? 50.w : 60.w,
+            height: isSmallScreen ? 50.h : 60.h,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.w),
               border: Border.all(color: Colors.white24),
             ),
             child: Center(
               child: Image.asset(
                 iconPath,
-                height: 28,
-                width: 28,
+                height: isSmallScreen ? 24.h : 28.h,
+                width: isSmallScreen ? 24.w : 28.w,
                 errorBuilder: (context, error, stackTrace) {
-                  // En caso de que no encuentre la imagen, mostrar un icono genérico
+                  // Icono de respaldo
                   return Icon(
                     label == 'Google' ? Icons.g_mobiledata : 
                     label == 'Facebook' ? Icons.facebook : 
                     Icons.apple,
                     color: Colors.white,
-                    size: 28,
+                    size: AdaptiveSize.getIconSize(context, baseSize: isSmallScreen ? 24 : 28),
                   );
                 },
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(
+              color: Colors.white70, 
+              fontSize: isSmallScreen ? 11.sp : 12.sp,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Social login handling
-  Future<void> _handleSocialLogin(String provider) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      bool success = false;
-      OAuthProvider oauthProvider;
-      
-      // Determinar el proveedor OAuth
-      switch (provider) {
-        case 'google':
-          oauthProvider = OAuthProvider.google;
-          break;
-          
-        case 'facebook':
-          oauthProvider = OAuthProvider.facebook;
-          break;
-          
-        case 'apple':
-          oauthProvider = OAuthProvider.apple;
-          break;
-          
-        default:
-          throw Exception(localizations.get('unsupported_provider'));
-      }
-      
-      // Iniciar el flujo OAuth
-      success = await _supabaseService.client.auth.signInWithOAuth(
-        oauthProvider,
-        redirectTo: 'io.supabase.flutterquickstart://login-callback/',
-      );
-
-      // Verificar si el proceso de redirección OAuth comenzó correctamente
-      if (success) {
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(localizations.get('redirect_to_complete_login')),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      } else {
-        setState(() {
-          _errorMessage = 'No se pudo iniciar el proceso de autenticación con $provider';
-        });
-      }
-    } catch (e) {
-      setState(() {
-       _errorMessage = '${localizations.get('auth_process_failed')} $provider';
-      });
-      
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${localizations.get('error')}: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  // Diálogo para recuperar contraseña
+  // Diálogo de olvido de contraseña adaptativo
   void _showForgotPasswordDialog() {
     final TextEditingController emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
 
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+
     showDialog(
       context: context,
       builder: (context) {
+        // Reinicializar AdaptiveSize dentro del diálogo
+        AdaptiveSize.initialize(context);
+        
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(localizations.get('recover_password')),
+              backgroundColor: const Color(0xFF1C2126),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w)),
+              title: Text(
+                localizations.get('recover_password'),
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 18.sp : 20.sp,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               content: Form(
                 key: formKey,
                 child: Column(
@@ -516,16 +611,44 @@ void didChangeDependencies() {
                   children: [
                     Text(
                       localizations.get('password_reset_instructions'),
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 13.sp : 14.sp,
+                        color: Colors.white70,
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     TextFormField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: isSmallScreen ? 14.sp : 15.sp,
+                      ),
                       decoration: InputDecoration(
                         labelText: localizations.get('email'),
-                        prefixIcon: const Icon(Icons.email),
-                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                          color: Colors.white70,
+                          fontSize: isSmallScreen ? 14.sp : 15.sp,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.email,
+                          size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                          color: Colors.white70,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.w),
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.w),
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.w),
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF262A33),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -540,12 +663,24 @@ void didChangeDependencies() {
                   ],
                 ),
               ),
+              contentPadding: EdgeInsets.all(16.w),
+              actionsPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: Text(localizations.get('cancel')),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w, 
+                      vertical: 8.h,
+                    ),
+                  ),
+                  child: Text(
+                    localizations.get('cancel'),
+                    style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: isLoading ? null : () async {
@@ -557,15 +692,16 @@ void didChangeDependencies() {
                       try {
                         await _supabaseService.resetPassword(emailController.text.trim());
                         
-                        // Cerrar el diálogo
                         if (context.mounted) {
                           Navigator.of(context).pop();
                           
-                          // Mostrar mensaje de éxito
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(localizations.get('password_reset_email_sent')),
-                              backgroundColor: Colors.green,
+                              content: Text(
+                                localizations.get('password_reset_email_sent'),
+                                style: TextStyle(fontSize: 14.sp),
+                              ),
+                              backgroundColor: Colors.green.shade700,
                             ),
                           );
                         }
@@ -574,8 +710,11 @@ void didChangeDependencies() {
                         
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('${localizations.get('error')}: ${e.toString()}'),
-                            backgroundColor: Colors.red,
+                            content: Text(
+                              '${localizations.get('error')}: ${e.toString()}',
+                              style: TextStyle(fontSize: 14.sp),
+                            ),
+                            backgroundColor: Colors.red.shade700,
                           ),
                         );
                       } finally {
@@ -589,17 +728,24 @@ void didChangeDependencies() {
                     backgroundColor: const Color(0xFF1980E6),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 10.h,
+                    ),
                   ),
                   child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
+                      ? SizedBox(
+                          height: 20.h,
+                          width: 20.w,
+                          child: const CircularProgressIndicator(
                             color: Colors.white,
                             strokeWidth: 2,
                           ),
                         )
-                      : Text(localizations.get('send')),
+                      : Text(
+                          localizations.get('send'),
+                          style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+                        ),
                 ),
               ],
             );
@@ -608,6 +754,7 @@ void didChangeDependencies() {
       },
     );
   }
+
 
   @override
   void dispose() {

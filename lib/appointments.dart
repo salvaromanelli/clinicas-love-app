@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'services/supabase.dart';
 import 'booking_page.dart';
 import 'widgets/appointment_card.dart';
 import 'i18n/app_localizations.dart'; 
 import 'boton_asistente.dart';
+import 'utils/adaptive_sizing.dart';
 
 class RecomendacionesPage extends StatefulWidget {
   const RecomendacionesPage({super.key});
@@ -16,7 +16,7 @@ class RecomendacionesPage extends StatefulWidget {
 class _RecomendacionesPageState extends State<RecomendacionesPage> {
   final SupabaseService _supabaseService = SupabaseService();
   List<Map<String, dynamic>> _appointments = [];
-  List<Map<String, dynamic>> _filteredAppointments = []; // Añade esta línea
+  List<Map<String, dynamic>> _filteredAppointments = [];
   bool _isLoading = true;
   String _filterStatus = 'all'; // 'all', 'upcoming', 'past'
   late AppLocalizations localizations;
@@ -33,45 +33,46 @@ class _RecomendacionesPageState extends State<RecomendacionesPage> {
     localizations = AppLocalizations.of(context);
   }
 
-// Modifica el método _loadAppointments para añadir manejo de errores y logs
-
-Future<void> _loadAppointments() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    print('Iniciando carga de citas...');
-    final appointments = await _supabaseService.getUserAppointments();
-    print('Citas obtenidas: ${appointments.length}');
-    
-    if (appointments.isNotEmpty) {
-      print('Primera cita: ${appointments[0]}');
-    }
-    
+  Future<void> _loadAppointments() async {
     setState(() {
-      _appointments = appointments;
-      _updateFilteredAppointments(); // Actualiza la caché filtrada
-      _isLoading = false;
+      _isLoading = true;
     });
-  } catch (e) {
-    print('Error cargando citas: $e');
-    setState(() {
-      _isLoading = false;
-      // Añadir un mensaje de error visible al usuario
-      _appointments = [];
-      _updateFilteredAppointments();
-    });
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar citas: ${e.toString()}')),
-      );
+
+    try {
+      print('Iniciando carga de citas...');
+      final appointments = await _supabaseService.getUserAppointments();
+      print('Citas obtenidas: ${appointments.length}');
+      
+      if (appointments.isNotEmpty) {
+        print('Primera cita: ${appointments[0]}');
+      }
+      
+      setState(() {
+        _appointments = appointments;
+        _updateFilteredAppointments(); // Actualiza la caché filtrada
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error cargando citas: $e');
+      setState(() {
+        _isLoading = false;
+        // Añadir un mensaje de error visible al usuario
+        _appointments = [];
+        _updateFilteredAppointments();
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar citas: ${e.toString()}'),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
     }
   }
-}
-  
-  // Nuevo método para actualizar _filteredAppointments
+    
+  // Método para actualizar _filteredAppointments
   void _updateFilteredAppointments() {
     if (_filterStatus == 'all') {
       _filteredAppointments = List.from(_appointments);
@@ -98,153 +99,177 @@ Future<void> _loadAppointments() async {
     }).toList();
   }
 
-  Future<void> _showCancelConfirmationDialog(Map<String, dynamic> appointment) async {
-    final String appointmentId = appointment['id'];
-    final bool result = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.get('cancel_appointment')),  // Actualizar
-        content: Text(localizations.get('cancel_confirmation')),  // Actualizar
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(localizations.get('keep_appointment')),  // Actualizar
-            style: TextButton.styleFrom(foregroundColor: Colors.grey),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(localizations.get('yes_cancel')),  // Actualizar
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
-    ) ?? false;
-
-    if (result && mounted){
-      // Usuario confirmó cancelación
-      try {
-        setState(() {
-          _isLoading = true; // Mostrar indicador de carga
-        });
-        
-        await _supabaseService.updateAppointmentStatus(appointmentId, 'Cancelada');
-        
-        // Refrescar la lista
-        await _loadAppointments();
-        
-        // Mostrar confirmación
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(localizations.get('appointment_cancelled_success'))),  // Actualizar
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${localizations.get('cancel_error')}: ${e.toString()}')),  // Actualizar
-          );
-        }
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     return Scaffold(
+      backgroundColor: const Color(0xFF111418), // Fondo oscuro para coincidir con el resto de la app
       appBar: AppBar(
         title: Text(
           localizations.get('my_appointments'),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+          style: TextStyle(
+            color: Colors.white, 
+            fontWeight: FontWeight.bold,
+            fontSize: isSmallScreen ? 18.sp : 20.sp, // Incrementado tamaño
+          ),
         ),
-        backgroundColor: const Color(0xFF1980E6),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: const Color(0xFF1C2126), // Misma barra que otras pantallas
+        foregroundColor: Colors.white,
+        iconTheme: IconThemeData(
+          color: Colors.white,
+          size: AdaptiveSize.getIconSize(context, baseSize: 24),
+        ),
+        elevation: 0,
       ),
       body: Stack(
         children: [
           Column(
             children: [
-              // Filter chips
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  // Determinar si es una pantalla pequeña
-                  final isSmallScreen = constraints.maxWidth < 340;
-                  final chipPadding = isSmallScreen ? 
-                    const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0) : 
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0);
-                    
-                  final labelStyle = TextStyle(
-                    fontSize: isSmallScreen ? 12.0 : 14.0,
-                  );
-                  
-                  return Padding(
-                    padding: chipPadding,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                            child: FilterChip(
-                              label: Text(localizations.get('all'), style: labelStyle),
-                              selected: _filterStatus == 'all',
-                              onSelected: (selected) {
-                                setState(() {
-                                  _filterStatus = 'all';
-                                  _updateFilteredAppointments();
-                                });
-                              },
-                              selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
-                              checkmarkColor: const Color(0xFF1980E6),
-                              padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                            child: FilterChip(
-                              label: Text(localizations.get('upcoming'), style: labelStyle),
-                              selected: _filterStatus == 'upcoming',
-                              onSelected: (selected) {
-                                setState(() {
-                                  _filterStatus = 'upcoming';
-                                  _updateFilteredAppointments();
-                                });
-                              },
-                              selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
-                              checkmarkColor: const Color(0xFF1980E6),
-                              padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                            child: FilterChip(
-                              label: Text(localizations.get('past'), style: labelStyle),
-                              selected: _filterStatus == 'past',
-                              onSelected: (selected) {
-                                setState(() {
-                                  _filterStatus = 'past';
-                                  _updateFilteredAppointments();
-                                });
-                              },
-                              selectedColor: const Color(0xFF1980E6).withOpacity(0.2),
-                              checkmarkColor: const Color(0xFF1980E6),
-                              padding: isSmallScreen ? const EdgeInsets.symmetric(horizontal: 2.0) : null,
-                            ),
-                          ),
-                        ),
-                      ],
+              // Filter chips con estilo adaptado
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 8.w : 16.w, 
+                  vertical: 12.h,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1C2126),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF0D0F13),
+                      offset: Offset(0, 2),
+                      blurRadius: 4,
                     ),
-                  );
-                },
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2.w),
+                        child: FilterChip(
+                          label: Text(
+                            localizations.get('all'), 
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              color: _filterStatus == 'all' ? Colors.white : Colors.white.withOpacity(0.85),
+                              fontWeight: _filterStatus == 'all' ? FontWeight.w600 : FontWeight.normal,
+                              shadows: _filterStatus == 'all' ? [
+                                Shadow(color: Colors.black38, blurRadius: 0.5, offset: Offset(0, 0.5)),
+                              ] : null,
+                            ),
+                          ),
+                          selected: _filterStatus == 'all',
+                          onSelected: (selected) {
+                            setState(() {
+                              _filterStatus = 'all';
+                              _updateFilteredAppointments();
+                            });
+                          },
+                          backgroundColor: const Color(0xFF262A33),
+                          selectedColor: const Color(0xFF1980E6).withOpacity(0.9), // Más contrastante
+                          checkmarkColor: Colors.white, // Checkmark más visible
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallScreen ? 4.w : 6.w, 
+                            vertical: isSmallScreen ? 6.h : 8.h, // Más espacio vertical para tocar
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.w),
+                            side: _filterStatus == 'all'
+                                ? BorderSide(color: const Color(0xFF1980E6), width: 1.5.w) // Borde más grueso
+                                : BorderSide.none,
+                          ),
+                          shadowColor: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2.w),
+                        child: FilterChip(
+                          label: Text(
+                            localizations.get('upcoming'), 
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 13.sp : 15.sp, // Mismo tamaño que "all"
+                              color: _filterStatus == 'upcoming' ? Colors.white : Colors.white.withOpacity(0.85), // Mejor contraste
+                              fontWeight: _filterStatus == 'upcoming' ? FontWeight.w600 : FontWeight.normal, // Enfatizar selección
+                              shadows: _filterStatus == 'upcoming' ? [
+                                Shadow(color: Colors.black38, blurRadius: 0.5, offset: Offset(0, 0.5)),
+                              ] : null,
+                            ),
+                          ),
+                          selected: _filterStatus == 'upcoming',
+                          onSelected: (selected) {
+                            setState(() {
+                              _filterStatus = 'upcoming';
+                              _updateFilteredAppointments();
+                            });
+                          },
+                          backgroundColor: const Color(0xFF262A33),
+                          selectedColor: const Color(0xFF1980E6).withOpacity(0.9), // Más contrastante
+                          checkmarkColor: Colors.white, // Checkmark más visible
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallScreen ? 4.w : 6.w,
+                            vertical: isSmallScreen ? 6.h : 8.h,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.w),
+                            side: _filterStatus == 'upcoming'
+                                ? BorderSide(color: const Color(0xFF1980E6), width: 1.5.w) // Borde más grueso
+                                : BorderSide.none,
+                          ),
+                          shadowColor: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2.w),
+                        child: FilterChip(
+                          label: Text(
+                            localizations.get('past'), 
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 13.sp : 15.sp, // Mismo tamaño que los otros
+                              color: _filterStatus == 'past' ? Colors.white : Colors.white.withOpacity(0.85), // Mejor contraste
+                              fontWeight: _filterStatus == 'past' ? FontWeight.w600 : FontWeight.normal, // Enfatizar selección
+                              shadows: _filterStatus == 'past' ? [
+                                Shadow(color: Colors.black38, blurRadius: 0.5, offset: Offset(0, 0.5)),
+                              ] : null,
+                            ),
+                          ),
+                          selected: _filterStatus == 'past',
+                          onSelected: (selected) {
+                            setState(() {
+                              _filterStatus = 'past';
+                              _updateFilteredAppointments();
+                            });
+                          },
+                          backgroundColor: const Color(0xFF262A33),
+                          selectedColor: const Color(0xFF1980E6).withOpacity(0.9), // Más contrastante
+                          checkmarkColor: Colors.white, // Checkmark más visible
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallScreen ? 4.w : 6.w,
+                            vertical: isSmallScreen ? 6.h : 8.h,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20.w),
+                            side: _filterStatus == 'past'
+                                ? BorderSide(color: const Color(0xFF1980E6), width: 1.5.w) // Borde más grueso
+                                : BorderSide.none,
+                          ),
+                          shadowColor: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              
-              // Appointments list - IMPORTANTE: Expanded debe estar dentro de Column
+              // Appointments list
               Expanded(
                 child: _isLoading
                   ? const Center(
@@ -255,17 +280,20 @@ Future<void> _loadAppointments() async {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.calendar_today,
-                              size: 64,
-                              color: Colors.grey,
+                              size: AdaptiveSize.getIconSize(context, baseSize: 64),
+                              color: Colors.white30,
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16.h),
                             Text(
                               localizations.get('no_appointments'),
-                              style: const TextStyle(fontSize: 18, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 16.sp : 18.sp, 
+                                color: Colors.white70,
+                              ),
                             ),
-                            const SizedBox(height: 24),
+                            SizedBox(height: 24.h),
                             ElevatedButton(
                               onPressed: () {
                                 Navigator.push(
@@ -282,14 +310,28 @@ Future<void> _loadAppointments() async {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF1980E6),
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 16.w, 
+                                  vertical: 12.h,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.w),
+                                ),
+                                elevation: 0,
                               ),
-                              child: Text(localizations.get('schedule_appointment')),
+                              child: Text(
+                                localizations.get('schedule_appointment'),
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             )
                           ],
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(16.w),
                         itemCount: _filteredAppointments.length,
                         itemBuilder: (context, index) {
                           return AppointmentCard(
@@ -297,6 +339,7 @@ Future<void> _loadAppointments() async {
                             onAppointmentUpdated: _loadAppointments,
                             supabaseService: _supabaseService,
                             localizations: localizations,
+                            isSmallScreen: isSmallScreen, // Pasar esta bandera a AppointmentCard
                           );
                         },
                       ),
@@ -306,8 +349,8 @@ Future<void> _loadAppointments() async {
           
           // Botón para agregar citas (abajo a la derecha)
           Positioned(
-            bottom: 16.0,
-            right: 16.0,
+            bottom: 16.h,
+            right: 16.w,
             child: FloatingActionButton(
               onPressed: () {
                 Navigator.push(
@@ -323,20 +366,25 @@ Future<void> _loadAppointments() async {
               },
               backgroundColor: const Color(0xFF1980E6),
               foregroundColor: Colors.white,
-              child: const Icon(Icons.add),
+              child: Icon(
+                Icons.add,
+                size: AdaptiveSize.getIconSize(context, baseSize: 24),
+              ),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.w),
+              ),
             ),
           ),
           
           // Botón asistente (abajo a la izquierda)
-          const Positioned(
-            bottom: 16.0,
-            left: 16.0,
-            child: AnimatedAssistantButton(),
+          Positioned(
+            bottom: 16.h,
+            left: 16.w,
+            child: const AnimatedAssistantButton(),
           ),
         ],
       ),
     );
   }
 }
-              
-           

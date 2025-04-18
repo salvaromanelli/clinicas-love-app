@@ -45,6 +45,8 @@
 	<string>Necesitamos acceso a tu ubicación para mostrarte las clínicas más cercanas.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Esta aplicación no usa el micrófono pero la API de cámara requiere este permiso.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Necesitamos acceso a tu ubicación para mostrarte las clínicas más cercanas a ti.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Esta app necesita acceso a la galería para guardar las simulaciones de tratamientos y seleccionar fotos de perfil.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

@@ -5,6 +5,7 @@ import 'services/supabase.dart';
 import 'models/clinicas.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'i18n/app_localizations.dart';
+import 'utils/adaptive_sizing.dart'; // Añadida importación para dimensiones adaptativas
 
 class ClinicasPage extends StatefulWidget {
   const ClinicasPage({super.key});
@@ -28,10 +29,10 @@ class _ClinicasPageState extends State<ClinicasPage> {
   }
 
   @override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  localizations = AppLocalizations.of(context);
-}
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    localizations = AppLocalizations.of(context);
+  }
 
   Future<void> _loadClinicas() async {
     try {
@@ -131,20 +132,45 @@ void didChangeDependencies() {
         showDialog(
           context: context,
           builder: (BuildContext context) {
+            // Inicializar AdaptiveSize para el diálogo
+            AdaptiveSize.initialize(context);
+            final isSmallScreen = AdaptiveSize.screenWidth < 360;
+            
             return AlertDialog(
-              title: Text(localizations.get('location_services_disabled')),
+              title: Text(
+                localizations.get('location_services_disabled'),
+                style: TextStyle(
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 18 : 20),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               content: Text(
                 localizations.get('location_services_needed'),
+                style: TextStyle(
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                ),
               ),
+              contentPadding: EdgeInsets.all(AdaptiveSize.w(16)),
               actions: <Widget>[
                 TextButton(
-                  child: Text(localizations.get('cancel')),
+                  child: Text(
+                    localizations.get('cancel'),
+                    style: TextStyle(
+                      fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                    ),
+                  ),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
                 ),
                 TextButton(
-                  child: Text(localizations.get('go_to_settings')),
+                  child: Text(
+                    localizations.get('go_to_settings'),
+                    style: TextStyle(
+                      fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   onPressed: () async {
                     Navigator.of(context).pop();
                     await Geolocator.openLocationSettings();
@@ -167,7 +193,10 @@ void didChangeDependencies() {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(localizations.get('location_permission_required')),
+              content: Text(
+                localizations.get('location_permission_required'),
+                style: TextStyle(fontSize: AdaptiveSize.sp(14)),
+              ),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -182,20 +211,45 @@ void didChangeDependencies() {
         showDialog(
           context: context,
           builder: (BuildContext context) {
+            // Inicializar AdaptiveSize para el diálogo
+            AdaptiveSize.initialize(context);
+            final isSmallScreen = AdaptiveSize.screenWidth < 360;
+            
             return AlertDialog(
-              title: Text(localizations.get('location_services_disabled')),
+              title: Text(
+                localizations.get('location_services_disabled'),
+                style: TextStyle(
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 18 : 20),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               content: Text(
                 localizations.get('location_services_needed'),
+                style: TextStyle(
+                  fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                ),
               ),
+              contentPadding: EdgeInsets.all(AdaptiveSize.w(16)),
               actions: <Widget>[
                 TextButton(
-                  child: Text(localizations.get('cancel')),
+                  child: Text(
+                    localizations.get('cancel'),
+                    style: TextStyle(
+                      fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                    ),
+                  ),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
                 ),
                 TextButton(
-                  child: Text(localizations.get('go_to_settings')),
+                  child: Text(
+                    localizations.get('go_to_settings'),
+                    style: TextStyle(
+                      fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   onPressed: () async {
                     Navigator.of(context).pop();
                     await Geolocator.openLocationSettings();
@@ -214,181 +268,328 @@ void didChangeDependencies() {
 
   @override
   Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize para dimensiones responsivas
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     return Scaffold(
-            appBar: AppBar(
-              title: Text(localizations.get('our_clinics')),
-              backgroundColor: const Color(0xFF1980E6),
-              foregroundColor: Colors.white,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _loadClinicas,
-                  tooltip: localizations.get('refresh'),
-                ),
-              ],
-            ),
-      body:_isLoading
+      appBar: AppBar(
+        title: Text(
+          localizations.get('our_clinics'),
+          style: TextStyle(
+            fontSize: AdaptiveSize.sp(isSmallScreen ? 18 : 20),
+          ),
+        ),
+        backgroundColor: const Color(0xFF1980E6),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            iconSize: AdaptiveSize.getIconSize(context, baseSize: 24),
+            onPressed: _loadClinicas,
+            tooltip: localizations.get('refresh'),
+          ),
+        ],
+      ),
+      body: _isLoading
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(localizations.get('searching_nearby_clinics')),
+                  SizedBox(
+                    width: AdaptiveSize.w(30), 
+                    height: AdaptiveSize.h(30),
+                    child: CircularProgressIndicator(
+                      strokeWidth: AdaptiveSize.w(2.5),
+                    ),
+                  ),
+                  SizedBox(height: AdaptiveSize.h(16)),
+                  Text(
+                    localizations.get('searching_nearby_clinics'),
+                    style: TextStyle(
+                      fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                    ),
+                  ),
                 ],
               ),
             )
           : _hasError
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _errorMessage,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadClinicas,
-                        child: Text(localizations.get('retry')),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: EdgeInsets.all(AdaptiveSize.w(16)),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _errorMessage,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                          ),
+                        ),
+                        SizedBox(height: AdaptiveSize.h(16)),
+                        ElevatedButton(
+                          onPressed: _loadClinicas,
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AdaptiveSize.w(16), 
+                              vertical: AdaptiveSize.h(8),
+                            ),
+                          ),
+                          child: Text(
+                            localizations.get('retry'),
+                            style: TextStyle(
+                              fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : _clinicas.isEmpty
-                    ? Center(child: Text(localizations.get('no_clinics_found')))
+                    ? Center(
+                        child: Text(
+                          localizations.get('no_clinics_found'),
+                          style: TextStyle(
+                            fontSize: AdaptiveSize.sp(isSmallScreen ? 16 : 18),
+                          ),
+                        ),
+                      )
                     : ListView.builder(
-                      itemCount: _clinicas.length,
-                      itemBuilder: (context, index) {
-                        final clinica = _clinicas[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          elevation: 4,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              clinica.imagen != null
-                                  ? Image.network(
-                                      clinica.imagen!,
-                                      width: double.infinity,
-                                      height: 150,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          Container(
-                                        height: 150,
-                                        color: Colors.grey[300],
-                                        child: const Icon(Icons.image_not_supported, size: 50),
+                        itemCount: _clinicas.length,
+                        itemBuilder: (context, index) {
+                          final clinica = _clinicas[index];
+                          return Card(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: AdaptiveSize.w(16), 
+                              vertical: AdaptiveSize.h(8),
+                            ),
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AdaptiveSize.w(8)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Imagen de la clínica
+                                ClipRRect(
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(AdaptiveSize.w(8)),
+                                    topRight: Radius.circular(AdaptiveSize.w(8)),
+                                  ),
+                                  child: clinica.imagen != null
+                                      ? Image.network(
+                                          clinica.imagen!,
+                                          width: double.infinity,
+                                          height: AdaptiveSize.h(150),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) =>
+                                              Container(
+                                            height: AdaptiveSize.h(150),
+                                            color: Colors.grey[300],
+                                            child: Icon(
+                                              Icons.image_not_supported, 
+                                              size: AdaptiveSize.getIconSize(context, baseSize: 50),
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          height: AdaptiveSize.h(150),
+                                          width: double.infinity,
+                                          color: Colors.grey[300],
+                                          child: Icon(
+                                            Icons.local_hospital, 
+                                            size: AdaptiveSize.getIconSize(context, baseSize: 50),
+                                          ),
+                                        ),
+                                ),
+                                
+                                // Información de la clínica
+                                Padding(
+                                  padding: EdgeInsets.all(AdaptiveSize.w(16)),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        clinica.nombre,
+                                        style: TextStyle(
+                                          fontSize: AdaptiveSize.sp(isSmallScreen ? 16 : 18),
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    )
-                                  : Container(
-                                      height: 150,
-                                      width: double.infinity,
-                                      color: Colors.grey[300],
-                                      child: const Icon(Icons.local_hospital, size: 50),
-                                    ),
-                              Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      clinica.nombre,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.location_on, color: Color(0xFF1980E6), size: 16),
-                                        const SizedBox(width: 4),
-                                        Expanded(child: Text(clinica.direccion)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.phone, color: Color(0xFF1980E6), size: 16),
-                                        const SizedBox(width: 4),
-                                        Text(clinica.telefono),
-                                      ],
-                                    ),
-                                    if (clinica.horario != null) ...[
-                                      const SizedBox(height: 4),
+                                      SizedBox(height: AdaptiveSize.h(8)),
+                                      
+                                      // Dirección
                                       Row(
                                         children: [
-                                          const Icon(Icons.access_time, color: Color(0xFF1980E6), size: 16),
-                                          const SizedBox(width: 4),
-                                          Text(clinica.horario!),
-                                        ],
-                                      ),
-                                    ],
-                                    if (clinica.rating != null) ...[
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${localizations.get('rating')}: ${clinica.rating!.toStringAsFixed(1)}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                          Icon(
+                                            Icons.location_on, 
+                                            color: const Color(0xFF1980E6), 
+                                            size: AdaptiveSize.getIconSize(context, baseSize: 16),
+                                          ),
+                                          SizedBox(width: AdaptiveSize.w(4)),
+                                          Expanded(
+                                            child: Text(
+                                              clinica.direccion,
+                                              style: TextStyle(
+                                                fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ],                  
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      '${localizations.get('distance')}: ${clinica.distancia!.toStringAsFixed(1)} km',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1980E6),
+                                      SizedBox(height: AdaptiveSize.h(4)),
+                                      
+                                      // Teléfono
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.phone, 
+                                            color: const Color(0xFF1980E6), 
+                                            size: AdaptiveSize.getIconSize(context, baseSize: 16),
+                                          ),
+                                          SizedBox(width: AdaptiveSize.w(4)),
+                                          Text(
+                                            clinica.telefono,
+                                            style: TextStyle(
+                                              fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
+                                      
+                                      // Horario (si existe)
+                                      if (clinica.horario != null) ...[
+                                        SizedBox(height: AdaptiveSize.h(4)),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time, 
+                                              color: const Color(0xFF1980E6), 
+                                              size: AdaptiveSize.getIconSize(context, baseSize: 16),
+                                            ),
+                                            SizedBox(width: AdaptiveSize.w(4)),
+                                            Expanded(
+                                              child: Text(
+                                                clinica.horario!,
+                                                style: TextStyle(
+                                                  fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      
+                                      // Rating (si existe)
+                                      if (clinica.rating != null) ...[
+                                        SizedBox(height: AdaptiveSize.h(4)),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.star, 
+                                              color: Colors.amber, 
+                                              size: AdaptiveSize.getIconSize(context, baseSize: 16),
+                                            ),
+                                            SizedBox(width: AdaptiveSize.w(4)),
+                                            Text(
+                                              '${localizations.get('rating')}: ${clinica.rating!.toStringAsFixed(1)}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      
+                                      SizedBox(height: AdaptiveSize.h(8)),
+                                      
+                                      // Distancia
+                                      Text(
+                                        '${localizations.get('distance')}: ${clinica.distancia!.toStringAsFixed(1)} km',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF1980E6),
+                                          fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(right: 16.0, bottom: 16.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      onPressed: () async {
-                                        // Actualizado para usar launchUrl en lugar de launch (deprecado)
-                                        final Uri url = Uri.parse('https://www.google.com/maps/dir/?api=1'
-                                            '&destination=${clinica.latitud},${clinica.longitud}'
-                                            '&travelmode=driving');
-                                        
-                                        try {
-                                          if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                                
+                                // Botón de navegación
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    right: AdaptiveSize.w(16), 
+                                    bottom: AdaptiveSize.h(16)
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final Uri url = Uri.parse('https://www.google.com/maps/dir/?api=1'
+                                              '&destination=${clinica.latitud},${clinica.longitud}'
+                                              '&travelmode=driving');
+                                          
+                                          try {
+                                            if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    localizations.get('could_not_open_map'),
+                                                    style: TextStyle(
+                                                      fontSize: AdaptiveSize.sp(14),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
                                             ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text(localizations.get('could_not_open_map'))),
+                                              SnackBar(
+                                                content: Text(
+                                                  '${localizations.get('error')}: ${e.toString()}',
+                                                  style: TextStyle(
+                                                    fontSize: AdaptiveSize.sp(14),
+                                                  ),
+                                                ),
+                                              ),
                                             );
                                           }
-                                        } catch (e) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('${localizations.get('error')}: ${e.toString()}')),
-                                          );
-                                        }
-                                      },
-                                      icon: const Icon(Icons.directions),
-                                      label: Text(localizations.get('get_directions')),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF1980E6),
-                                        foregroundColor: Colors.white,
+                                        },
+                                        icon: Icon(
+                                          Icons.directions,
+                                          size: AdaptiveSize.getIconSize(context, baseSize: 18),
+                                        ),
+                                        label: Text(
+                                          localizations.get('get_directions'),
+                                          style: TextStyle(
+                                            fontSize: AdaptiveSize.sp(isSmallScreen ? 12 : 14),
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF1980E6),
+                                          foregroundColor: Colors.white,
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: AdaptiveSize.w(12), 
+                                            vertical: AdaptiveSize.h(8),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
     );
   }
 }

@@ -3,18 +3,17 @@ import 'package:intl/intl.dart';
 import 'services/supabase.dart';
 import 'models/clinicas.dart';
 import 'i18n/app_localizations.dart';
+import 'utils/adaptive_sizing.dart'; 
 
 class AppointmentBookingPage extends StatefulWidget {
   final Map<String, dynamic>? initialClinic;
   final Map<String, dynamic>? initialTreatment;
   final Map<String, dynamic>? appointmentToReschedule;
   
-
   final String? preSelectedTreatmentId;
   final String? preSelectedClinicId;
   final DateTime? preSelectedDate;
   final String? prefilledNotes;
-
 
   const AppointmentBookingPage({
     Key? key,
@@ -63,158 +62,171 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   }
 
   @override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  // Inicializar localizations cuando el contexto esté disponible
-  localizations = AppLocalizations.of(context);
-}
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Inicializar localizations cuando el contexto esté disponible
+    localizations = AppLocalizations.of(context);
+  }
 
-// Actualiza el método _loadInitialData() para usar los nuevos parámetros
+  // Set para almacenar categorías expandidas
+  Set<String> _expandedCategories = {};
 
-Future<void> _loadInitialData() async {
-  setState(() {
-    _isLoading = true;
-  });
-  
-  try {
-    // Cargar tratamientos y clínicas desde Supabase
-    final treatments = await _supabaseService.getTreatments();
-    final clinics = await _supabaseService.getClinicas();
+  // Método para cargar datos iniciales
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true;
+    });
     
-    setState(() {
-      _treatments = treatments;
-      _clinics = clinics;
-      
-      // Configurar valores iniciales desde los parámetros existentes
-      if (widget.initialTreatment != null) {
-        _selectedTreatmentId = widget.initialTreatment!['id'];
-      }
-      
-      if (widget.initialClinic != null) {
-        _selectedClinicId = widget.initialClinic!['id'];
-      }
-      
-      // Configurar valores desde los nuevos parámetros del asistente virtual
-      if (widget.preSelectedTreatmentId != null) {
-        _selectedTreatmentId = widget.preSelectedTreatmentId;
-      }
-      
-      if (widget.preSelectedClinicId != null) {
-        _selectedClinicId = widget.preSelectedClinicId;
-      }
-      
-      if (widget.preSelectedDate != null) {
-        _selectedDate = widget.preSelectedDate;
-        _selectedTime = TimeOfDay.fromDateTime(widget.preSelectedDate!);
-      }
-      
-      if (widget.prefilledNotes != null) {
-        _notesController.text = widget.prefilledNotes!;
-      }
-      
-      // Si estamos reprogramando una cita, cargar los datos de esa cita
-      if (widget.appointmentToReschedule != null) {
-        _loadAppointmentToReschedule(widget.appointmentToReschedule!);
-      }
-      
-      _isLoading = false;
-    });
-  } catch (e) {
-    print('Error cargando datos iniciales: $e');
-    setState(() {
-      _isLoading = false;
-    });
-    // Mostrar mensaje de error si el widget sigue montado
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar datos: $e')),
-      );
-    }
-  }
-}
-
-// Método auxiliar para cargar los datos de una cita a reprogramar
-void _loadAppointmentToReschedule(Map<String, dynamic> appointment) {
-  _selectedTreatmentId = appointment['treatment_id'];
-  _selectedClinicId = appointment['clinic_id'];
-  
-  // Si la cita tiene notas, cargarlas
-  if (appointment['notes'] != null && appointment['notes'].toString().isNotEmpty) {
-    _notesController.text = appointment['notes'];
-  }
-  
-  // Opcionalmente, puedes extraer la fecha y hora de la cita original
-  // pero normalmente querrás que el usuario seleccione una nueva fecha
-  // final originalDate = DateTime.parse(appointment['appointment_date']);
-  // _selectedDate = originalDate;
-  // _selectedTime = TimeOfDay.fromDateTime(originalDate);
-}
-
-  Future<void> _bookAppointment() async {
-
-    final localizations = AppLocalizations.of(context);
-
-    if (_formKey.currentState?.validate() != true || 
-        _selectedTreatmentId == null ||
-        _selectedClinicId == null ||
-        _selectedDate == null ||
-        _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(localizations.get('complete_required_fields'))),
-      );
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-    });
-
     try {
-      // Create a combined date time
-      final DateTime appointmentDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-
-      await _supabaseService.bookAppointment(
-        treatmentId: _selectedTreatmentId!,
-        clinicId: _selectedClinicId!,
-        date: appointmentDateTime,
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
-      );
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(localizations.get('appointment_booked_success'))),
-          );
-          Navigator.pop(context, true);
+      // Cargar tratamientos
+      final treatments = await _supabaseService.getTreatments();
+      
+      // Cargar clínicas
+      final clinics = await _supabaseService.getClinicas();
+      
+      // Actualizar estado con datos cargados
+      setState(() {
+        _treatments = treatments;
+        _clinics = clinics;
+        
+        // Configurar selección inicial si se proporcionaron datos
+        if (widget.initialTreatment != null) {
+          _selectedTreatmentId = widget.initialTreatment!['id'];
+        } else if (widget.preSelectedTreatmentId != null) {
+          _selectedTreatmentId = widget.preSelectedTreatmentId;
         }
-      } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al agendar cita: ${e.toString()}')),
-        );
-      }
-    } finally {
+        
+        if (widget.initialClinic != null) {
+          _selectedClinicId = widget.initialClinic!['id'];
+        } else if (widget.preSelectedClinicId != null) {
+          _selectedClinicId = widget.preSelectedClinicId;
+        }
+        
+        // Inicializar fechas preseleccionadas
+        _selectedDate = widget.preSelectedDate;
+        
+        // Si hay una cita para reprogramar, tomar sus datos
+        if (widget.appointmentToReschedule != null) {
+          final appointment = widget.appointmentToReschedule!;
+          
+          // La fecha ya está en formato DateTime en la DB
+          if (appointment['appointment_date'] != null) {
+            final date = DateTime.parse(appointment['appointment_date']);
+            _selectedDate = date;
+            _selectedTime = TimeOfDay(
+              hour: date.hour,
+              minute: date.minute,
+            );
+          }
+          
+          // Tomar las notas de la cita anterior si existen
+          if (appointment['notes'] != null) {
+            _notesController.text = appointment['notes'];
+          }
+        } else if (widget.prefilledNotes != null) {
+          _notesController.text = widget.prefilledNotes!;
+        }
+        
+        // Expandir automáticamente la categoría del tratamiento seleccionado
+        if (_selectedTreatmentId != null) {
+          final selectedTreatment = _treatments.firstWhere(
+            (t) => t['id'] == _selectedTreatmentId,
+            orElse: () => <String, dynamic>{},
+          );
+          
+          if (selectedTreatment.containsKey('category')) {
+            _expandedCategories.add(selectedTreatment['category']);
+          }
+        }
+        
+        // Expandir la primera categoría por defecto si no hay ninguna seleccionada
+        if (_expandedCategories.isEmpty && _treatments.isNotEmpty) {
+          final firstCategory = _treatments.first['category'];
+          if (firstCategory != null) {
+            _expandedCategories.add(firstCategory);
+          }
+        }
+        
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error cargando datos iniciales: $e');
       if (mounted) {
         setState(() {
-          _isSubmitting = false;
+          _isLoading = false;
         });
+        
+        // Mostrar mensaje de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations.get('error_loading_data'),
+              style: TextStyle(fontSize: 14.sp),
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
 
+  // Navegar al siguiente paso
   void _nextStep() {
-    if (_currentStep < 3) {
+    final isLastStep = _currentStep >= 3;
+    
+    if (isLastStep) {
+      // Ya estamos en el último paso
+      return;
+    }
+    
+    // Validar el paso actual antes de continuar
+    bool canContinue = true;
+    
+    switch (_currentStep) {
+      case 0: // Tratamiento
+        canContinue = _selectedTreatmentId != null;
+        if (!canContinue && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations.get('select_treatment_first')),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+        break;
+      case 1: // Clínica
+        canContinue = _selectedClinicId != null;
+        if (!canContinue && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations.get('select_clinic_first')),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+        break;
+      case 2: // Fecha y hora
+        canContinue = _selectedDate != null && _selectedTime != null;
+        if (!canContinue && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations.get('select_date_time_first')),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+        break;
+    }
+    
+    if (canContinue) {
       setState(() {
         _currentStep += 1;
       });
     }
   }
 
+  // Navegar al paso anterior
   void _previousStep() {
     if (_currentStep > 0) {
       setState(() {
@@ -223,260 +235,374 @@ void _loadAppointmentToReschedule(Map<String, dynamic> appointment) {
     }
   }
 
-
-Set<String> _expandedCategories = {};
-
-Widget _buildTreatmentSelector() {
-  // Obtener categorías únicas y ordenarlas
-  final List<String> categories = _treatments
-      .map<String>((t) => t['category'] as String)
-      .toSet()
-      .toList();
-  
-  // Orden específico de categorías
-  final preferredOrder = [
-    'Medicina Estética Facial',
-    'Cirugía Estética Facial',
-    'Cirugía Corporal'
-  ];
-  
-  // Ordenar categorías según el orden preferido
-  categories.sort((a, b) {
-    final indexA = preferredOrder.indexOf(a);
-    final indexB = preferredOrder.indexOf(b);
-    if (indexA >= 0 && indexB >= 0) {
-      return indexA.compareTo(indexB);
-    }
-    if (indexA >= 0) return -1;
-    if (indexB >= 0) return 1;
-    return a.compareTo(b);
-  });
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        localizations.get('select_treatment'),
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
+  // Método para reservar la cita
+  Future<void> _bookAppointment() async {
+    // Validar que todos los campos requeridos estén completos
+    if (_selectedTreatmentId == null || 
+        _selectedClinicId == null || 
+        _selectedDate == null || 
+        _selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(localizations.get('complete_all_fields')),
+          backgroundColor: Colors.red.shade700,
         ),
-      ),
-      const SizedBox(height: 16),
+      );
+      return;
+    }
+    
+    setState(() {
+      _isSubmitting = true;
+    });
+    
+    try {
+      // Crear objeto DateTime combinando fecha y hora
+      final appointmentDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
       
-      // Check if treatments are available
-      _treatments.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.medical_services_outlined,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    localizations.get('no_treatments_available'),
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
+      // Preparar los datos para la cita
+      final appointmentData = {
+        'treatment_id': _selectedTreatmentId,
+        'clinic_id': _selectedClinicId,
+        'appointment_date': appointmentDateTime.toIso8601String(),
+        'notes': _notesController.text,
+        'status': 'Pendiente'
+      };
+      
+      // Si es una reprogramación, actualizar la cita existente
+      if (widget.appointmentToReschedule != null) {
+        final appointmentId = widget.appointmentToReschedule!['id'];
+        
+        // Actualizar status de la cita original a 'Reprogramada'
+        await _supabaseService.updateAppointmentStatus(appointmentId, 'Reprogramada');
+        
+        // Crear una nueva cita con los datos actualizados
+        await _supabaseService.createAppointment(appointmentData);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations.get('appointment_rescheduled')),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      } else {
+        // Crear una nueva cita
+        await _supabaseService.createAppointment(appointmentData);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(localizations.get('appointment_created')),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      }
+      
+      // Cerrar la pantalla y volver a la anterior indicando éxito
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      print('Error al crear la cita: $e');
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${localizations.get('booking_error')}: ${e.toString()}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildTreatmentSelector() {
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
+    // Obtener categorías únicas y ordenarlas
+    final List<String> categories = _treatments
+        .map<String>((t) => t['category'] as String)
+        .toSet()
+        .toList();
+    
+    // Orden específico de categorías
+    final preferredOrder = [
+      'Medicina Estética Facial',
+      'Cirugía Estética Facial',
+      'Cirugía Corporal'
+    ];
+    
+    // Ordenar categorías según el orden preferido
+    categories.sort((a, b) {
+      final indexA = preferredOrder.indexOf(a);
+      final indexB = preferredOrder.indexOf(b);
+      if (indexA >= 0 && indexB >= 0) {
+        return indexA.compareTo(indexB);
+      }
+      if (indexA >= 0) return -1;
+      if (indexB >= 0) return 1;
+      return a.compareTo(b);
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          localizations.get('select_treatment'),
+          style: TextStyle(
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(height: 16.h),
+        
+        // Check if treatments are available
+        _treatments.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.medical_services_outlined,
+                      size: AdaptiveSize.getIconSize(context, baseSize: 48),
+                      color: Colors.white70,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadInitialData,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1980E6),
-                      foregroundColor: Colors.white,
+                    SizedBox(height: 16.h),
+                    Text(
+                      localizations.get('no_treatments_available'),
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16.sp,
+                      ),
                     ),
-                    child: Text(localizations.get('retry')),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                final isExpanded = _expandedCategories.contains(category);
-                
-                // Filtrar tratamientos por categoría
-                final categoryTreatments = _treatments
-                    .where((t) => t['category'] == category)
-                    .toList();
-                
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      // Header (always visible)
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            if (isExpanded) {
-                              _expandedCategories.remove(category);
-                            } else {
-                              _expandedCategories.add(category);
-                            }
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(10),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            children: [
-                              Icon(
-                                category.contains('Cirugía') 
-                                    ? Icons.medical_services
-                                    : Icons.face,
-                                color: const Color(0xFF1980E6),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  category,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                isExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: const Color(0xFF1980E6),
-                              ),
-                            ],
-                          ),
+                    SizedBox(height: 16.h),
+                    ElevatedButton(
+                      onPressed: _loadInitialData,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1980E6),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 12.h,
                         ),
                       ),
-                      
-                      // Content (visible only when expanded)
-                      if (isExpanded)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Column(
-                            children: categoryTreatments.map((treatment) {
-                              final isSelected = _selectedTreatmentId == treatment['id'];
-                              
-                              return Card(
-                                elevation: isSelected ? 3 : 1,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(
-                                    color: isSelected ? const Color(0xFF1980E6) : Colors.transparent,
-                                    width: 2,
-                                  ),
+                      child: Text(
+                        localizations.get('retry'),
+                        style: TextStyle(fontSize: 14.sp),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  final isExpanded = _expandedCategories.contains(category);
+                  
+                  // Filtrar tratamientos por categoría
+                  final categoryTreatments = _treatments
+                      .where((t) => t['category'] == category)
+                      .toList();
+                  
+                  return Card(
+                    margin: EdgeInsets.only(bottom: 12.h),
+                    color: const Color(0xFF1C2126),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.w),
+                    ),
+                    child: Column(
+                      children: [
+                        // Header (always visible)
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              if (isExpanded) {
+                                _expandedCategories.remove(category);
+                              } else {
+                                _expandedCategories.add(category);
+                              }
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(10.w),
+                          child: Padding(
+                            padding: EdgeInsets.all(16.w),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  category.contains('Cirugía') 
+                                      ? Icons.medical_services
+                                      : Icons.face,
+                                  color: const Color(0xFF1980E6),
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 24),
                                 ),
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedTreatmentId = treatment['id'];
-                                    });
-                                  },
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 24,
-                                          height: 24,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: const Color(0xFF1980E6),
-                                              width: 2,
-                                            ),
-                                            color: isSelected ? const Color(0xFF1980E6) : Colors.white,
-                                          ),
-                                          child: isSelected
-                                              ? const Icon(
-                                                  Icons.check,
-                                                  size: 16,
-                                                  color: Colors.white,
-                                                )
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                treatment['name'] ?? 'Tratamiento sin nombre',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              if (treatment['description'] != null)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(top: 4),
-                                                  child: Text(
-                                                    treatment['description'],
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.grey,
-                                                    ),
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              if (treatment['price'] != null)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(top: 8),
-                                                  child: Text(
-                                                    '${treatment['price']}€',
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFF1980E6),
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                SizedBox(width: 16.w),
+                                Expanded(
+                                  child: Text(
+                                    category,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isSmallScreen ? 15.sp : 16.sp,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
+                                Icon(
+                                  isExpanded
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  color: const Color(0xFF1980E6),
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                    ],
-                  ),
-                );
-              },
-            ),
-    ],
-  );
-}
+                        
+                        // Content (visible only when expanded)
+                        if (isExpanded)
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.w),
+                            child: Column(
+                              children: categoryTreatments.map((treatment) {
+                                final isSelected = _selectedTreatmentId == treatment['id'];
+                                
+                                return Card(
+                                  elevation: isSelected ? 3 : 1,
+                                  margin: EdgeInsets.only(bottom: 12.h),
+                                  color: const Color(0xFF262A33),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.w),
+                                    side: BorderSide(
+                                      color: isSelected ? const Color(0xFF1980E6) : Colors.transparent,
+                                      width: 2.w,
+                                    ),
+                                  ),
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedTreatmentId = treatment['id'];
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(10.w),
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.w),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 24.w,
+                                            height: 24.h,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: const Color(0xFF1980E6),
+                                                width: 2.w,
+                                              ),
+                                              color: isSelected ? const Color(0xFF1980E6) : Colors.transparent,
+                                            ),
+                                            child: isSelected
+                                                ? Icon(
+                                                    Icons.check,
+                                                    size: AdaptiveSize.getIconSize(context, baseSize: 16),
+                                                    color: Colors.white,
+                                                  )
+                                                : null,
+                                          ),
+                                          SizedBox(width: 16.w),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  treatment['name'] ?? 'Tratamiento sin nombre',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                if (treatment['description'] != null)
+                                                  Padding(
+                                                    padding: EdgeInsets.only(top: 4.h),
+                                                    child: Text(
+                                                      treatment['description'],
+                                                      style: TextStyle(
+                                                        fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                                        color: Colors.white70,
+                                                      ),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                if (treatment['price'] != null)
+                                                  Padding(
+                                                    padding: EdgeInsets.only(top: 8.h),
+                                                    child: Text(
+                                                      '${treatment['price']}€',
+                                                      style: TextStyle(
+                                                        fontSize: isSmallScreen ? 15.sp : 16.sp,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: const Color(0xFF1980E6),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+      ],
+    );
+  }
 
   Widget _buildClinicSelector() {
-    final localizations = AppLocalizations.of(context);
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           localizations.get('select_clinic'),
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -487,12 +613,13 @@ Widget _buildTreatmentSelector() {
             
             return Card(
               elevation: isSelected ? 3 : 1,
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: EdgeInsets.only(bottom: 12.h),
+              color: const Color(0xFF262A33),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.w),
                 side: BorderSide(
                   color: isSelected ? const Color(0xFF1980E6) : Colors.transparent,
-                  width: 2,
+                  width: 2.w,
                 ),
               ),
               child: InkWell(
@@ -501,53 +628,54 @@ Widget _buildTreatmentSelector() {
                     _selectedClinicId = clinic.id;
                   });
                 },
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.w),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(16.w),
                   child: Row(
                     children: [
                       Container(
-                        width: 24,
-                        height: 24,
+                        width: 24.w,
+                        height: 24.h,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: const Color(0xFF1980E6),
-                            width: 2,
+                            width: 2.w,
                           ),
-                          color: isSelected ? const Color(0xFF1980E6) : Colors.white,
+                          color: isSelected ? const Color(0xFF1980E6) : Colors.transparent,
                         ),
                         child: isSelected
-                            ? const Icon(
+                            ? Icon(
                                 Icons.check,
-                                size: 16,
+                                size: AdaptiveSize.getIconSize(context, baseSize: 16),
                                 color: Colors.white,
                               )
                             : null,
                       ),
-                      const SizedBox(width: 16),
+                      SizedBox(width: 16.w),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                          Text(
-                            clinic.nombre ?? 'Clínica sin nombre',  // Change from clinic.name to clinic.nombre
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          if (clinic.direccion != null)  // Change from clinic.address to clinic.direccion
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                clinic.direccion!,  // Change from clinic.address to clinic.direccion
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
+                            Text(
+                              clinic.nombre ?? 'Clínica sin nombre',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallScreen ? 14.sp : 16.sp,
+                                color: Colors.white,
                               ),
                             ),
+                            if (clinic.direccion != null)
+                              Padding(
+                                padding: EdgeInsets.only(top: 4.h),
+                                child: Text(
+                                  clinic.direccion!,
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -563,6 +691,12 @@ Widget _buildTreatmentSelector() {
   }
 
   Widget _buildDateTimeSelector() {
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     final localizations = AppLocalizations.of(context);
     final dateFormatter = DateFormat('dd/MM/yyyy');
     final now = DateTime.now();
@@ -572,12 +706,13 @@ Widget _buildTreatmentSelector() {
       children: [
         Text(
           localizations.get('select_date_time'),
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         // Date picker
         InkWell(
           onTap: () async {
@@ -604,36 +739,40 @@ Widget _buildTreatmentSelector() {
             }
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.w),
+              color: const Color(0xFF262A33),
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, color: Color(0xFF1980E6)),
-                const SizedBox(width: 12),
+                Icon(
+                  Icons.calendar_today,
+                  color: const Color(0xFF1980E6),
+                  size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                ),
+                SizedBox(width: 12.w),
                 Text(
                   _selectedDate != null
                       ? dateFormatter.format(_selectedDate!)
                       : localizations.get('select_date'),
                   style: TextStyle(
-                    fontSize: 16,
-                    color:
-                        _selectedDate != null ? Colors.black : Colors.grey,
+                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                    color: _selectedDate != null ? Colors.white : Colors.white70,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         // Time picker
         InkWell(
           onTap: () async {
             final TimeOfDay? pickedTime = await showTimePicker(
               context: context,
-              initialTime: _selectedTime ?? TimeOfDay(hour: 9, minute: 0),
+              initialTime: _selectedTime ?? const TimeOfDay(hour: 9, minute: 0),
               builder: (context, child) {
                 return Theme(
                   data: Theme.of(context).copyWith(
@@ -652,44 +791,49 @@ Widget _buildTreatmentSelector() {
             }
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.w),
+              color: const Color(0xFF262A33),
             ),
             child: Row(
               children: [
-                const Icon(Icons.access_time, color: Color(0xFF1980E6)),
-                const SizedBox(width: 12),
+                Icon(
+                  Icons.access_time,
+                  color: const Color(0xFF1980E6),
+                  size: AdaptiveSize.getIconSize(context, baseSize: 24),
+                ),
+                SizedBox(width: 12.w),
                 Text(
                   _selectedTime != null
                       ? _selectedTime!.format(context)
                       : localizations.get('select_time'),
                   style: TextStyle(
-                    fontSize: 16,
-                    color: _selectedTime != null ? Colors.black : Colors.grey,
+                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                    color: _selectedTime != null ? Colors.white : Colors.white70,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Text(
           localizations.get('office_hours'),
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: isSmallScreen ? 12.sp : 14.sp,
           ),
         ),
         if (_selectedDate != null && _selectedDate!.weekday > 5)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: EdgeInsets.only(top: 8.h),
             child: Text(
               localizations.get('weekend_note'),
-              style: const TextStyle(
-                color: Colors.deepOrange,
-                fontSize: 14,
+              style: TextStyle(
+                color: Colors.deepOrange.shade300,
+                fontSize: isSmallScreen ? 12.sp : 14.sp,
               ),
             ),
           ),
@@ -698,6 +842,12 @@ Widget _buildTreatmentSelector() {
   }
 
   Widget _buildNotesAndConfirmation() {
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     final localizations = AppLocalizations.of(context);
     
     return Column(
@@ -705,36 +855,50 @@ Widget _buildTreatmentSelector() {
       children: [
         Text(
           localizations.get('additional_notes'),
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         TextFormField(
           controller: _notesController,
           decoration: InputDecoration(
             hintText: localizations.get('add_appointment_info'),
+            hintStyle: TextStyle(color: Colors.white70),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.w),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.w),
+              borderSide: BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.w),
+              borderSide: BorderSide(color: const Color(0xFF1980E6)),
+            ),
+            filled: true,
+            fillColor: const Color(0xFF262A33),
           ),
+          style: TextStyle(color: Colors.white),
           maxLines: 3,
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24.h),
         Text(
           localizations.get('appointment_summary'),
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
+            color: const Color(0xFF262A33),
+            borderRadius: BorderRadius.circular(8.w),
           ),
           child: Column(
             children: [
@@ -744,8 +908,9 @@ Widget _buildTreatmentSelector() {
                     .firstWhere(
                         (t) => t['id'] == _selectedTreatmentId,
                         orElse: () => {'name': 'No seleccionado'})['name'],
+                isSmallScreen,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8.h),
               _buildSummaryRow(
                 'Clínica:',
                 _clinics
@@ -753,32 +918,35 @@ Widget _buildTreatmentSelector() {
                         (c) => c.id == _selectedClinicId,
                         orElse: () => Clinica(
                           id: '',
-                          nombre: 'No seleccionada', // Changed from 'name' to 'nombre'
-                          direccion: '', // Required parameter
-                          telefono: '', // Required parameter
-                          latitud: 0.0, // Required parameter
-                          longitud: 0.0, // Required parameter
+                          nombre: 'No seleccionada',
+                          direccion: '',
+                          telefono: '',
+                          latitud: 0.0,
+                          longitud: 0.0,
                         ))
-                    .nombre, // Note: You may need to change this to .nombre if that's the property name
+                    .nombre,
+                isSmallScreen,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8.h),
               _buildSummaryRow(
                 'Fecha:',
                 _selectedDate != null
                     ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
                     : 'No seleccionada',
+                isSmallScreen,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8.h),
               _buildSummaryRow(
                 'Hora:',
                 _selectedTime != null
                     ? _selectedTime!.format(context)
                     : 'No seleccionada',
+                isSmallScreen,
               ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24.h),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -786,142 +954,214 @@ Widget _buildTreatmentSelector() {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1980E6),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: 16.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.w),
               ),
             ),
             child: _isSubmitting
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
+                ? SizedBox(
+                    height: 20.h,
+                    width: 20.w,
+                    child: const CircularProgressIndicator(
                       color: Colors.white,
                       strokeWidth: 2,
                     ),
                   )
                 : Text(
-                  localizations.get('confirm_appointment'),
-                  style: const TextStyle(fontSize: 16),
-                ),
+                    localizations.get('confirm_appointment'),
+                    style: TextStyle(fontSize: isSmallScreen ? 14.sp : 16.sp),
+                  ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSummaryRow(String label, String? value) {
+  Widget _buildSummaryRow(String label, String? value, bool isSmallScreen) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 100,
+          width: 100.w,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
+              fontSize: isSmallScreen ? 13.sp : 14.sp,
+              color: Colors.white,
             ),
           ),
         ),
         Expanded(
-          child: Text(value ?? localizations.get('not_selected')),
+          child: Text(
+            value ?? localizations.get('not_selected'),
+            style: TextStyle(
+              fontSize: isSmallScreen ? 13.sp : 14.sp,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
         ),
       ],
     );
   }
 
-@override
-Widget build(BuildContext context) {
-  final localizations = AppLocalizations.of(context); // Añadir esta línea
-  
-  return Scaffold(
-    appBar: AppBar(
-      title: Text(
-        localizations.get('schedule_appointment'),
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+  @override
+  Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
+    final localizations = AppLocalizations.of(context);
+    
+    return Scaffold(
+      backgroundColor: const Color(0xFF111418), // Color de fondo oscuro
+      appBar: AppBar(
+        title: Text(
+          localizations.get('schedule_appointment'),
+          style: TextStyle(
+            color: Colors.white, 
+            fontWeight: FontWeight.bold,
+            fontSize: isSmallScreen ? 18.sp : 20.sp,
+          ),
+        ),
+        backgroundColor: const Color(0xFF1C2126),
+        iconTheme: IconThemeData(
+          color: Colors.white,
+          size: AdaptiveSize.getIconSize(context, baseSize: 24),
+        ),
       ),
-      backgroundColor: const Color(0xFF1980E6),
-      iconTheme: const IconThemeData(color: Colors.white),
-    ),
-    body: _isLoading
-        ? const Center(
-            child: CircularProgressIndicator(color: Color(0xFF1980E6)),
-          )
-        : Form(
-            key: _formKey,
-            child: Stepper(
-                currentStep: _currentStep,
-                onStepTapped: (step) {
-                  setState(() {
-                    _currentStep = step;
-                  });
-                },
-                onStepContinue: _nextStep,
-                onStepCancel: _previousStep,
-                controlsBuilder: (context, details) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Row(
-                    children: [
-                      if (details.currentStep < 3)
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: details.onStepContinue,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1980E6),
-                              foregroundColor: Colors.white,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1980E6)),
+            )
+          : Form(
+              key: _formKey,
+              child: Theme(
+                data: ThemeData(
+                  colorScheme: const ColorScheme.dark(
+                    primary: Color(0xFF1980E6),
+                    onPrimary: Colors.white,
+                    surface: Color(0xFF1C2126),
+                    onSurface: Colors.white,
+                  ),
+                  canvasColor: const Color(0xFF111418),
+                ),
+                child: Stepper(
+                  currentStep: _currentStep,
+                  onStepTapped: (step) {
+                    setState(() {
+                      _currentStep = step;
+                    });
+                  },
+                  onStepContinue: _nextStep,
+                  onStepCancel: _previousStep,
+                  controlsBuilder: (context, details) {
+                    return Padding(
+                      padding: EdgeInsets.only(top: 20.h),
+                      child: Row(
+                        children: [
+                          if (details.currentStep < 3)
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: details.onStepContinue,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1980E6),
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16.w,
+                                    vertical: 12.h,
+                                  ),
+                                ),
+                                child: Text(
+                                  localizations.get('next'),
+                                  style: TextStyle(fontSize: isSmallScreen ? 14.sp : 16.sp),
+                                ),
+                              ),
                             ),
-                            child: Text(localizations.get('next')),
-                          ),
-                        ),
-                      if (details.currentStep > 0) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: details.onStepCancel,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF1980E6),
+                          if (details.currentStep > 0) ...[
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: details.onStepCancel,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF1980E6),
+                                  side: BorderSide(color: const Color(0xFF1980E6)),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16.w,
+                                    vertical: 12.h,
+                                  ),
+                                ),
+                                child: Text(
+                                  localizations.get('previous'),
+                                  style: TextStyle(fontSize: isSmallScreen ? 14.sp : 16.sp),
+                                ),
+                              ),
                             ),
-                            child: Text(localizations.get('previous')),
-                          ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                  steps: [
+                    Step(
+                      title: Text(
+                        localizations.get('treatment'),
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14.sp : 16.sp,
+                          color: Colors.white,
                         ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-                steps: [
-                  Step(
-                    title: Text(localizations.get('treatment')),
-                    content: _buildTreatmentSelector(),
-                    isActive: _currentStep >= 0,
-                    state: _currentStep > 0
-                        ? StepState.complete
-                        : StepState.indexed,
-                  ),
-                  Step(
-                    title: Text(localizations.get('clinic')),
-                    content: _buildClinicSelector(),
-                    isActive: _currentStep >= 1,
-                    state: _currentStep > 1
-                        ? StepState.complete
-                        : StepState.indexed,
-                  ),
-                  Step(
-                    title: Text(localizations.get('date_time')),
-                    content: _buildDateTimeSelector(),
-                    isActive: _currentStep >= 2,
-                    state: _currentStep > 2
-                        ? StepState.complete
-                        : StepState.indexed,
-                  ),
-                  Step(
-                    title: Text(localizations.get('confirm')),
-                    content: _buildNotesAndConfirmation(),
-                    isActive: _currentStep >= 3,
-                    state: StepState.indexed,
-                  ),
-                ],
+                      ),
+                      content: _buildTreatmentSelector(),
+                      isActive: _currentStep >= 0,
+                      state: _currentStep > 0
+                          ? StepState.complete
+                          : StepState.indexed,
+                    ),
+                    Step(
+                      title: Text(
+                        localizations.get('clinic'),
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14.sp : 16.sp,
+                          color: Colors.white,
+                        ),
+                      ),
+                      content: _buildClinicSelector(),
+                      isActive: _currentStep >= 1,
+                      state: _currentStep > 1
+                          ? StepState.complete
+                          : StepState.indexed,
+                    ),
+                    Step(
+                      title: Text(
+                        localizations.get('date_time'),
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14.sp : 16.sp,
+                          color: Colors.white,
+                        ),
+                      ),
+                      content: _buildDateTimeSelector(),
+                      isActive: _currentStep >= 2,
+                      state: _currentStep > 2
+                          ? StepState.complete
+                          : StepState.indexed,
+                    ),
+                    Step(
+                      title: Text(
+                        localizations.get('confirm'),
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14.sp : 16.sp,
+                          color: Colors.white,
+                        ),
+                      ),
+                      content: _buildNotesAndConfirmation(),
+                      isActive: _currentStep >= 3,
+                      state: StepState.indexed,
+                    ),
+                  ],
+                ),
               ),
             ),
     );

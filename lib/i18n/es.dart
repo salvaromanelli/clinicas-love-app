@@ -335,8 +335,20 @@ const Map<String, String> es = {
   'thanks': 'Gracias',
   'appointment_for': 'Cita para',
 
-    // Mensajes más concisos para reservas
+  // Mensajes más concisos para reservas
   'booking_specific_treatment': '📋 Agendaré tu cita para {treatment}',
   'which_clinic_short': '¿En qué ubicación?',
+  'language_info': "Cambia el idioma de la aplicación. Los cambios se aplicarán inmediatamente.",
+  'aesthetics': 'Estética',
+  'learn_about_aesthetics': 'Aprende sobre estética',
+  'all_about_beauty_treatments': 'Todo sobre los tratamientos de belleza',
+  'discover_beauty_world': 'Descubre el mundo de los tratamientos de belleza y conoce los mejores consejos para cuidar tu piel.',
+  'view_now': 'Ver ahora',
+  'facial_treatments': 'Tratamientos faciales',
+  'facial_treatments_desc': 'Aprende sobre los diferentes tipos de tratamientos faciales y cómo pueden ayudarte a mantener una piel radiante.',
+  'body_care': 'Cuidado corporal',
+  'body_care_desc': 'Consejos y técnicas para mantener tu cuerpo saludable y en perfectas condiciones.',
+  'read_more': 'Leer más',
+  'distance_unavailable': 'Distancia no disponible'
   
 };

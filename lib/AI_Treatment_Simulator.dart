@@ -460,16 +460,15 @@ void _toggleARView() {
         apiKey: replicateApiKey,
         base64Image: base64Image,
         base64Mask: base64Mask,
-
         prompt: _createPromptForTreatment(
           treatmentType: _selectedTreatment,
           intensity: _intensity,
         ),
-        versionId: '8ebda4c70b3ea2a2bf86e44595afb562a2cdf85525c620f1671a78113c9f325b',
+        versionId: '90a4a3604cd637cb9f1a2bdae1cfa9ed869362ca028814cdce310a78e27daade',
         guidance: 7.5,
         numInferenceSteps: 30,
         controlMode: 0,
-        controlType: 'face',
+        controlType: 'scribble',
       );
 
       if (outputUrl != null) {

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'services/supabase.dart';
 import 'i18n/app_localizations.dart';
+import 'utils/adaptive_sizing.dart'; // Importación para dimensiones adaptativas
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -78,7 +79,10 @@ class _RegisterPageState extends State<RegisterPage> {
           // Registro exitoso y sesión creada
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(localizations.get('registration_success')),
+              content: Text(
+                localizations.get('registration_success'),
+                style: TextStyle(fontSize: 14.sp),
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -87,7 +91,10 @@ class _RegisterPageState extends State<RegisterPage> {
           // Si requiere confirmación de email
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(localizations.get('email_verification_sent')),
+              content: Text(
+                localizations.get('email_verification_sent'),
+                style: TextStyle(fontSize: 14.sp),
+              ),
               backgroundColor: Colors.blue,
             ),
           );
@@ -114,30 +121,37 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     }
   }
-Future<void> _signInWithProvider(OAuthProvider provider) async {
-  setState(() {
-    _isLoading = true;
-    _errorMessage = null;
-  });
 
-  try {
-    await _supabaseService.client.auth.signInWithOAuth(
-      provider,
-      redirectTo: 'io.supabase.flutterquickstart://login-callback/',
-    );
-    // La redirección se maneja automáticamente
-  } catch (e) {
-    if (mounted) {
-      setState(() {
-        _errorMessage = '${localizations.get('social_login_error')}: ${e.toString()}';
-        _isLoading = false;
-      });
+  Future<void> _signInWithProvider(OAuthProvider provider) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await _supabaseService.client.auth.signInWithOAuth(
+        provider,
+        redirectTo: 'io.supabase.flutterquickstart://login-callback/',
+      );
+      // La redirección se maneja automáticamente
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = '${localizations.get('social_login_error')}: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize para dimensiones responsivas
+    AdaptiveSize.initialize(context);
+    
+    // Determinar si es pantalla pequeña
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -153,12 +167,12 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
           child: SafeArea(
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(24.w),
                 child: Column(
                   children: [
                     // Logo y encabezado
                     Padding(
-                      padding: const EdgeInsets.only(top: 20.0, bottom: 30.0),
+                      padding: EdgeInsets.only(top: 20.h, bottom: 30.h),
                       child: ColorFiltered(
                         colorFilter: const ColorFilter.mode(
                           Colors.white,
@@ -166,7 +180,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                         ),
                         child: Image.asset(
                           'assets/images/logo.png',
-                          height: 80.0,
+                          height: isSmallScreen ? 60.h : 80.h,
                         ),
                       ),
                     ),
@@ -174,21 +188,21 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                     // Título
                     Text(
                       localizations.get('create_account'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 24.0,
+                        fontSize: isSmallScreen ? 20.sp : 24.sp,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8.0),
+                    SizedBox(height: 8.h),
                     Text(
                       localizations.get('fill_details'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 16.0,
+                        fontSize: isSmallScreen ? 14.sp : 16.sp,
                       ),
                     ),
-                    const SizedBox(height: 32.0),
+                    SizedBox(height: 32.h),
                     
                     // Formulario de registro
                     Form(
@@ -198,61 +212,95 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                           // Nombre completo
                           TextFormField(
                             controller: _nameController,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 14.sp : 16.sp,
+                            ),
                             decoration: InputDecoration(
                               labelText: localizations.get('full_name'),
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              prefixIcon: const Icon(Icons.person, color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.person, 
+                                color: Colors.white70,
+                                size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                              ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.white70),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.white70),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
+                                borderRadius: BorderRadius.circular(12.w),
                                 borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, 
+                                vertical: isSmallScreen ? 12.h : 16.h,
+                              ),
+                              errorStyle: TextStyle(
+                                fontSize: isSmallScreen ? 11.sp : 12.sp,
                               ),
                             ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return localizations.get('please_enter_name');
-                                }
-                                return null;
-                              },
-                            ),
-                          const SizedBox(height: 16.0),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return localizations.get('please_enter_name');
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 16.h),
                           
                           // Email
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 14.sp : 16.sp,
+                            ),
                             decoration: InputDecoration(
                               labelText: localizations.get('email'),
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              prefixIcon: const Icon(Icons.email, color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.email, 
+                                color: Colors.white70,
+                                size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                              ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.white70),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.white70),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
+                                borderRadius: BorderRadius.circular(12.w),
                                 borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, 
+                                vertical: isSmallScreen ? 12.h : 16.h,
+                              ),
+                              errorStyle: TextStyle(
+                                fontSize: isSmallScreen ? 11.sp : 12.sp,
                               ),
                             ),
                             validator: (value) {
@@ -265,32 +313,49 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16.0),
+                          SizedBox(height: 16.h),
                           
                           // Teléfono
                           TextFormField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 14.sp : 16.sp,
+                            ),
                             decoration: InputDecoration(
                               labelText: localizations.get('phone'),
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              prefixIcon: const Icon(Icons.phone, color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.phone, 
+                                color: Colors.white70,
+                                size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                              ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.white70),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.white70),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
+                                borderRadius: BorderRadius.circular(12.w),
                                 borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, 
+                                vertical: isSmallScreen ? 12.h : 16.h,
+                              ),
+                              errorStyle: TextStyle(
+                                fontSize: isSmallScreen ? 11.sp : 12.sp,
                               ),
                             ),
                             validator: (value) {
@@ -300,21 +365,32 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16.0),
+                          SizedBox(height: 16.h),
                           
                           // Contraseña
                           TextFormField(
                             controller: _passwordController,
                             obscureText: !_passwordVisible,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 14.sp : 16.sp,
+                            ),
                             decoration: InputDecoration(
                               labelText: localizations.get('password'),
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              prefixIcon: const Icon(Icons.lock, color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.lock, 
+                                color: Colors.white70,
+                                size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _passwordVisible ? Icons.visibility : Icons.visibility_off,
                                   color: Colors.white70,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 22),
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -323,20 +399,27 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                                 },
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.white70),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.white70),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
+                                borderRadius: BorderRadius.circular(12.w),
                                 borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, 
+                                vertical: isSmallScreen ? 12.h : 16.h,
+                              ),
+                              errorStyle: TextStyle(
+                                fontSize: isSmallScreen ? 11.sp : 12.sp,
                               ),
                             ),
                             validator: (value) {
@@ -349,21 +432,32 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16.0),
+                          SizedBox(height: 16.h),
                           
                           // Confirmar contraseña
                           TextFormField(
                             controller: _confirmPasswordController,
                             obscureText: !_confirmPasswordVisible,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 14.sp : 16.sp,
+                            ),
                             decoration: InputDecoration(
                               labelText: localizations.get('confirm_password'),
-                              labelStyle: const TextStyle(color: Colors.white70),
-                              prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
+                              labelStyle: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.lock_outline, 
+                                color: Colors.white70,
+                                size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _confirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
                                   color: Colors.white70,
+                                  size: AdaptiveSize.getIconSize(context, baseSize: 22),
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -372,20 +466,27 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                                 },
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.white70),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.white70),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
+                                borderRadius: BorderRadius.circular(12.w),
                                 borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
                               ),
                               errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: const BorderSide(color: Colors.red),
+                                borderRadius: BorderRadius.circular(12.w),
+                                borderSide: BorderSide(color: Colors.red),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16.w, 
+                                vertical: isSmallScreen ? 12.h : 16.h,
+                              ),
+                              errorStyle: TextStyle(
+                                fontSize: isSmallScreen ? 11.sp : 12.sp,
                               ),
                             ),
                             validator: (value) {
@@ -398,10 +499,11 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16.0),
+                          SizedBox(height: 16.h),
                           
                           // Términos y condiciones
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Theme(
                                 data: ThemeData(
@@ -416,118 +518,146 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                                     ),
                                   ),
                                 ),
-                                child: Checkbox(
-                                  value: _acceptTerms,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _acceptTerms = value ?? false;
-                                    });
-                                  },
+                                child: Transform.scale(
+                                  scale: isSmallScreen ? 0.9 : 1.0,
+                                  child: Checkbox(
+                                    value: _acceptTerms,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _acceptTerms = value ?? false;
+                                      });
+                                    },
+                                  ),
                                 ),
                               ),
                               Expanded(
-                                child: RichText(
-                                        text: TextSpan(
-                                          style: const TextStyle(color: Colors.white70),
-                                          children: [
-                                            TextSpan(
-                                              text: localizations.get('i_accept') + ' ',
-                                            ),
-                                            TextSpan(
-                                              text: localizations.get('terms_and_conditions'),
-                                              style: TextStyle(
-                                                color: Theme.of(context).colorScheme.primary,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              recognizer: TapGestureRecognizer()
-                                                ..onTap = () {
-                                                  _showTermsAndConditions();
-                                                },
-                                            ),
-                                            TextSpan(
-                                              text: ' ' + localizations.get('and_the') + ' ',
-                                            ),
-                                            TextSpan(
-                                              text: localizations.get('privacy_policy'),
-                                              style: TextStyle(
-                                                color: Theme.of(context).colorScheme.primary,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              recognizer: TapGestureRecognizer()
-                                                ..onTap = () {
-                                                  _showPrivacyPolicy();
-                                                },
-                                            ),
-                                          ],
-                                        ),
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 2.h),
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: isSmallScreen ? 12.sp : 14.sp,
                                       ),
+                                      children: [
+                                        TextSpan(
+                                          text: localizations.get('i_accept') + ' ',
+                                        ),
+                                        TextSpan(
+                                          text: localizations.get('terms_and_conditions'),
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          recognizer: TapGestureRecognizer()
+                                            ..onTap = () {
+                                              _showTermsAndConditions();
+                                            },
+                                        ),
+                                        TextSpan(
+                                          text: ' ' + localizations.get('and_the') + ' ',
+                                        ),
+                                        TextSpan(
+                                          text: localizations.get('privacy_policy'),
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          recognizer: TapGestureRecognizer()
+                                            ..onTap = () {
+                                              _showPrivacyPolicy();
+                                            },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16.0),
+                          SizedBox(height: 16.h),
                           
                           // Mensaje de error
                           if (_errorMessage != null)
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(10),
+                              padding: EdgeInsets.all(10.w),
                               decoration: BoxDecoration(
                                 color: Colors.red.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12.w),
                                 border: Border.all(color: Colors.red.shade300),
                               ),
                               child: Text(
                                 _errorMessage!,
-                                style: const TextStyle(color: Colors.white),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                          const SizedBox(height: 24.0),
+                          SizedBox(height: 24.h),
                           
                           // Botón de registro
                           SizedBox(
                             width: double.infinity,
-                            height: 55.0,
+                            height: isSmallScreen ? 48.h : 55.h,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _registerWithEmail,
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 backgroundColor: const Color(0xFF1980E6),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
+                                  borderRadius: BorderRadius.circular(12.w),
                                 ),
                                 disabledBackgroundColor: Colors.grey,
+                                padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 10.h : 12.h),
                               ),
                               child: _isLoading
-                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  ? SizedBox(
+                                      width: 20.w,
+                                      height: 20.h,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.w,
+                                      ),
+                                    )
                                   : Text(
                                       localizations.get('register'),
-                                      style: const TextStyle(
-                                        fontSize: 16.0,
+                                      style: TextStyle(
+                                        fontSize: isSmallScreen ? 14.sp : 16.sp,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                             ),
                           ),
-                          const SizedBox(height: 24.0),
+                          SizedBox(height: 24.h),
                           
                           // Separador
                           Row(
                             children: [
-                              const Expanded(child: Divider(color: Colors.white60)),
+                              Expanded(child: Divider(color: Colors.white60)),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: Text(localizations.get('or_register_with'), style: const TextStyle(color: Colors.white70)),
+                                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                                child: Text(
+                                  localizations.get('or_register_with'), 
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                  ),
+                                ),
                               ),
-                              const Expanded(child: Divider(color: Colors.white60)),
+                              Expanded(child: Divider(color: Colors.white60)),
                             ],
                           ),
 
-                          const SizedBox(height: 24.0),
+                          SizedBox(height: 24.h),
                           
-                          // Botones de redes sociales
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          // Botones de redes sociales (versión adaptativa)
+                          Wrap(
+                            alignment: WrapAlignment.spaceEvenly,
+                            spacing: 8.w,
+                            runSpacing: 12.h,
                             children: [
                               // Google
                               _socialButton(
@@ -536,32 +666,40 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                                 label: 'Google',
                                 backgroundColor: Colors.white,
                                 textColor: Colors.black87,
+                                isSmallScreen: isSmallScreen,
                               ),
 
+                              // Apple
                               _socialButton(
                                 onPressed: () => _signInWithProvider(OAuthProvider.apple),
                                 icon: 'assets/icons/apple.svg',
                                 label: 'Apple',
                                 backgroundColor: Colors.black,
                                 textColor: Colors.white,
+                                isSmallScreen: isSmallScreen,
                               ),
 
+                              // Facebook
                               _socialButton(
                                 onPressed: () => _signInWithProvider(OAuthProvider.facebook),
                                 icon: 'assets/icons/facebook.svg',
                                 label: 'Facebook',
                                 backgroundColor: const Color(0xFF1877F2),
                                 textColor: Colors.white,
+                                isSmallScreen: isSmallScreen,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 32.0),
+                          SizedBox(height: 32.h),
                           
                           // Link para iniciar sesión
                           RichText(
                             text: TextSpan(
                               text: localizations.get('already_have_account') + ' ',
-                              style: const TextStyle(color: Colors.white70),
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: isSmallScreen ? 13.sp : 15.sp,
+                              ),
                               children: [
                                 TextSpan(
                                   text: localizations.get('login'),
@@ -577,7 +715,7 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 24.0),
+                          SizedBox(height: 24.h),
                         ],
                       ),
                     ),
@@ -591,137 +729,267 @@ Future<void> _signInWithProvider(OAuthProvider provider) async {
     );
   }
 
+  // Botón de redes sociales adaptativo
   Widget _socialButton({
     required VoidCallback onPressed,
     required String icon,
     required String label,
     required Color backgroundColor,
     required Color textColor,
+    required bool isSmallScreen,
   }) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         foregroundColor: textColor,
         backgroundColor: backgroundColor,
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 12.w : 16.w, 
+          vertical: isSmallScreen ? 10.h : 12.h,
+        ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(12.w),
+        ),
+        textStyle: TextStyle(
+          fontSize: isSmallScreen ? 12.sp : 14.sp,
         ),
       ),
       icon: SvgPicture.asset(
         icon,
-        height: 20.0,
-        width: 20.0,
+        height: isSmallScreen ? 16.h : 20.h,
+        width: isSmallScreen ? 16.w : 20.w,
       ),
       label: Text(label),
     );
   }
 
+  // Diálogo de términos y condiciones adaptativo
   void _showTermsAndConditions() {
+    // Inicializar AdaptiveSize para el diálogo
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.get('terms_title')),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'TÉRMINOS Y CONDICIONES DE USO',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Al utilizar la aplicación de Clínicas Love, usted acepta estos términos y condiciones en su totalidad. Si no está de acuerdo con estos términos y condiciones o cualquier parte de estos términos y condiciones, no debe utilizar esta aplicación.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '1. PRIVACIDAD DE LOS DATOS',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Nos comprometemos a proteger la privacidad de los usuarios. La información personal recopilada se utilizará únicamente para los fines específicos relacionados con los servicios ofrecidos por Clínicas Love.',
-              ),
-              SizedBox(height: 8),
-              Text(
-                '2. SERVICIOS OFRECIDOS',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Nuestra aplicación ofrece servicios de información, comunicación y coordinación con nuestras clínicas estéticas. No ofrecemos diagnósticos médicos ni recomendaciones de tratamiento a través de la aplicación sin una consulta previa presencial.',
-              ),
-              SizedBox(height: 8),
-              Text(
-                '3. LIMITACIONES DE RESPONSABILIDAD',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Clínicas Love no se hace responsable de cualquier daño que pueda resultar del uso incorrecto de la aplicación o de la interpretación incorrecta de la información proporcionada a través de ella.',
-              ),
-            ],
+      builder: (context) {
+        // Reinicializar AdaptiveSize dentro del builder del diálogo
+        AdaptiveSize.initialize(context);
+        
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C2126),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.w),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(localizations.get('close')),
+          title: Text(
+            localizations.get('terms_title'),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isSmallScreen ? 16.sp : 18.sp,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ],
-      ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TÉRMINOS Y CONDICIONES DE USO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Al utilizar la aplicación de Clínicas Love, usted acepta estos términos y condiciones en su totalidad. Si no está de acuerdo con estos términos y condiciones o cualquier parte de estos términos y condiciones, no debe utilizar esta aplicación.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  '1. PRIVACIDAD DE LOS DATOS',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  'Nos comprometemos a proteger la privacidad de los usuarios. La información personal recopilada se utilizará únicamente para los fines específicos relacionados con los servicios ofrecidos por Clínicas Love.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  '2. SERVICIOS OFRECIDOS',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  'Nuestra aplicación ofrece servicios de información, comunicación y coordinación con nuestras clínicas estéticas. No ofrecemos diagnósticos médicos ni recomendaciones de tratamiento a través de la aplicación sin una consulta previa presencial.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  '3. LIMITACIONES DE RESPONSABILIDAD',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  'Clínicas Love no se hace responsable de cualquier daño que pueda resultar del uso incorrecto de la aplicación o de la interpretación incorrecta de la información proporcionada a través de ella.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          contentPadding: EdgeInsets.all(16.w),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1980E6),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              ),
+              child: Text(
+                localizations.get('close'),
+                style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
+  // Diálogo de política de privacidad adaptativo
   void _showPrivacyPolicy() {
+    // Inicializar AdaptiveSize para el diálogo
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.get('privacy_policy_title')),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'POLÍTICA DE PRIVACIDAD',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'En Clínicas Love, nos comprometemos a proteger y respetar su privacidad. Esta Política de Privacidad describe cómo recopilamos, utilizamos y compartimos su información personal.',
-              ),
-              SizedBox(height: 16),
-              Text(
-                '1. INFORMACIÓN QUE RECOPILAMOS',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Recopilamos información personal como su nombre, dirección de correo electrónico, número de teléfono e historial médico relevante para los servicios que ofrecemos.',
-              ),
-              SizedBox(height: 8),
-              Text(
-                '2. CÓMO UTILIZAMOS SU INFORMACIÓN',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Utilizamos su información para proporcionar los servicios solicitados, comunicarnos con usted sobre citas y tratamientos, y mejorar nuestros servicios.',
-              ),
-              SizedBox(height: 8),
-              Text(
-                '3. COMPARTIR INFORMACIÓN',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'No compartimos su información con terceros excepto con proveedores de servicios que nos ayudan a operar nuestra aplicación y servicios, o según lo requiera la ley.',
-              ),
-            ],
+      builder: (context) {
+        // Reinicializar AdaptiveSize dentro del builder del diálogo
+        AdaptiveSize.initialize(context);
+        
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C2126),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.w),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(localizations.get('close')),
+          title: Text(
+            localizations.get('privacy_policy_title'),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isSmallScreen ? 16.sp : 18.sp,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ],
-      ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'POLÍTICA DE PRIVACIDAD',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'En Clínicas Love, nos comprometemos a proteger y respetar su privacidad. Esta Política de Privacidad describe cómo recopilamos, utilizamos y compartimos su información personal.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  '1. INFORMACIÓN QUE RECOPILAMOS',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  'Recopilamos información personal como su nombre, dirección de correo electrónico, número de teléfono e historial médico relevante para los servicios que ofrecemos.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  '2. CÓMO UTILIZAMOS SU INFORMACIÓN',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  'Utilizamos su información para proporcionar los servicios solicitados, comunicarnos con usted sobre citas y tratamientos, y mejorar nuestros servicios.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  '3. COMPARTIR INFORMACIÓN',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  'No compartimos su información con terceros excepto con proveedores de servicios que nos ayudan a operar nuestra aplicación y servicios, o según lo requiera la ley.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          contentPadding: EdgeInsets.all(16.w),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1980E6),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              ),
+              child: Text(
+                localizations.get('close'),
+                style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

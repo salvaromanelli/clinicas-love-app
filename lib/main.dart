@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/AI_Treatment_Simulator.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:intl/date_symbol_data_local.dart';
-import 'post_tratamiento_page.dart';
 import 'ofertas_promo_page.dart';
 import 'educacion_contenido_page.dart';
 import 'main_navigation.dart';
@@ -26,7 +25,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/user_provider.dart';
 import 'services/auth_service.dart';
 import 'utils/adaptive_sizing.dart';
-
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -71,19 +69,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1980E6)),
         useMaterial3: true,
 
-        // Añadir esta configuración para texto adaptativo:
-        textTheme: ThemeData.light().textTheme.copyWith(
-          displayLarge: TextStyle(fontSize: 22.0),
-          displayMedium: TextStyle(fontSize: 20.0),
-          displaySmall: TextStyle(fontSize: 18.0),
-          headlineMedium: TextStyle(fontSize: 16.0),
-          headlineSmall: TextStyle(fontSize: 14.0),
-          titleLarge: TextStyle(fontSize: 14.0),
-          titleMedium: TextStyle(fontSize: 13.0),
-          titleSmall: TextStyle(fontSize: 12.0),
-          bodyLarge: TextStyle(fontSize: 14.0),
-          bodyMedium: TextStyle(fontSize: 13.0),
-          bodySmall: TextStyle(fontSize: 12.0),
+        // Usar TextTheme con tamaños adaptables
+        textTheme: ThemeData.light().textTheme.apply(
+          fontSizeFactor: 1.0, // Esto se ajustará dinámicamente con MediaQuery
         ),
       ),
       
@@ -107,7 +95,6 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home': (context) => const MainNavigation(),
         '/recomendaciones': (context) => const RecomendacionesPage(),
-        '/post-tratamiento': (context) => const PostTratamientoPage(),
         '/ofertas-promo': (context) => const OfertasPromosPage(),
         '/educacion-contenido': (context) => const EducacionContenidoPage(),
         '/profile': (context) => const profile.ProfilePage(),
@@ -124,6 +111,9 @@ class MyApp extends StatelessWidget {
 
         },
           builder: (context, child) {
+            // Inicializar AdaptiveSize al principio para asegurar que esté disponible
+            AdaptiveSize.initialize(context);
+            
             // Obtener la ruta actual con depuración
             final String? currentRoute = ModalRoute.of(context)?.settings.name;
             print('Ruta actual: $currentRoute');
@@ -137,10 +127,10 @@ class MyApp extends StatelessWidget {
               return Stack(
                 children: [
                   safeChild,
-                  const Positioned(
-                    bottom: 20.0,
-                    left: 20.0,
-                    child: AnimatedAssistantButton(),
+                  Positioned(
+                    bottom: AdaptiveSize.h(20), // Usar .h para adaptativo
+                    left: AdaptiveSize.w(20),   // Usar .w para adaptativo
+                    child: const AnimatedAssistantButton(),
                   ),
                 ],
               );
@@ -149,9 +139,9 @@ class MyApp extends StatelessWidget {
             // Para todas las demás rutas, retornar el child sin botón asistente
             return safeChild;
           },
-    );
-  }
-}
+        );
+      }
+    }
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -213,6 +203,9 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Inicializar AdaptiveSize para esta pantalla
+    AdaptiveSize.initialize(context);
+    
     final localizations = AppLocalizations.of(context);
     return Scaffold(
       body: Stack(
@@ -245,13 +238,13 @@ class HomePage extends StatelessWidget {
           SafeArea(
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                padding: EdgeInsets.symmetric(horizontal: AdaptiveSize.w(20)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Logo sin círculo de fondo
                     Padding(
-                      padding: const EdgeInsets.only(top: 24.0, bottom: 16.0),
+                      padding: EdgeInsets.only(top: AdaptiveSize.h(24), bottom: AdaptiveSize.h(16)),
                       child: Center(
                         child: ColorFiltered(
                           colorFilter: const ColorFilter.mode(
@@ -269,30 +262,30 @@ class HomePage extends StatelessWidget {
                     // Título principal con estilo mejorado
                     Text(
                       localizations.get('how_can_we_help'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 26.0,
+                        fontSize: AdaptiveSize.sp(26),
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
                       ),
                       textAlign: TextAlign.center,
                     ),
                     
-                    const SizedBox(height: 16.0),
+                    SizedBox(height: AdaptiveSize.h(16)),
                     
                     // Tarjeta del asistente virtual destacada
                     _buildAssistantCard(context),
                     
-                    const SizedBox(height: 24.0),
+                    SizedBox(height: AdaptiveSize.h(24)),
                     
                     // Sección de servicios principales
                     Row(
                       children: [
                         Text(
                           localizations.get('our_services'),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 18.0,
+                            fontSize: AdaptiveSize.sp(18),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -305,7 +298,7 @@ class HomePage extends StatelessWidget {
                           child: IconButton(
                             icon: const Icon(Icons.language, color: Colors.white),
                             iconSize: AdaptiveSize.getIconSize(context, baseSize: 20.0),
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(AdaptiveSize.w(8)),
                             constraints: const BoxConstraints(),
                             onPressed: () {
                               Navigator.pushNamed(context, '/language-settings');
@@ -314,15 +307,15 @@ class HomePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16.0),
+                    SizedBox(height: AdaptiveSize.h(16)),
                     
                     // Grid de opciones con diseño mejorado
                     GridView.count(
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
                       crossAxisCount: 2,
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
+                      crossAxisSpacing: AdaptiveSize.w(16),
+                      mainAxisSpacing: AdaptiveSize.h(16),
                       childAspectRatio: 0.85,
                       children: [
                         _buildServiceCard(
@@ -355,7 +348,7 @@ class HomePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24.0),
+                    SizedBox(height: AdaptiveSize.h(24)),
                   ],   
                 ),
               ),
@@ -367,44 +360,38 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildAssistantCard(BuildContext context) {
+    // Asegurar que AdaptiveSize esté inicializado
+    AdaptiveSize.initialize(context);
     final localizations = AppLocalizations.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
     
-    // Ajustar tamaños para pantallas pequeñas
-    final titleSize = AdaptiveSize.getTextSize(context, baseSize: 18.0);
-    final descSize = AdaptiveSize.getTextSize(context, baseSize: 14.0);
-    final iconSize = AdaptiveSize.getIconSize(context, baseSize: 28.0);
-
-
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: EdgeInsets.symmetric(vertical: AdaptiveSize.h(8)),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF1980E6), Color(0xFF0077CC)],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AdaptiveSize.w(16)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF1980E6).withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: AdaptiveSize.w(12),
+            offset: Offset(0, AdaptiveSize.h(4)),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AdaptiveSize.w(16)),
           onTap: () => Navigator.pushNamed(context, '/assistant'),
           child: Padding(
-            // Reducir el padding para pantallas pequeñas
-            padding: EdgeInsets.all(AdaptiveSize.getPaddingSize(context, baseSize: 20.0)),
+            padding: EdgeInsets.all(AdaptiveSize.w(20)),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(AdaptiveSize.w(12)),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     shape: BoxShape.circle,
@@ -412,10 +399,10 @@ class HomePage extends StatelessWidget {
                   child: Icon(
                     Icons.support_agent,
                     color: Colors.white,
-                    size: iconSize, // Tamaño adaptado
+                    size: AdaptiveSize.getIconSize(context, baseSize: 28.0),
                   ),
                 ),
-                const SizedBox(width: 12), // Reducir espacio
+                SizedBox(width: AdaptiveSize.w(12)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,25 +411,25 @@ class HomePage extends StatelessWidget {
                         localizations.get('virtual_assistant'),
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: titleSize, // Tamaño adaptado
+                          fontSize: AdaptiveSize.sp(18),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 2), // Reducir espacio
+                      SizedBox(height: AdaptiveSize.h(2)),
                       Text(
                         localizations.get('virtual_assistant_desc'),
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: descSize, // Tamaño adaptado
+                          fontSize: AdaptiveSize.sp(14),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_ios,
                   color: Colors.white,
-                  size: 16,
+                  size: AdaptiveSize.getIconSize(context, baseSize: 16),
                 ),
               ],
             ),
@@ -453,14 +440,13 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildServiceCard(BuildContext context, String title, String imageUrl, IconData icon, String route) {
-    
-    // Calcular el tamaño de fuente basado en el ancho de pantalla
-    final fontSize = AdaptiveSize.getTextSize(context, baseSize: 14.0);
+    // Asegurarse de que AdaptiveSize esté inicializado
+    AdaptiveSize.initialize(context);
     
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AdaptiveSize.w(16)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -503,37 +489,40 @@ class HomePage extends StatelessWidget {
                   ),
                   // Icono en esquina
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: AdaptiveSize.h(8),
+                    right: AdaptiveSize.w(8),
                     child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1980E6),
+                      padding: EdgeInsets.all(AdaptiveSize.w(6)),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1980E6),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                          icon,
-                          color: Colors.white,
-                          size: AdaptiveSize.getIconSize(context, baseSize: 18.0),
-                        ),
+                        icon,
+                        color: Colors.white,
+                        size: AdaptiveSize.getIconSize(context, baseSize: 18.0),
                       ),
                     ),
-                  ]
-                )
-              ),
+                  ),
+                ]
+              )
+            ),
           
             // Título
             Expanded(
               flex: 1,
               child: Container(
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reducir padding
+                padding: EdgeInsets.symmetric(
+                  horizontal: AdaptiveSize.w(8), 
+                  vertical: AdaptiveSize.h(4)
+                ),
                 child: Center(
                   child: Text(
                     _getTranslatedTitle(context, title),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: fontSize, // Usar tamaño dinámico
+                      fontSize: AdaptiveSize.sp(14),
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -547,6 +536,7 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+}
 
 
     String _getTranslatedTitle(BuildContext context, String englishTitle) {
@@ -564,6 +554,6 @@ class HomePage extends StatelessWidget {
     final key = titleToKey[englishTitle] ?? englishTitle;
     return localizations.get(key);
   }
-}
+
 
 

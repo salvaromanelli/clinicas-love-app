@@ -4,12 +4,14 @@ import 'appointments.dart';
 import 'ofertas_promo_page.dart';
 import 'profile_page.dart' as profile;
 import 'i18n/app_localizations.dart'; 
+import 'utils/adaptive_sizing.dart';
 
+// Añade esta clase que estaba faltando
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
 
   @override
-  State<MainNavigation> createState() => _MainNavigationState();
+  _MainNavigationState createState() => _MainNavigationState();
 }
 
 class _MainNavigationState extends State<MainNavigation> {
@@ -30,6 +32,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    // Asegurar que AdaptiveSize esté inicializado
+    AdaptiveSize.initialize(context);
+    
     // Obtener instancia de traducciones
     final localizations = AppLocalizations.of(context);
     
@@ -38,14 +43,14 @@ class _MainNavigationState extends State<MainNavigation> {
       body: _pages[_selectedIndex],
       bottomNavigationBar: SafeArea(
         child: Container(
-          height: 65,
+          height: 65.h, // Usar .h para altura
           decoration: BoxDecoration(
             color: const Color(0xFF1C2126),
             boxShadow: [
               BoxShadow(
                 color: const Color.fromRGBO(0, 0, 0, 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
+                blurRadius: 10.w, // Usar .w para blur
+                offset: Offset(0, -5.h), // Usar .h para offset vertical
               ),
             ],
           ),
@@ -75,26 +80,26 @@ class _MainNavigationState extends State<MainNavigation> {
       behavior: HitTestBehavior.opaque,
       onTap: () => _onItemTapped(index),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 4.w), // Usar .h y .w
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
               color: isActive ? Colors.white : const Color(0xFF9DABB8),
-              size: 24.0,
+              size: AdaptiveSize.getIconSize(context, baseSize: 24), // Usar getIconSize
             ),
-            const SizedBox(height: 4.0),
+            SizedBox(height: 4.h), // Usar .h
             Text(
               label,
               style: TextStyle(
                 color: isActive ? Colors.white : const Color(0xFF9DABB8),
-                fontSize: 13.0,
+                fontSize: 13.sp, // Usar .sp para texto
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis, // Añadir ellipsis si no cabe
-              maxLines: 1, // Limitar a una línea
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ],
         ),

@@ -79,7 +79,8 @@ void initState() {
   ));
 }
 
-  // Nuevo método para sincronizar el estado de usuario directamente desde Supabase
+
+// Nuevo método para sincronizar el estado de usuario directamente desde Supabase
 Future<void> _syncUserStateFromSupabase() async {
   try {
     final supabase = SupabaseService().client;
@@ -935,8 +936,12 @@ Widget _buildMessage(ChatMessage message) {
           additionalContext: "show_schedule_button",
           userQuery: text
         );
-      });
-      
+          _viewModel.setTyping(false);
+        }).catchError((error) {
+          _viewModel.addBotMessage(localizations.get('error_processing_message'));
+          _viewModel.setTyping(false); // Asegurarse de desactivar el indicador en caso de error
+        });
+          
       return;
     }
     
@@ -958,6 +963,7 @@ Widget _buildMessage(ChatMessage message) {
           additionalContext: "show_schedule_button",
           userQuery: text
         );
+        _viewModel.setTyping(false);
       });
       
       return;
@@ -979,10 +985,14 @@ Widget _buildMessage(ChatMessage message) {
         additionalContext: "show_schedule_button",
         userQuery: text
       );
-    });
-    
-    return;
-  }
+        _viewModel.setTyping(false);
+      }).catchError((error) {
+        _viewModel.addBotMessage(localizations.get('error_processing_message'));
+        _viewModel.setTyping(false); 
+      });
+        
+        return;
+      }
 
     // Verificar si es una pregunta sobre ubicaciones
     final isLocationQuestion = _containsAny(lowerText, [
@@ -997,6 +1007,10 @@ Widget _buildMessage(ChatMessage message) {
       
       _viewModel.processMessage(text, currentLanguage).then((response) {
         _viewModel.addBotMessage(response.text);
+        _viewModel.setTyping(false); 
+      }).catchError((error) {
+        _viewModel.addBotMessage(localizations.get('error_processing_message'));
+        _viewModel.setTyping(false); 
       });
       
       return;
@@ -1022,6 +1036,7 @@ Widget _buildMessage(ChatMessage message) {
             userQuery: text
           );
         }
+        _viewModel.setTyping(false);
       });
 
       return;
@@ -1044,10 +1059,14 @@ Widget _buildMessage(ChatMessage message) {
         additionalContext: "show_schedule_button",
         userQuery: text
       );
-    });
-    
-    return;
-  }
+        _viewModel.setTyping(false); 
+      }).catchError((error) {
+        _viewModel.addBotMessage(localizations.get('error_processing_message'));
+        _viewModel.setTyping(false); 
+      });
+      
+      return;
+    }
 
     // 2. INTERCEPTAR CONSULTAS DE TRATAMIENTOS
     if (_containsAny(lowerText, ['tratamiento', 'ofrecen', 'servicios', 'hacen', 'realizan', 'procedimiento'])) {
@@ -1065,7 +1084,12 @@ Widget _buildMessage(ChatMessage message) {
             additionalContext: "show_schedule_button",
             userQuery: text
           );
-        });
+            _viewModel.setTyping(false); 
+          }).catchError((error) {
+            _viewModel.addBotMessage(localizations.get('error_processing_message'));
+            _viewModel.setTyping(false);  
+          });
+
         
         return;
       } else {
@@ -1087,6 +1111,10 @@ Widget _buildMessage(ChatMessage message) {
               userQuery: text
             );
           }
+          _viewModel.setTyping(false);
+        }).catchError((error) {
+          _viewModel.addBotMessage(localizations.get('error_processing_message'));
+          _viewModel.setTyping(false); // Asegurarse de desactivar el indicador en caso de error
         });
         
         return;
@@ -1105,6 +1133,14 @@ Widget _buildMessage(ChatMessage message) {
         additionalContext: "show_schedule_button" ,
         userQuery: text 
       );
+      _viewModel.setTyping(false); // Añadir esta línea
+    }).catchError((error) {
+      // Manejar errores
+      _viewModel.addBotMessage(
+        localizations.get('error_processing_message'),
+        userQuery: text
+      );
+      _viewModel.setTyping(false); // Añadir también para casos de error
     });
   }
 

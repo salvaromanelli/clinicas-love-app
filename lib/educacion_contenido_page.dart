@@ -1,9 +1,159 @@
 import 'package:flutter/material.dart';
-import 'utils/adaptive_sizing.dart'; // Importar AdaptiveSize
-import 'i18n/app_localizations.dart'; // Para traducciones
+import 'utils/adaptive_sizing.dart';
+import 'i18n/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'services/supabase.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class EducacionContenidoPage extends StatelessWidget {
+// Clase para representar artículos externos
+class Article {
+  final String id;
+  final String title;
+  final String description;
+  final String imageUrl;
+  final String articleUrl;
+  final bool featured;
+  final String? category;
+
+  Article({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.imageUrl,
+    required this.articleUrl,
+    this.featured = false,
+    this.category,
+  });
+
+  factory Article.fromJson(Map<String, dynamic> json) {
+    return Article(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      imageUrl: json['image_url'] ?? '',
+      articleUrl: json['article_url'] ?? '',
+      featured: json['featured'] ?? false,
+      category: json['category'],
+    );
+  }
+}
+
+class EducacionContenidoPage extends StatefulWidget {
   const EducacionContenidoPage({super.key});
+
+  @override
+  State<EducacionContenidoPage> createState() => _EducacionContenidoPageState();
+}
+
+class _EducacionContenidoPageState extends State<EducacionContenidoPage> {
+  List<Article> _articles = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadArticles();
+  }
+  
+  // Método para cargar artículos desde Supabase
+  Future<void> _loadArticles() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      final data = await SupabaseService().client
+          .from('articles')
+          .select()
+          .order('order_index', ascending: true);
+      
+      setState(() {
+        _articles = (data as List).map((item) {
+          // Verificar la URL de la imagen antes de crear el objeto Article
+          final article = Article.fromJson(item);
+          
+          // Si no tenemos una URL válida, veremos el error en la consola
+          if (!_isValidImageUrl(article.imageUrl)) {
+            debugPrint('URL de imagen inválida para artículo "${article.title}": ${article.imageUrl}');
+          }
+          
+          return article;
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error cargando artículos: $e';
+        _isLoading = false;
+      });
+      debugPrint('Error cargando artículos: $e');
+    }
+  }
+  
+  // Método para refrescar artículos
+  Future<void> _refreshArticles() async {
+    await _loadArticles();
+    
+    // Mostrar mensaje de confirmación
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Contenido actualizado'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // Método para abrir URLs externas
+  Future<void> _launchUrl(BuildContext context, String urlString) async {
+    try {
+      final Uri url = Uri.parse(urlString);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo abrir el enlace')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('URL inválida: $e')),
+        );
+      }
+    }
+  }
+
+  // Método para verificar y corregir URLs de imágenes
+bool _isValidImageUrl(String url) {
+  if (url.isEmpty) return false;
+  
+  // Verificar si la URL tiene un formato válido
+  Uri? uri;
+  try {
+    uri = Uri.parse(url);
+  } catch (e) {
+    return false;
+  }
+  
+  // Verificar que sea http o https
+  return uri.scheme == 'http' || uri.scheme == 'https';
+}
+
+// Método para obtener una URL de fallback si la original no es válida
+String _getImageUrl(String originalUrl) {
+  if (_isValidImageUrl(originalUrl)) {
+    return originalUrl;
+  } else {
+    debugPrint('URL de imagen no válida: $originalUrl, usando imagen de respaldo');
+    // Una imagen de respaldo en caso de URLs inválidas
+    return 'https://via.placeholder.com/800x600/242830/FFFFFF?text=Imagen+no+disponible';
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -66,31 +216,38 @@ class EducacionContenidoPage extends StatelessWidget {
               ],
             ),
             
-            // Encabezado de sección
+            // Encabezado de sección con botón de refrescar
             Padding(
               padding: EdgeInsets.symmetric(horizontal: AdaptiveSize.w(isSmallScreen ? 16 : 24)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    localizations.get('aesthetics') ?? 'Estética',
+                    localizations.get('aesthetics'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: AdaptiveSize.sp(isSmallScreen ? 18 : 20),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.settings, 
-                      color: Colors.white,
-                      size: AdaptiveSize.getIconSize(context, baseSize: 22),
-                    ),
-                    constraints: BoxConstraints(
-                      minWidth: AdaptiveSize.w(40),
-                      minHeight: AdaptiveSize.h(40),
-                    ),
-                    onPressed: () {},
+                  Row(
+                    children: [
+                      // Botón de refrescar
+                      IconButton(
+                        icon: Icon(
+                          Icons.refresh,
+                          color: Colors.white,
+                          size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: AdaptiveSize.w(40),
+                          minHeight: AdaptiveSize.h(40),
+                        ),
+                        onPressed: _refreshArticles,
+                        tooltip: 'Actualizar contenido',
+                      ),
+
+                    ],
                   ),
                 ],
               ),
@@ -98,156 +255,75 @@ class EducacionContenidoPage extends StatelessWidget {
             
             // Contenido principal
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(AdaptiveSize.w(isSmallScreen ? 16 : 24)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      localizations.get('learn_about_aesthetics') ?? 'Aprende sobre estética',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: AdaptiveSize.sp(isSmallScreen ? 22 : 24),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: AdaptiveSize.h(isSmallScreen ? 16 : 24)),
-                    
-                    // Tarjeta de contenido
-                    Container(
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C2126),
-                        borderRadius: BorderRadius.circular(AdaptiveSize.w(12)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: AdaptiveSize.w(8),
-                            offset: Offset(0, AdaptiveSize.h(4)),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Imagen de portada
-                          Image.network(
-                            'https://oaidalleapiprodscus.blob.core.windows.net/private/org-JsMmTpMTupl8qQOeSP9nxnyl/user-Z8HSZWg342MFjGWDLCusJSCE/img-tfVujg5dxnzF1uE7ZTmCv0f9.png',
-                            height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return SizedBox(
-                                height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
-                                    strokeWidth: AdaptiveSize.w(2),
-                                  ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
-                                color: Colors.grey[800],
-                                child: Center(
-                                  child: Icon(
-                                    Icons.error_outline,
-                                    size: AdaptiveSize.getIconSize(context, baseSize: 40),
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          
-                          // Contenido de texto
-                          Padding(
-                            padding: EdgeInsets.all(AdaptiveSize.w(isSmallScreen ? 16 : 24)),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  localizations.get('all_about_beauty_treatments') ?? 
-                                      'Todo sobre los tratamientos de belleza',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: AdaptiveSize.sp(isSmallScreen ? 16 : 18),
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.3,
-                                  ),
-                                ),
-                                SizedBox(height: AdaptiveSize.h(isSmallScreen ? 12 : 16)),
-                                Text(
-                                  localizations.get('discover_beauty_world') ?? 
-                                      'Descubre el mundo de los tratamientos de belleza y conoce los mejores consejos para cuidar tu piel.',
-                                  style: TextStyle(
-                                    color: const Color(0xFF9DABB8),
-                                    fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
-                                    height: 1.5,
-                                  ),
-                                ),
-                                SizedBox(height: AdaptiveSize.h(isSmallScreen ? 20 : 24)),
-                                
-                                // Botón de acción
-                                ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF293038),
-                                    padding: EdgeInsets.symmetric(
-                                      vertical: AdaptiveSize.h(isSmallScreen ? 12 : 16),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(AdaptiveSize.w(8)),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      localizations.get('view_now') ?? 'Ver ahora',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Espacio para contenido adicional
-                    SizedBox(height: AdaptiveSize.h(24)),
-                    
-                    // Ejemplo de artículo adicional (puedes agregar más contenido aquí)
-                    _buildArticleCard(
-                      context,
-                      isSmallScreen,
-                      localizations.get('facial_treatments') ?? 'Tratamientos faciales',
-                      localizations.get('facial_treatments_desc') ?? 
-                          'Aprende sobre los diferentes tipos de tratamientos faciales y cómo pueden ayudarte a mantener una piel radiante.',
-                      'https://oaidalleapiprodscus.blob.core.windows.net/private/org-JsMmTpMTupl8qQOeSP9nxnyl/user-Z8HSZWg342MFjGWDLCusJSCE/img-v2UwP5PUFdGSe9P5sZJtc9Xl.png?st=2023-04-18T19%3A03%3A05Z&se=2023-04-18T21%3A03%3A05Z&sp=r&sv=2021-08-06&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2023-04-17T22%3A51%3A32Z&ske=2023-04-18T22%3A51%3A32Z&sks=b&skv=2021-08-06&sig=qyASsX7tCRnmTyXvTYd1E5vf5qqXZ9oPc8AZiJCX6WA%3D',
-                    ),
-                    
-                    SizedBox(height: AdaptiveSize.h(20)),
-                    
-                    _buildArticleCard(
-                      context,
-                      isSmallScreen,
-                      localizations.get('body_care') ?? 'Cuidado corporal',
-                      localizations.get('body_care_desc') ?? 
-                          'Consejos y técnicas para mantener tu cuerpo saludable y en perfectas condiciones.',
-                      'https://oaidalleapiprodscus.blob.core.windows.net/private/org-JsMmTpMTupl8qQOeSP9nxnyl/user-Z8HSZWg342MFjGWDLCusJSCE/img-v2YdJxaS1fQE7gqBt6hv5KOY.png?st=2023-04-18T19%3A03%3A55Z&se=2023-04-18T21%3A03%3A55Z&sp=r&sv=2021-08-06&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2023-04-17T22%3A30%3A13Z&ske=2023-04-18T22%3A30%3A13Z&sks=b&skv=2021-08-06&sig=1G2m88RxORiIzxSVAw5YjqZPrfN7j8pnfGcGqLGWGrU%3D',
-                    ),
-                  ],
+              child: _isLoading 
+                ? _buildLoadingView()
+                : _errorMessage != null 
+                  ? _buildErrorView()
+                  : _articles.isEmpty 
+                    ? _buildEmptyView(localizations)
+                    : _buildContentView(context, isSmallScreen, localizations),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  // Vista de carga
+  Widget _buildLoadingView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            color: Colors.white,
+          ),
+          SizedBox(height: AdaptiveSize.h(16)),
+          Text(
+            'Cargando artículos...',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: AdaptiveSize.sp(16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Vista de error
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(AdaptiveSize.w(24)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red[300],
+              size: AdaptiveSize.getIconSize(context, baseSize: 48),
+            ),
+            SizedBox(height: AdaptiveSize.h(16)),
+            Text(
+              _errorMessage ?? 'Ha ocurrido un error',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: AdaptiveSize.sp(16),
+              ),
+            ),
+            SizedBox(height: AdaptiveSize.h(24)),
+            ElevatedButton.icon(
+              onPressed: _loadArticles,
+              icon: Icon(Icons.refresh),
+              label: Text('Intentar de nuevo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF293038),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AdaptiveSize.w(16),
+                  vertical: AdaptiveSize.h(12),
                 ),
               ),
             ),
@@ -257,8 +333,251 @@ class EducacionContenidoPage extends StatelessWidget {
     );
   }
   
+  // Vista vacía (sin artículos)
+  Widget _buildEmptyView(AppLocalizations localizations) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(AdaptiveSize.w(24)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.article_outlined,
+              color: Colors.grey[400],
+              size: AdaptiveSize.getIconSize(context, baseSize: 48),
+            ),
+            SizedBox(height: AdaptiveSize.h(16)),
+            Text(
+              localizations.get('no_articles') ?? 'No hay artículos disponibles',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: AdaptiveSize.sp(16),
+              ),
+            ),
+            SizedBox(height: AdaptiveSize.h(8)),
+            Text(
+              localizations.get('check_back_later') ?? 'Vuelve a revisar más tarde',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: AdaptiveSize.sp(14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  // Vista principal de contenido
+  Widget _buildContentView(BuildContext context, bool isSmallScreen, AppLocalizations localizations) {
+    // Encontrar el artículo destacado (o usar el primero)
+    final featuredArticle = _articles.firstWhere(
+      (article) => article.featured, 
+      orElse: () => _articles.first
+    );
+    
+    // Resto de artículos
+    final otherArticles = _articles.where((article) => article.id != featuredArticle.id).toList();
+    
+    return RefreshIndicator(
+      onRefresh: _refreshArticles,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.all(AdaptiveSize.w(isSmallScreen ? 16 : 24)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              localizations.get('learn_about_aesthetics') ?? 'Aprende sobre estética',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: AdaptiveSize.sp(isSmallScreen ? 22 : 24),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: AdaptiveSize.h(isSmallScreen ? 16 : 24)),
+            
+            // Artículo destacado
+            _buildFeaturedArticleCard(
+              context, 
+              isSmallScreen, 
+              featuredArticle,
+              localizations
+            ),
+            
+            // Artículos adicionales
+            if (otherArticles.isNotEmpty) SizedBox(height: AdaptiveSize.h(24)),
+            
+            // Mostrar el resto de artículos
+            for (final article in otherArticles)
+              Column(
+                children: [
+                  _buildArticleCard(
+                    context,
+                    isSmallScreen,
+                    article.title,
+                    article.description,
+                    article.imageUrl,
+                    article.articleUrl,
+                    localizations, 
+                  ),
+                  SizedBox(height: AdaptiveSize.h(20)),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  // Tarjeta de artículo destacado
+  Widget _buildFeaturedArticleCard(
+    BuildContext context, 
+    bool isSmallScreen, 
+    Article article,
+    AppLocalizations localizations
+  ) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C2126),
+        borderRadius: BorderRadius.circular(AdaptiveSize.w(12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: AdaptiveSize.w(8),
+            offset: Offset(0, AdaptiveSize.h(4)),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Imagen de portada con shimmer durante la carga
+          Stack(
+            children: [
+              // Shimmer placeholder
+              Container(
+                height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
+                color: const Color(0xFF242830),
+              ),
+              // Imagen real
+              CachedNetworkImage(
+                imageUrl: _getImageUrl(article.imageUrl),
+                height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
+                  color: const Color(0xFF242830),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                      strokeWidth: AdaptiveSize.w(2),
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) {
+                  debugPrint('Error cargando imagen: $url, error: $error');
+                  return Container(
+                    height: AdaptiveSize.h(isSmallScreen ? 160 : 200),
+                    color: Colors.grey[800],
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: AdaptiveSize.getIconSize(context, baseSize: 40),
+                            color: Colors.white70,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Error al cargar imagen',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: AdaptiveSize.sp(12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          
+          // Contenido de texto
+          Padding(
+            padding: EdgeInsets.all(AdaptiveSize.w(isSmallScreen ? 16 : 24)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  article.title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: AdaptiveSize.sp(isSmallScreen ? 16 : 18),
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+                SizedBox(height: AdaptiveSize.h(isSmallScreen ? 12 : 16)),
+                Text(
+                  article.description,
+                  style: TextStyle(
+                    color: const Color(0xFF9DABB8),
+                    fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                    height: 1.5,
+                  ),
+                ),
+                SizedBox(height: AdaptiveSize.h(isSmallScreen ? 20 : 24)),
+                
+                // Botón de acción modificado para abrir URL
+                ElevatedButton(
+                  onPressed: () => _launchUrl(context, article.articleUrl),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF293038),
+                    padding: EdgeInsets.symmetric(
+                      vertical: AdaptiveSize.h(isSmallScreen ? 12 : 16),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AdaptiveSize.w(8)),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Center(
+                    child: Text(
+                      localizations.get('view_now') ?? 'Ver ahora',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: AdaptiveSize.sp(isSmallScreen ? 14 : 16),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   // Widget para construir tarjetas de artículos adicionales
-  Widget _buildArticleCard(BuildContext context, bool isSmallScreen, String title, String description, String imageUrl) {
+  Widget _buildArticleCard(
+    BuildContext context, 
+    bool isSmallScreen, 
+    String title, 
+    String description, 
+    String imageUrl,
+    String articleUrl, 
+    AppLocalizations localizations,
+  ) {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -275,39 +594,46 @@ class EducacionContenidoPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Imagen del artículo
-          Image.network(
-            imageUrl,
-            height: AdaptiveSize.h(isSmallScreen ? 120 : 150),
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return SizedBox(
+          // Imagen del artículo con timestamp para evitar caché
+          Stack(
+            children: [
+              // Shimmer placeholder
+              Container(
                 height: AdaptiveSize.h(isSmallScreen ? 120 : 150),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
-                        : null,
-                    strokeWidth: AdaptiveSize.w(2),
+                color: const Color(0xFF242830),
+              ),
+              // Imagen real
+              CachedNetworkImage(
+                imageUrl: _getImageUrl(imageUrl),
+                height: AdaptiveSize.h(isSmallScreen ? 120 : 150),
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: AdaptiveSize.h(isSmallScreen ? 120 : 150),
+                  color: const Color(0xFF242830),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                      strokeWidth: AdaptiveSize.w(2),
+                    ),
                   ),
                 ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                height: AdaptiveSize.h(isSmallScreen ? 120 : 150),
-                color: Colors.grey[800],
-                child: Center(
-                  child: Icon(
-                    Icons.error_outline,
-                    size: AdaptiveSize.getIconSize(context, baseSize: 30),
-                    color: Colors.white70,
-                  ),
-                ),
-              );
-            },
+                errorWidget: (context, url, error) {
+                  debugPrint('Error cargando imagen: $url, error: $error');
+                  return Container(
+                    height: AdaptiveSize.h(isSmallScreen ? 120 : 150),
+                    color: Colors.grey[800],
+                    child: Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        size: AdaptiveSize.getIconSize(context, baseSize: 30),
+                        color: Colors.white70,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           
           // Contenido de texto
@@ -339,7 +665,7 @@ class EducacionContenidoPage extends StatelessWidget {
                 
                 // Botón de leer más
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => _launchUrl(context, articleUrl),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF1980E6),
                     padding: EdgeInsets.symmetric(
@@ -351,7 +677,7 @@ class EducacionContenidoPage extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Leer más',
+                    localizations.get('read_more') ?? 'Leer más',
                     style: TextStyle(
                       fontSize: AdaptiveSize.sp(isSmallScreen ? 13 : 15),
                       fontWeight: FontWeight.w500,

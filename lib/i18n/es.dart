@@ -349,6 +349,9 @@ const Map<String, String> es = {
   'body_care': 'Cuidado corporal',
   'body_care_desc': 'Consejos y técnicas para mantener tu cuerpo saludable y en perfectas condiciones.',
   'read_more': 'Leer más',
-  'distance_unavailable': 'Distancia no disponible'
+  'distance_unavailable': 'Distancia no disponible',
+  'no_articles': 'No hay artículos disponibles',
+  'check_back_later': 'Vuelve a revisar más tarde',
+
   
 };

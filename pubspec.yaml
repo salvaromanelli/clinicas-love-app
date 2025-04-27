@@ -75,6 +75,8 @@ dependencies:
   asn1lib: ^1.6.2
   basic_utils: ^5.8.2
   http_parser: ^4.1.2
+  device_info_plus: ^11.4.0
+  package_info_plus: ^8.3.0
 
 
 

@@ -4,6 +4,7 @@ import 'i18n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/supabase.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'services/analytics_service.dart';
 
 // Clase para representar artículos externos
 class Article {
@@ -38,6 +39,7 @@ class Article {
   }
 }
 
+
 class EducacionContenidoPage extends StatefulWidget {
   const EducacionContenidoPage({super.key});
 
@@ -49,52 +51,104 @@ class _EducacionContenidoPageState extends State<EducacionContenidoPage> {
   List<Article> _articles = [];
   bool _isLoading = true;
   String? _errorMessage;
+
+  final DateTime _pageEnteredTime = DateTime.now();
   
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logPageView('education_content');
     _loadArticles();
   }
   
   // Método para cargar artículos desde Supabase
-  Future<void> _loadArticles() async {
+Future<void> _loadArticles() async {
+  final startTime = DateTime.now();
+  
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+  
+  try {
+    final data = await SupabaseService().client
+        .from('articles')
+        .select()
+        .order('order_index', ascending: true);
+    
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _articles = (data as List).map((item) {
+        final article = Article.fromJson(item);
+        
+        if (!_isValidImageUrl(article.imageUrl)) {
+          debugPrint('URL de imagen inválida para artículo "${article.title}": ${article.imageUrl}');
+        }
+        
+        return article;
+      }).toList();
+      _isLoading = false;
     });
     
-    try {
-      final data = await SupabaseService().client
-          .from('articles')
-          .select()
-          .order('order_index', ascending: true);
-      
-      setState(() {
-        _articles = (data as List).map((item) {
-          // Verificar la URL de la imagen antes de crear el objeto Article
-          final article = Article.fromJson(item);
-          
-          // Si no tenemos una URL válida, veremos el error en la consola
-          if (!_isValidImageUrl(article.imageUrl)) {
-            debugPrint('URL de imagen inválida para artículo "${article.title}": ${article.imageUrl}');
-          }
-          
-          return article;
-        }).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error cargando artículos: $e';
-        _isLoading = false;
-      });
-      debugPrint('Error cargando artículos: $e');
-    }
+    // Registrar éxito en carga de artículos
+    AnalyticsService().logInteraction('articles_loaded', {
+      'article_count': _articles.length,
+      'featured_count': _articles.where((a) => a.featured).length,
+      'load_time_ms': DateTime.now().difference(startTime).inMilliseconds,
+      'categories': _getCategoriesCounts(),
+    });
+  } catch (e) {
+    setState(() {
+      _errorMessage = 'Error cargando artículos: $e';
+      _isLoading = false;
+    });
+    
+    // Registrar error en carga
+    AnalyticsService().logInteraction('articles_load_error', {
+      'error_message': e.toString(),
+      'load_time_ms': DateTime.now().difference(startTime).inMilliseconds,
+    });
+    
+    debugPrint('Error cargando artículos: $e');
   }
+}
+
+@override
+void dispose() {
+  AnalyticsService().logInteraction('education_content_exited', {
+    'time_spent_seconds': DateTime.now().difference(_pageEnteredTime).inSeconds,
+    'articles_count': _articles.length,
+  });
+  super.dispose();
+}
+
+// Método auxiliar para contar categorías de artículos
+Map<String, int> _getCategoriesCounts() {
+  Map<String, int> counts = {};
+  for (var article in _articles) {
+    final category = article.category ?? 'uncategorized';
+    counts[category] = (counts[category] ?? 0) + 1;
+  }
+  return counts;
+}
   
-  // Método para refrescar artículos
   Future<void> _refreshArticles() async {
+    // Registrar inicio de actualización
+    final startTime = DateTime.now();
+    final previousCount = _articles.length;
+    
+    AnalyticsService().logInteraction('refresh_articles_started', {
+      'previous_article_count': previousCount,
+    });
+    
     await _loadArticles();
+    
+    // Registrar resultado de actualización
+    AnalyticsService().logInteraction('refresh_articles_completed', {
+      'new_article_count': _articles.length,
+      'duration_ms': DateTime.now().difference(startTime).inMilliseconds,
+      'success': _errorMessage == null,
+      'delta_count': _articles.length - previousCount,
+    });
     
     // Mostrar mensaje de confirmación
     if (mounted) {
@@ -109,11 +163,32 @@ class _EducacionContenidoPageState extends State<EducacionContenidoPage> {
   }
 
   // Método para abrir URLs externas
-  Future<void> _launchUrl(BuildContext context, String urlString) async {
+  Future<void> _launchUrl(BuildContext context, String urlString, {
+    String? articleId,
+    String? articleTitle,
+    bool isFeatured = false,
+    String? category
+  }) async {
+    // Registrar evento de apertura de artículo
+    AnalyticsService().logInteraction('article_opened', {
+      'article_id': articleId ?? 'unknown',
+      'article_title': articleTitle ?? 'unknown',
+      'is_featured': isFeatured,
+      'category': category ?? 'unknown',
+      'article_url': urlString,
+    });
+    
     try {
       final Uri url = Uri.parse(urlString);
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
         if (mounted) {
+          // Registrar error al abrir
+          AnalyticsService().logInteraction('article_open_error', {
+            'article_id': articleId ?? 'unknown',
+            'error': 'could_not_launch_url',
+            'url': urlString,
+          });
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No se pudo abrir el enlace')),
           );
@@ -121,6 +196,14 @@ class _EducacionContenidoPageState extends State<EducacionContenidoPage> {
       }
     } catch (e) {
       if (mounted) {
+        // Registrar error de URL inválida
+        AnalyticsService().logInteraction('article_open_error', {
+          'article_id': articleId ?? 'unknown',
+          'error': 'invalid_url',
+          'url': urlString,
+          'error_message': e.toString(),
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('URL inválida: $e')),
         );
@@ -293,6 +376,11 @@ String _getImageUrl(String originalUrl) {
   
   // Vista de error
   Widget _buildErrorView() {
+  
+  AnalyticsService().logInteraction('articles_error_view', {
+    'error_message': _errorMessage,
+  });
+    
     return Center(
       child: Padding(
         padding: EdgeInsets.all(AdaptiveSize.w(24)),
@@ -381,6 +469,13 @@ String _getImageUrl(String originalUrl) {
     // Resto de artículos
     final otherArticles = _articles.where((article) => article.id != featuredArticle.id).toList();
     
+    AnalyticsService().logInteraction('articles_impression', {
+      'total_articles': _articles.length,
+      'featured_article_id': featuredArticle.id,
+      'featured_article_title': featuredArticle.title,
+      'other_articles_count': otherArticles.length,
+    });
+
     return RefreshIndicator(
       onRefresh: _refreshArticles,
       child: SingleChildScrollView(
@@ -421,7 +516,9 @@ String _getImageUrl(String originalUrl) {
                     article.description,
                     article.imageUrl,
                     article.articleUrl,
-                    localizations, 
+                    localizations,
+                    article.id,
+                    article.category, 
                   ),
                   SizedBox(height: AdaptiveSize.h(20)),
                 ],
@@ -538,7 +635,14 @@ String _getImageUrl(String originalUrl) {
                 
                 // Botón de acción modificado para abrir URL
                 ElevatedButton(
-                  onPressed: () => _launchUrl(context, article.articleUrl),
+                  onPressed: () => _launchUrl(
+                    context, 
+                    article.articleUrl,
+                    articleId: article.id,
+                    articleTitle: article.title,
+                    isFeatured: true,
+                    category: article.category
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF293038),
                     padding: EdgeInsets.symmetric(
@@ -577,6 +681,9 @@ String _getImageUrl(String originalUrl) {
     String imageUrl,
     String articleUrl, 
     AppLocalizations localizations,
+    String articleId,
+    String? category 
+
   ) {
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -665,7 +772,14 @@ String _getImageUrl(String originalUrl) {
                 
                 // Botón de leer más
                 TextButton(
-                  onPressed: () => _launchUrl(context, articleUrl),
+                  onPressed: () => _launchUrl(
+                    context, 
+                    articleUrl,
+                    articleId: articleId, 
+                    articleTitle: title,
+                    isFeatured: false,
+                    category: category
+                  ),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF1980E6),
                     padding: EdgeInsets.symmetric(

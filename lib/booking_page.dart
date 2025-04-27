@@ -4,6 +4,7 @@ import 'services/supabase.dart';
 import 'models/clinicas.dart';
 import 'i18n/app_localizations.dart';
 import 'utils/adaptive_sizing.dart'; 
+import 'services/analytics_service.dart';
 
 class AppointmentBookingPage extends StatefulWidget {
   final Map<String, dynamic>? initialClinic;
@@ -52,6 +53,7 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService().logPageView('booking_page');
     _loadInitialData();
   }
 
@@ -171,14 +173,28 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
     }
   }
 
+  String _getStepName(int step) {
+  switch (step) {
+    case 0: return 'treatment_selection';
+    case 1: return 'clinic_selection';
+    case 2: return 'date_time_selection';
+    case 3: return 'confirmation';
+    default: return 'unknown';
+  }
+}
+
+
   // Navegar al siguiente paso
   void _nextStep() {
     final isLastStep = _currentStep >= 3;
     
-    if (isLastStep) {
-      // Ya estamos en el último paso
-      return;
-    }
+  if (!isLastStep) {
+    AnalyticsService().logInteraction('booking_next_step', {
+      'from_step': _currentStep,
+      'to_step': _currentStep + 1,
+      'step_name': _getStepName(_currentStep),
+    });
+  }
     
     // Validar el paso actual antes de continuar
     bool canContinue = true;
@@ -305,6 +321,29 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
           );
         }
       }
+
+       AnalyticsService().logConversion('appointment_booked', {
+      'treatment_id': _selectedTreatmentId,
+      'clinic_id': _selectedClinicId,
+      'date': _selectedDate?.toIso8601String(),
+      'is_rescheduled': widget.appointmentToReschedule != null,
+      // Encontrar el tratamiento para obtener el precio
+      'treatment_price': _treatments
+          .firstWhere((t) => t['id'] == _selectedTreatmentId, orElse: () => {'price': 0})['price'],
+      // Obtener nombre del tratamiento para análisis más fáciles
+      'treatment_name': _treatments
+          .firstWhere((t) => t['id'] == _selectedTreatmentId, orElse: () => {'name': 'unknown'})['name'],
+      'clinic_name': _clinics
+          .firstWhere((c) => c.id == _selectedClinicId, orElse: () => Clinica(
+            id: '',
+            nombre: 'unknown',
+            direccion: '', // Add required direccion parameter
+            telefono: '', // Add required telefono parameter
+            latitud: 0.0, // Add required latitud parameter 
+            longitud: 0.0, // Add required longitud parameter
+          ))
+          .nombre,
+    });
       
       // Cerrar la pantalla y volver a la anterior indicando éxito
       if (mounted) {
@@ -500,6 +539,13 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
                                     onTap: () {
                                       setState(() {
                                         _selectedTreatmentId = treatment['id'];
+                                      });
+                                        // Registrar selección de tratamiento
+                                      AnalyticsService().logInteraction('treatment_selected', {
+                                        'treatment_id': treatment['id'],
+                                        'treatment_name': treatment['name'],
+                                        'treatment_price': treatment['price'],
+                                        'treatment_category': category,
                                       });
                                     },
                                     borderRadius: BorderRadius.circular(10.w),

@@ -25,11 +25,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/user_provider.dart';
 import 'services/auth_service.dart';
 import 'utils/adaptive_sizing.dart';
+import 'services/analytics_service.dart';
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
-    // Carga las variables de entorno antes que nada
+  final startTime = DateTime.now();
+    // Carga las variables de entorno antes de inicializar la app
   await dotenv.load(fileName: ".env");
   
   // Inicializar Flutter
@@ -43,6 +45,14 @@ void main() async {
   // Inicializar otros servicios
   await SupabaseService.initialize();
   await NotificationService().initialize();
+
+  // Registrar tiempo de inicialización
+  final initDuration = DateTime.now().difference(startTime).inMilliseconds;
+  AnalyticsService().logInteraction('app_initialized', {
+    'init_duration_ms': initDuration,
+    'supabase_initialized': true,
+    'notifications_initialized': true,
+  });
    
   runApp(
     MultiProvider(    
@@ -154,6 +164,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Registrar inicio de la aplicación
+    AnalyticsService().logInteraction('app_launched', {
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+
     _checkUserAndNavigate();
   }
 
@@ -161,8 +177,8 @@ class _SplashScreenState extends State<SplashScreen> {
     // Verificar si hay un usuario autenticado
     final isLoggedIn = await SupabaseService().isLoggedIn();
     
-    // AÑADIR ESTAS LÍNEAS: Sincronizar UserProvider independiente de dónde navegue
-    if (mounted && context != null) {
+    // Sincronizar UserProvider independiente de dónde navegue
+    if (mounted) {
       AuthService.syncUserWithProvider(context);
       print('🔄 Sincronizando usuario en SplashScreen');
     }
@@ -171,8 +187,18 @@ class _SplashScreenState extends State<SplashScreen> {
     
     if (mounted) {
       if (isLoggedIn) {
+        // Registrar inicio de sesión automático
+        AnalyticsService().logInteraction('auto_login', {
+          'user_id': SupabaseService().client.auth.currentUser?.id,
+        });
+        
         Navigator.pushReplacementNamed(context, '/home');
       } else {
+        // Registrar redirección a login
+        AnalyticsService().logInteraction('redirect_to_login', {
+          'from': 'splash_screen',
+        });
+        
         Navigator.pushReplacementNamed(context, '/login');
       }
     }
@@ -198,8 +224,29 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final DateTime _pageEnteredTime = DateTime.now();
+  
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService().logPageView('home_page');
+  }
+  
+  @override
+  void dispose() {
+    AnalyticsService().logInteraction('home_page_exited', {
+      'time_spent_seconds': DateTime.now().difference(_pageEnteredTime).inSeconds,
+    });
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +432,15 @@ class HomePage extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(AdaptiveSize.w(16)),
-          onTap: () => Navigator.pushNamed(context, '/assistant'),
+          onTap: () {
+            // Registrar evento de clic en asistente
+            AnalyticsService().logInteraction('assistant_card_clicked', {
+              'source': 'home_page',
+              'position': 'top_card',
+            });
+            
+            Navigator.pushNamed(context, '/assistant');
+          },
           child: Padding(
             padding: EdgeInsets.all(AdaptiveSize.w(20)),
             child: Row(
@@ -450,7 +505,16 @@ class HomePage extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.pushNamed(context, route),
+        onTap: () {
+          // Registrar evento de navegación a servicio
+          AnalyticsService().logInteraction('service_card_clicked', {
+            'service_name': title,
+            'route': route,
+            'source': 'home_page',
+          });
+          
+          Navigator.pushNamed(context, route);
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

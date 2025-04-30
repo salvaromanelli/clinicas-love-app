@@ -17,11 +17,15 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final String? additionalContext; // Para almacenar contexto adicional
+  final String? userQuery;
+  final String? conversationId; 
   
   ChatMessage({
     required this.text,
     required this.isUser,
     this.additionalContext,
+    this.userQuery,
+    this.conversationId,
   });
 }
 
@@ -42,6 +46,7 @@ class _VirtualAssistantChatState extends State<VirtualAssistantChat> with Single
   bool _showSuggestions = true;
   late AppLocalizations localizations;
 
+  String? _currentConversationId;
 
   DateTime _conversationStartTime = DateTime.now();
   
@@ -979,17 +984,34 @@ Widget _buildMessage(ChatMessage message) {
       debugPrint('🧠 INTERCEPTANDO CONSULTA DE TRATAMIENTO ESPECÍFICO CON IA');
       
       // Usar el método de reconocimiento de tratamientos basado en IA
-      _viewModel.recognizeAndRespondToTreatment(text).then((treatmentInfo) {
-        _viewModel.addBotMessage(
-          treatmentInfo,
-          additionalContext: "show_schedule_button",
-          userQuery: text
-        );
-          _viewModel.setTyping(false);
-        }).catchError((error) {
-          _viewModel.addBotMessage(localizations.get('error_processing_message'));
-          _viewModel.setTyping(false); // Asegurarse de desactivar el indicador en caso de error
-        });
+    _viewModel.recognizeAndRespondToTreatment(text).then((treatmentInfo) {
+      // Registrar la conversación con el chatbot
+      AnalyticsService().logChatbotConversation(
+        userMessage: text,
+        botResponse: treatmentInfo,
+        sessionId: _conversationStartTime.toString(),
+        conversationId: _currentConversationId,
+        metadata: {
+          'query_type': 'specific_treatment',
+          'treatment_mentioned': _detectTreatmentMention(text),
+          'language': localizations.locale.languageCode,
+        },
+      ).then((convId) {
+        if (_currentConversationId == null) {
+          _currentConversationId = convId;
+        }
+      });
+      
+      _viewModel.addBotMessage(
+        treatmentInfo,
+        additionalContext: "show_schedule_button",
+        userQuery: text
+      );
+      _viewModel.setTyping(false);
+    }).catchError((error) {
+      _viewModel.addBotMessage(localizations.get('error_processing_message'));
+      _viewModel.setTyping(false);
+    });
           
       return;
     }
@@ -1012,14 +1034,33 @@ Widget _buildMessage(ChatMessage message) {
       debugPrint('📚 INTERCEPTANDO CONSULTA DE CATÁLOGO GENERAL DE TRATAMIENTOS');
       
       // Usar el método para mostrar tratamientos por categoría
-      _viewModel.getAllTreatmentsByCategory().then((treatmentsInfo) {
-        _viewModel.addBotMessage(
-          treatmentsInfo,
-          additionalContext: "show_schedule_button",
-          userQuery: text
-        );
-        _viewModel.setTyping(false);
+    _viewModel.getAllTreatmentsByCategory().then((treatmentsInfo) {
+      // Registrar la conversación con el chatbot
+      AnalyticsService().logChatbotConversation(
+        userMessage: text,
+        botResponse: treatmentsInfo,
+        sessionId: _conversationStartTime.toString(),
+        conversationId: _currentConversationId,
+        metadata: {
+          'query_type': 'catalog_general',
+          'language': localizations.locale.languageCode,
+        },
+      ).then((convId) {
+        if (_currentConversationId == null) {
+          _currentConversationId = convId;
+        }
       });
+      
+      _viewModel.addBotMessage(
+        treatmentsInfo,
+        additionalContext: "show_schedule_button",
+        userQuery: text
+      );
+      _viewModel.setTyping(false);
+    }).catchError((error) {
+      _viewModel.addBotMessage(localizations.get('error_processing_message'));
+      _viewModel.setTyping(false); 
+    });
       
       return;
     }
@@ -1042,16 +1083,33 @@ Widget _buildMessage(ChatMessage message) {
     
     // Usar el método para listar todos los tratamientos del área
     _viewModel.getAllTreatmentsByArea(text).then((treatmentsInfo) {
+      // Registrar la conversación con el chatbot
+      AnalyticsService().logChatbotConversation(
+        userMessage: text,
+        botResponse: treatmentsInfo,
+        sessionId: _conversationStartTime.toString(),
+        conversationId: _currentConversationId,
+        metadata: {
+          'query_type': 'treatments_by_area',
+          'area_mentioned': _detectAreaMention(text),
+          'language': localizations.locale.languageCode,
+        },
+      ).then((convId) {
+        if (_currentConversationId == null) {
+          _currentConversationId = convId;
+        }
+      });
+      
       _viewModel.addBotMessage(
         treatmentsInfo,
         additionalContext: "show_schedule_button",
         userQuery: text
       );
-        _viewModel.setTyping(false);
-      }).catchError((error) {
-        _viewModel.addBotMessage(localizations.get('error_processing_message'));
-        _viewModel.setTyping(false); 
-      });
+      _viewModel.setTyping(false);
+    }).catchError((error) {
+      _viewModel.addBotMessage(localizations.get('error_processing_message'));
+      _viewModel.setTyping(false); 
+    });
         
         return;
       }
@@ -1073,13 +1131,29 @@ Widget _buildMessage(ChatMessage message) {
       });
       _viewModel.setTyping(true);
       
-      _viewModel.processMessage(text, currentLanguage).then((response) {
-        _viewModel.addBotMessage(response.text);
-        _viewModel.setTyping(false); 
-      }).catchError((error) {
-        _viewModel.addBotMessage(localizations.get('error_processing_message'));
-        _viewModel.setTyping(false); 
+    _viewModel.processMessage(text, currentLanguage).then((response) {
+      // Registrar la conversación con el chatbot
+      AnalyticsService().logChatbotConversation(
+        userMessage: text,
+        botResponse: response.text,
+        sessionId: _conversationStartTime.toString(),
+        conversationId: _currentConversationId,
+        metadata: {
+          'query_type': 'location',
+          'language': currentLanguage,
+        },
+      ).then((convId) {
+        if (_currentConversationId == null) {
+          _currentConversationId = convId;
+        }
       });
+      
+      _viewModel.addBotMessage(response.text);
+      _viewModel.setTyping(false); 
+    }).catchError((error) {
+      _viewModel.addBotMessage(localizations.get('error_processing_message'));
+      _viewModel.setTyping(false); 
+    });
       
       return;
     }
@@ -1096,23 +1170,40 @@ Widget _buildMessage(ChatMessage message) {
       });
       _viewModel.setTyping(true);
 
-      _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
-        if (priceInfo.isNotEmpty) {
-          _viewModel.addBotMessage(
-            priceInfo,
-            additionalContext: "show_schedule_button",
-            userQuery: text
-
-          );
-        } else {
-          _viewModel.addBotMessage(
-            localizations.get('no_price_info'),
-            additionalContext: "show_schedule_button",
-            userQuery: text
-          );
+    _viewModel.getSpecificPriceFromKnowledgeBase(text).then((priceInfo) {
+      // Registrar la conversación con el chatbot
+      AnalyticsService().logChatbotConversation(
+        userMessage: text,
+        botResponse: priceInfo.isNotEmpty ? priceInfo : localizations.get('no_price_info'),
+        sessionId: _conversationStartTime.toString(),
+        conversationId: _currentConversationId,
+        metadata: {
+          'query_type': 'price',
+          'treatment_mentioned': _detectTreatmentMention(text),
+          'language': currentLanguage,
+          'found_price': priceInfo.isNotEmpty,
+        },
+      ).then((convId) {
+        if (_currentConversationId == null) {
+          _currentConversationId = convId;
         }
-        _viewModel.setTyping(false);
       });
+      
+      if (priceInfo.isNotEmpty) {
+        _viewModel.addBotMessage(
+          priceInfo,
+          additionalContext: "show_schedule_button",
+          userQuery: text
+        );
+      } else {
+        _viewModel.addBotMessage(
+          localizations.get('no_price_info'),
+          additionalContext: "show_schedule_button",
+          userQuery: text
+        );
+      }
+      _viewModel.setTyping(false);
+    });
 
       return;
     }
@@ -1215,23 +1306,39 @@ Widget _buildMessage(ChatMessage message) {
 
     // Enviar el idioma actual al modelo de IA
     _viewModel.processMessage(text, currentLanguage).then((response) {
+      // Registrar la conversación con el chatbot
+      AnalyticsService().logChatbotConversation(
+        userMessage: text,
+        botResponse: response.text,
+        sessionId: _conversationStartTime.toString(),
+        conversationId: _currentConversationId,
+        metadata: {
+          'query_type': 'general',
+          'response_time_ms': DateTime.now().difference(_queryStartTime).inMilliseconds,
+          'language': currentLanguage,
+        },
+      ).then((convId) {
+        if (_currentConversationId == null) {
+          _currentConversationId = convId;
+        }
+      });
+      
       // Añadir el botón de cita a todas las respuestas
       _viewModel.addBotMessage(
         response.text, 
-        additionalContext: "show_schedule_button" ,
+        additionalContext: "show_schedule_button",
         userQuery: text 
       );
-      _viewModel.setTyping(false); 
+      _viewModel.setTyping(false);
       
-      // Registrar la respuesta del asistente
+      // Mantén tu código existente para registrar la respuesta del asistente
       AnalyticsService().logInteraction('assistant_response', {
-      'query_text': text,
-      'response_length': response.text.length,
-      'response_time_ms': DateTime.now().difference(_queryStartTime).inMilliseconds,
-      'contains_buttons': true,
-    });
+        'query_text': text,
+        'response_length': response.text.length,
+        'response_time_ms': DateTime.now().difference(_queryStartTime).inMilliseconds,
+        'contains_buttons': true,
+      });
     }).catchError((error) {
-      // Manejar errores
       _viewModel.addBotMessage(
         localizations.get('error_processing_message'),
         userQuery: text
@@ -1239,10 +1346,10 @@ Widget _buildMessage(ChatMessage message) {
       _viewModel.setTyping(false); 
       // Registrar el error
       AnalyticsService().logInteraction('assistant_error', {
-      'query_text': text,
-      'error_message': error.toString(),
+        'query_text': text,
+        'error_message': error.toString(),
+      });
     });
-   });
   }
 
   String? _detectAreaMention(String text) {
@@ -1315,22 +1422,24 @@ Widget _buildMessage(ChatMessage message) {
                 localizations.get('restart'),
                 style: TextStyle(fontSize: 16.sp) 
               ),
-            onPressed: () {
-              // Registrar reinicio de conversación
-              AnalyticsService().logInteraction('conversation_reset', {
-                'conversation_length': _viewModel.messages.length,
-                'conversation_duration_seconds': DateTime.now().difference(_conversationStartTime).inSeconds,
-              });
-              
-              _viewModel.resetChat();
-              // Reset the conversation start time
-              _conversationStartTime = DateTime.now();
-              
-              Navigator.of(context).pop();
-              setState(() {
-                _showSuggestions = true;
-              });
-            },
+              onPressed: () {
+                // Registrar reinicio de conversación
+                AnalyticsService().logInteraction('conversation_reset', {
+                  'conversation_length': _viewModel.messages.length,
+                  'conversation_duration_seconds': DateTime.now().difference(_conversationStartTime).inSeconds,
+                  'conversation_id': _currentConversationId, // Añadir ID de conversación
+                });
+                
+                _viewModel.resetChat();
+                // Reset the conversation start time and ID
+                _conversationStartTime = DateTime.now();
+                _currentConversationId = null; // Reiniciar ID de conversación
+                
+                Navigator.of(context).pop();
+                setState(() {
+                  _showSuggestions = true;
+                });
+              },
           ),
         ],
               shape: RoundedRectangleBorder(

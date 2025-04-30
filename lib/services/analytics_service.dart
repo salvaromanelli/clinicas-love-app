@@ -4,6 +4,7 @@ import 'supabase.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../main.dart' show navigatorKey;
+import 'package:uuid/uuid.dart';
 
 class AnalyticsService {
   static final AnalyticsService _instance = AnalyticsService._internal();
@@ -29,6 +30,113 @@ class AnalyticsService {
     }
   }
   
+  // Registrar una interacción con el chatbot
+
+  Future<String?> logChatbotConversation({
+    required String userMessage,
+    required String botResponse,
+    String? sessionId,
+    Map<String, dynamic>? metadata,
+    String? conversationId,
+  }) async {
+    try {
+      final userId = SupabaseService().client.auth.currentUser?.id ?? 'anonymous';
+      final newConversationId = conversationId ?? const Uuid().v4();
+      
+      // Consulta SQL con conversión explícita de tipos
+      final result = await SupabaseService().client.rpc(
+        'insert_chatbot_message',
+        params: {
+          'p_user_id': userId,
+          'p_conversation_id': newConversationId,
+          'p_message_text': userMessage,
+          'p_response_text': botResponse,
+          'p_timestamp': DateTime.now().toIso8601String(),
+          'p_message_metadata': metadata,
+          'p_session_id': sessionId,
+          'p_device_info': await _getDeviceInfo(),
+        }
+      );
+      
+      // También registrar como evento de interacción para mantener consistencia
+      await logInteraction('chatbot_conversation', {
+        'conversation_id': newConversationId,
+        'message_length': userMessage.length,
+        'response_length': botResponse.length,
+      });
+      
+      debugPrint('✅ Analytics: Chatbot conversation logged');
+      return newConversationId; // Devolver ID para continuar la conversación
+    } catch (e) {
+      debugPrint('❌ Error logging chatbot conversation: $e');
+      return null;
+    }
+  }
+
+  // Obtener historial de conversaciones del chatbot para un usuario
+
+  Future<List<Map<String, dynamic>>> getChatbotHistory({
+    int limit = 20,
+    int offset = 0,
+    String? conversationId,
+  }) async {
+    try {
+      final userId = SupabaseService().client.auth.currentUser?.id;
+      if (userId == null) return [];
+      
+      // Usar RPC que maneja la conversión de tipos
+      final data = await SupabaseService().client.rpc(
+        'get_chatbot_history',
+        params: {
+          'p_user_id': userId,
+          'p_conversation_id': conversationId,
+          'p_limit': limit,
+          'p_offset': offset
+        }
+      );
+      
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('❌ Error obteniendo historial de chatbot: $e');
+      return [];
+    }
+  }
+
+  // Obtener todas las conversaciones agrupadas por ID de conversación
+
+  Future<Map<String, List<Map<String, dynamic>>>> getChatbotConversations({
+    int limit = 10,
+  }) async {
+    try {
+      final userId = SupabaseService().client.auth.currentUser?.id;
+      if (userId == null) return {};
+      
+      // Usar RPC para manejar la conversión de tipos
+      final data = await SupabaseService().client.rpc(
+        'get_chatbot_conversations',
+        params: {
+          'p_user_id': userId,
+          'p_limit': limit
+        }
+      );
+      
+      // Convertir la respuesta al formato esperado
+      Map<String, List<Map<String, dynamic>>> conversations = {};
+      for (var entry in data) {
+        String convId = entry['conversation_id'];
+        if (!conversations.containsKey(convId)) {
+          conversations[convId] = [];
+        }
+        conversations[convId]!.add(Map<String, dynamic>.from(entry));
+      }
+      
+      return conversations;
+    } catch (e) {
+      debugPrint('❌ Error obteniendo conversaciones de chatbot: $e');
+      return {};
+    }
+  }
+
   // Registrar evento de conversión
   Future<void> logConversion(String eventName, Map<String, dynamic> properties) async {
     try {

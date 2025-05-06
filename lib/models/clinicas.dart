@@ -25,18 +25,19 @@ class Clinica {
 
   factory Clinica.fromJson(Map<String, dynamic> json) {
     return Clinica(
-      id: json['id'],
-      nombre: json['name'],
-      direccion: json['address'],
-      telefono: json['phone_number'],
+      // Convertir valores explícitamente a String
+      id: json['id'].toString(),
+      nombre: json['name'] ?? '',
+      direccion: json['address'] ?? '',
+      telefono: json['phone_number']?.toString() ?? '',
       horario: json['schedule'],
       imagen: json['image_url'],
       latitud: (json['latitude'] is int) 
           ? (json['latitude'] as int).toDouble() 
-          : json['latitude'] as double,
+          : (json['latitude'] ?? 0).toDouble(),
       longitud: (json['longitude'] is int) 
           ? (json['longitude'] as int).toDouble() 
-          : json['longitude'] as double,
+          : (json['longitude'] ?? 0).toDouble(),
       rating: json['rating']?.toDouble(),
     );
   }

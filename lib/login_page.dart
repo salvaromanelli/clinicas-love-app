@@ -218,7 +218,14 @@ class _LoginPageState extends State<LoginPage> {
     // Determinar si es pantalla pequeña
     final isSmallScreen = AdaptiveSize.screenWidth < 360;
     
-    return Scaffold(
+    return GestureDetector(
+      // Ocultar teclado cuando se toca fuera de un campo de texto
+      onTap: () => FocusScope.of(context).unfocus(),
+      
+      // Ocultar teclado cuando se desliza hacia abajo
+      onVerticalDragDown: (_) => FocusScope.of(context).unfocus(),
+      
+      child: Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
@@ -522,7 +529,9 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
+    )
     );
+    
   }
 
   // Widget de botón de red social adaptativo

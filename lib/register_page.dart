@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'services/supabase.dart';
 import 'i18n/app_localizations.dart';
-import 'utils/adaptive_sizing.dart'; // Importación para dimensiones adaptativas
+import 'utils/adaptive_sizing.dart'; 
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -21,11 +21,13 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _supabaseService = SupabaseService();
+
   
   bool _isLoading = false;
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
   String? _errorMessage;
+  DateTime? _birthDate;
   bool _acceptTerms = false;
   late AppLocalizations localizations;
 
@@ -49,6 +51,21 @@ class _RegisterPageState extends State<RegisterPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+        // Validar que se haya seleccionado fecha de nacimiento
+    if (_birthDate == null) {
+      setState(() {
+        _errorMessage = localizations.get('please_select_birth_date');
+      });
+      return;
+    }
+    
+    if (!_acceptTerms) {
+      setState(() {
+        _errorMessage = localizations.get('terms_required');
+      });
+      return;
+    }
     
     if (!_acceptTerms) {
       setState(() {
@@ -69,6 +86,7 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _passwordController.text,
         fullName: _nameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
+        birthDate: _birthDate,
       );
       
       if (!mounted) return;
@@ -152,10 +170,17 @@ class _RegisterPageState extends State<RegisterPage> {
     // Determinar si es pantalla pequeña
     final isSmallScreen = AdaptiveSize.screenWidth < 360;
     
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
+    return GestureDetector(
+      // Ocultar teclado cuando se toca fuera de un campo de texto
+      onTap: () => FocusScope.of(context).unfocus(),
+      
+      // Ocultar teclado cuando se desliza hacia abajo
+      onVerticalDragDown: (_) => FocusScope.of(context).unfocus(),
+      
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
             image: AssetImage('assets/images/Clinicas_love_fondo.jpg'),
             fit: BoxFit.cover,
           ),
@@ -366,7 +391,85 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           SizedBox(height: 16.h),
-                          
+                                                    
+                          // Selector de fecha de nacimiento
+                          InkWell(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime(2000),
+                                firstDate: DateTime(1920),
+                                lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.dark(
+                                        primary: Color(0xFF1980E6),
+                                        onPrimary: Colors.white,
+                                        surface: Color(0xFF1C2126),
+                                        onSurface: Colors.white,
+                                      ),
+                                      dialogBackgroundColor: const Color(0xFF1C2126),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              
+                              if (picked != null) {
+                                setState(() {
+                                  _birthDate = picked;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(12.w),
+                                border: Border.all(color: Colors.white70),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.cake_outlined,
+                                    color: Colors.white70,
+                                    size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                                  ),
+                                  SizedBox(width: 12.w),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          localizations.get('birth_date'),
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: isSmallScreen ? 13.sp : 15.sp,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4.h),
+                                        Text(
+                                          _birthDate != null 
+                                              ? "${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}"
+                                              : localizations.get('select_date'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: isSmallScreen ? 14.sp : 16.sp,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.calendar_today,
+                                    color: Colors.white70,
+                                    size: AdaptiveSize.getIconSize(context, baseSize: 20),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                           // Contraseña
                           TextFormField(
                             controller: _passwordController,
@@ -726,6 +829,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
+    ),
     );
   }
 

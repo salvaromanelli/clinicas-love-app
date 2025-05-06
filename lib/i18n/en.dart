@@ -313,6 +313,10 @@ const Map<String, String> en = {
 'body_care': 'Body care',
 'body_care_desc': 'Tips and techniques to keep your body healthy and in perfect condition.',
 'read_more': 'Read more',
-'distance_unavailable': 'Distance unavailable'
+'distance_unavailable': 'Distance unavailable',
+'select_clinic_first': 'Please select a clinic first',
+'appointment_created': 'Appointment created',
+'error_loading_data': 'Error loading data',
+'birth_date': 'Birth date',
 
 };

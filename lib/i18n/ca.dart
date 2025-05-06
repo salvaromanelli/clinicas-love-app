@@ -311,6 +311,11 @@ const Map<String, String> ca = {
   'body_care': 'Cura corporal',
   'body_care_desc': 'Consells i tècniques per mantenir el teu cos saludable i en perfectes condicions.',
   'read_more': 'Llegir més',
-  'distance_unavailable': 'Distància no disponible'
+  'distance_unavailable': 'Distància no disponible',
+  'select_clinic_first': 'Selecciona una clínica primer',
+  'appointment_created': 'Cita creada',
+  'error_loading_data': 'Error carregant dades',
+  'birth_date': 'Data de naixement',
+
   
 };

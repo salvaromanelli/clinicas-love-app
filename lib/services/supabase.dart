@@ -121,29 +121,47 @@ static Future<void> initialize() async {
     required String email,
     required String password,
     required String fullName,
-    String? phoneNumber,
+    required String phoneNumber,
+    DateTime? birthDate, // Añadir este parámetro
   }) async {
-    final response = await client.auth.signUp(
-      email: email,
-      password: password,
-      data: {
-        'full_name': fullName,
-        'phone_number': phoneNumber,
-      },
-    );
-    
-    if (response.user != null) {
-      // Crear perfil de usuario en la tabla profiles
-      await client.from('profiles').insert({
-        'id': response.user!.id,
-        'full_name': fullName,
-        'email': email,
-        'phone_number': phoneNumber,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+    try {
+      print("Iniciando registro con email: $email y nombre: $fullName");
+      
+      // Paso 1: Registrar al usuario con Auth
+      final response = await client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': fullName,
+          'phone_number': phoneNumber,
+          'birth_date': birthDate?.toIso8601String(), // Añadir fecha de nacimiento
+        },
+        emailRedirectTo: 'io.supabase.flutterquickstart://login-callback/'
+      );
+      
+      // Si el usuario se creó exitosamente
+      if (response.user != null) {
+        try {
+          final now = DateTime.now().toIso8601String();
+          
+          await client.from('profiles').update({
+            'full_name': fullName,
+            'phone_number': phoneNumber,
+            'birth_date': birthDate?.toIso8601String(), // Añadir fecha de nacimiento
+            'updated_at': now
+          }).eq('id', response.user!.id);
+          
+          print("Perfil actualizado correctamente");
+        } catch (profileError) {
+          print("Error actualizando perfil: $profileError");
+        }
+      }
+      
+      return response;
+    } catch (e) {
+      print("Error detallado en signUp: $e");
+      rethrow;
     }
-    
-    return response;
   }
   
   // Cerrar sesión
@@ -730,36 +748,45 @@ static Future<void> initialize() async {
     }
   }
 
-  Future<String> createAppointment(Map<String, dynamic> appointmentData) async {
-    try {
-      // Establecer el estado como "Confirmada" por defecto
-      appointmentData['status'] = 'Confirmada';
-      
-      final response = await client
-          .from('appointments')
-          .insert(appointmentData)
-          .select()
-          .single();
-      
-      // Obtener detalles para la notificación
-      final appointmentId = response['id'] as String;
-      final treatmentId = response['treatment_id'] as String;
-      final clinicId = response['clinic_id'] as String;
-      final appointmentDate = DateTime.parse(response['appointment_date']);
-      
-      // Obtener nombre del tratamiento
-      final treatmentResponse = await client
-          .from('treatments')
-          .select('name')
-          .eq('id', treatmentId)
-          .single();
-          
-      // Obtener nombre de la clínica
-      final clinicResponse = await client
-          .from('clinics')
-          .select('name')
-          .eq('id', clinicId)
-          .single();
+Future<String> createAppointment(Map<String, dynamic> appointmentData) async {
+  try {
+    // Asegurar que los IDs estén en el formato correcto
+    if (appointmentData['treatment_id'] != null && appointmentData['treatment_id'] is int) {
+      appointmentData['treatment_id'] = appointmentData['treatment_id'].toString();
+    }
+    
+    if (appointmentData['clinic_id'] != null && appointmentData['clinic_id'] is int) {
+      appointmentData['clinic_id'] = appointmentData['clinic_id'].toString();
+    }
+    
+    // Establecer el estado como "Confirmada" por defecto
+    appointmentData['status'] = 'Confirmada';
+    
+    final response = await client
+        .from('appointments')
+        .insert(appointmentData)
+        .select()
+        .single();
+    
+    // Obtener detalles para la notificación
+    final appointmentId = response['id'].toString();
+    final treatmentId = response['treatment_id'].toString();
+    final clinicId = response['clinic_id'].toString();
+    final appointmentDate = DateTime.parse(response['appointment_date']);
+    
+    // Obtener nombre del tratamiento
+    final treatmentResponse = await client
+        .from('treatments')
+        .select('name')
+        .eq('id', treatmentId)
+        .single();
+        
+    // Obtener nombre de la clínica
+    final clinicResponse = await client
+        .from('clinics')
+        .select('name')
+        .eq('id', clinicId)
+        .single();
       
       // Añadir logs para depuración
       print('Programando notificaciones para cita: $appointmentId');
@@ -850,6 +877,32 @@ static Future<void> initialize() async {
       .update({'is_used': true, 'used_at': DateTime.now().toIso8601String()})
       .eq('id', discountId);
   }
+
+  Future<User?> getCurrentUser() async {
+  try {
+    // Obtener la sesión actual
+    final session = client.auth.currentSession;
+    
+    if (session == null) {
+      print('No hay sesión de usuario activa');
+      return null;
+    }
+    
+    // Obtener el usuario actual
+    final user = client.auth.currentUser;
+    
+    if (user == null) {
+      print('No se pudo obtener el usuario a pesar de tener sesión');
+      return null;
+    }
+    
+    print('Usuario obtenido: ${user.id}');
+    return user;
+  } catch (e) {
+    print('Error al obtener usuario actual: $e');
+    return null;
+  }
+}
 }
 
 

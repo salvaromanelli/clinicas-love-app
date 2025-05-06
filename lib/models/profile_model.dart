@@ -8,6 +8,7 @@ class Profile {
   String? avatarUrl;
   String? location;
   final DateTime? createdAt;
+  final DateTime? birthDate; 
   DateTime? updatedAt;
 
   Profile({
@@ -19,6 +20,7 @@ class Profile {
     this.location,
     this.createdAt,
     this.updatedAt,
+    this.birthDate,
   });
 
 factory Profile.fromJson(Map<String, dynamic> json) {
@@ -28,7 +30,8 @@ factory Profile.fromJson(Map<String, dynamic> json) {
     email: json['email'],
     phone: json['phone'] ?? json['phone_number'],
     avatarUrl: json['avatar_url'],
-    location: json['location'], // Añadir esta línea
+    birthDate: json['birth_date'] != null ? DateTime.parse(json['birth_date']) : null,
+    location: json['location'], 
     createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
     updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
   );
@@ -39,8 +42,10 @@ Map<String, dynamic> toJson() {
     'full_name': name,
     'phone_number': phone,
     'avatar_url': avatarUrl,
-    'location': location, // Añadir esta línea
+    'location': location, 
+    'birth_date': birthDate?.toIso8601String(), 
     'updated_at': DateTime.now().toIso8601String(),
+
   };
 }
 
@@ -55,6 +60,7 @@ Profile copyWith({
   String? phone,
   String? avatarUrl,
   String? location,
+  DateTime? birthDate,
 }) {
   return Profile(
     id: id,
@@ -62,9 +68,11 @@ Profile copyWith({
     email: email,
     phone: phone ?? this.phone,
     avatarUrl: avatarUrl ?? this.avatarUrl,
+    birthDate: birthDate ?? this.birthDate,
     location: location ?? this.location,
     createdAt: createdAt,
     updatedAt: DateTime.now(),
+
   );
 }
 }

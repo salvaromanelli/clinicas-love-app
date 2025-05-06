@@ -352,6 +352,10 @@ const Map<String, String> es = {
   'distance_unavailable': 'Distancia no disponible',
   'no_articles': 'No hay artículos disponibles',
   'check_back_later': 'Vuelve a revisar más tarde',
+  'select_clinic_first': 'Selecciona primero la clínica',
+  'appointment_created': 'Cita creada con éxito',
+  'error_loading_data': 'Error al cargar los datos',
+  'birth_date': 'Fecha de nacimiento',
 
   
 };

@@ -27,6 +27,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isSaving = false;
   File? _imageFile;
   String? _avatarUrl;
+  DateTime? _birthDate;
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController.text = widget.profile.phone ?? '';
     _emailController.text = widget.profile.email;
     _avatarUrl = widget.profile.avatarUrl;
+    _birthDate = widget.profile.birthDate;
   }
 
   @override
@@ -90,6 +92,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         location: _locationController.text.trim(),
         phone: _phoneController.text.trim(),
         avatarUrl: newAvatarUrl ?? _avatarUrl,
+        birthDate: _birthDate,
       );
 
       // Guardar los cambios
@@ -316,6 +319,82 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   keyboardType: TextInputType.phone,
                 ),
                 SizedBox(height: 16.h),
+
+                // Selector de fecha de nacimiento
+                InkWell(
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: _birthDate ?? DateTime(2000),
+                      firstDate: DateTime(1920),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: Color(0xFF1980E6),
+                              onPrimary: Colors.white,
+                              surface: Color(0xFF1C2126),
+                              onSurface: Colors.white,
+                            ),
+                            dialogBackgroundColor: const Color(0xFF1C2126),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    
+                    if (picked != null && picked != _birthDate) {
+                      setState(() {
+                        _birthDate = picked;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C2126),
+                      borderRadius: BorderRadius.circular(12.w),
+                      border: Border.all(color: Colors.grey[700]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.cake_outlined,
+                          color: Colors.grey[400],
+                          size: AdaptiveSize.getIconSize(context, baseSize: 22),
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                localizations.get('birth_date'),
+                                style: TextStyle(color: Colors.grey[400], fontSize: 14.sp),
+                              ),
+                              SizedBox(height: 4.h),
+                              Text(
+                                _birthDate != null 
+                                    ? "${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}"
+                                    : localizations.get('select_date'),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.calendar_today,
+                          color: Colors.grey[400],
+                          size: AdaptiveSize.getIconSize(context, baseSize: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 
                 _buildTextField(
                   controller: _emailController,

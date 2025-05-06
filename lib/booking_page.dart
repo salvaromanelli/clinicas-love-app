@@ -253,25 +253,21 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
 
   // Método para reservar la cita
   Future<void> _bookAppointment() async {
-    // Validar que todos los campos requeridos estén completos
-    if (_selectedTreatmentId == null || 
-        _selectedClinicId == null || 
-        _selectedDate == null || 
-        _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations.get('complete_all_fields')),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-      return;
-    }
-    
-    setState(() {
-      _isSubmitting = true;
-    });
-    
     try {
+      // Verificar que el usuario esté autenticado
+      final currentUser = await _supabaseService.getCurrentUser();
+      if (currentUser == null) {
+        // Mostrar mensaje y redirigir al login si es necesario
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(localizations.get('not_authenticated')),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        Navigator.pushNamed(context, '/login');
+        return;
+      }
+      
       // Crear objeto DateTime combinando fecha y hora
       final appointmentDateTime = DateTime(
         _selectedDate!.year,
@@ -281,13 +277,14 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         _selectedTime!.minute,
       );
       
-      // Preparar los datos para la cita
+      // Preparar los datos para la cita INCLUYENDO patient_id
       final appointmentData = {
-        'treatment_id': _selectedTreatmentId,
-        'clinic_id': _selectedClinicId,
+        'treatment_id': _selectedTreatmentId.toString(),
+        'clinic_id': _selectedClinicId.toString(),
         'appointment_date': appointmentDateTime.toIso8601String(),
         'notes': _notesController.text,
-        'status': 'Pendiente'
+        'status': 'Pendiente',
+        'patient_id': currentUser.id, 
       };
       
       // Si es una reprogramación, actualizar la cita existente
@@ -299,15 +296,6 @@ class _AppointmentBookingPageState extends State<AppointmentBookingPage> {
         
         // Crear una nueva cita con los datos actualizados
         await _supabaseService.createAppointment(appointmentData);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(localizations.get('appointment_rescheduled')),
-              backgroundColor: Colors.green.shade700,
-            ),
-          );
-        }
       } else {
         // Crear una nueva cita
         await _supabaseService.createAppointment(appointmentData);

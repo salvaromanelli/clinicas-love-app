@@ -26,6 +26,9 @@ import 'providers/user_provider.dart';
 import 'services/auth_service.dart';
 import 'utils/adaptive_sizing.dart';
 import 'services/analytics_service.dart';
+import 'dart:async';
+import 'services/http_service.dart';
+
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -45,6 +48,11 @@ void main() async {
   // Inicializar otros servicios
   await SupabaseService.initialize();
   await NotificationService().initialize();
+  HttpService.initialize(); // Inicializa el cliente HTTP
+  setupTokenRefreshTimer();
+  
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 
   // Registrar tiempo de inicialización
   final initDuration = DateTime.now().difference(startTime).inMilliseconds;
@@ -601,6 +609,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+  void setupTokenRefreshTimer() {
+    // Verificar el token cada 10 minutos
+    Timer.periodic(const Duration(minutes: 10), (_) async {
+      final authService = AuthService();
+      final success = await authService.refreshTokenIfNeeded();
+      
+      if (!success) {
+        // Forzar cierre de sesión si la renovación falló
+        await authService.logout();
+        navigatorKey.currentState?.pushReplacementNamed('/login');
+      }
+    });
+  }
 
 
     String _getTranslatedTitle(BuildContext context, String englishTitle) {

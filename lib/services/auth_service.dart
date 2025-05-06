@@ -1,4 +1,3 @@
-// auth_service.dart
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'supabase.dart';
 import 'package:flutter/material.dart';
@@ -80,7 +79,19 @@ class AuthService {
   
   // Obtener token almacenado
   Future<String?> getToken() async {
-    return await _storage.read(key: 'auth_token');
+    try {
+      // Primero intentar obtenerlo de Supabase
+      final session = _supabaseService.client.auth.currentSession;
+      if (session != null) {
+        return session.accessToken;
+      }
+      
+      // Si no hay sesión activa en Supabase, intentar obtener del almacenamiento seguro
+      return await _storage.read(key: 'auth_token');
+    } catch (e) {
+      debugPrint('Error obteniendo token: $e');
+      return null;
+    }
   }
   
   // Guardar token de sesión
@@ -92,21 +103,80 @@ class AuthService {
       syncUserWithProvider(context);
     }
   }
-  
-  // Verificar si el usuario está autenticado
-  Future<bool> isAuthenticated() async {
-    final token = await getToken();
-    return token != null && token.isNotEmpty;
-  }
-  
-  // MODIFICADO: Cerrar sesión y limpiar UserProvider
-  Future<void> logout({BuildContext? context}) async {
-    await _supabaseService.signOut();
-    await _storage.delete(key: 'auth_token');
+
+  // Verifica si el token actual está próximo a expirar (menos de 5 minutos)
+  Future<bool> isTokenExpiringSoon() async {
+    final session = _supabaseService.client.auth.currentSession;
+    if (session == null) return true;
     
-    // Limpiar UserProvider si se proporciona el contexto
-    if (context != null) {
-      Provider.of<UserProvider>(context, listen: false).logout();
+    final expiresAt = session.expiresAt;
+    if (expiresAt == null) return false;
+    
+    // Token expira en menos de 5 minutos
+    final expirationTime = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+    final timeUntilExpiry = expirationTime.difference(DateTime.now());
+    return timeUntilExpiry.inMinutes < 5;
+  }
+
+  // Intenta renovar el token si está próximo a expirar
+  Future<bool> refreshTokenIfNeeded({bool forceRefresh = false}) async {
+    try {
+      final session = _supabaseService.client.auth.currentSession;
+      
+      // Si no hay sesión, no podemos renovar
+      if (session == null) {
+        return false;
+      }
+      
+      // Verificar si el token expira pronto (menos de 5 minutos)
+      final expiresAt = session.expiresAt;
+      if (expiresAt == null) return true;
+      
+      final expirationTime = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+      final timeUntilExpiry = expirationTime.difference(DateTime.now());
+      
+      // Si se solicita forzar la renovación O el token expira pronto, renovar
+      if (forceRefresh || timeUntilExpiry.inMinutes < 5) {
+        debugPrint("🔄 ${forceRefresh ? 'Forzando renovación' : 'Token cerca de expirar'} (${timeUntilExpiry.inMinutes} min), renovando...");
+        
+        // Intentar renovar el token
+        final response = await _supabaseService.client.auth.refreshSession();
+        
+        // Verificar si se renovó correctamente
+        if (response.session != null) {
+          debugPrint("✅ Token renovado correctamente");
+          return true;
+        } else {
+          debugPrint("❌ No se pudo renovar la sesión");
+          return false;
+        }
+      }
+      
+      // El token sigue siendo válido
+      return true;
+    } catch (e) {
+      debugPrint("❌ Error renovando token: $e");
+      return false;
     }
   }
+
+  // Actualizar isAuthenticated() para verificar validez del token
+  Future<bool> isAuthenticated() async {
+    final token = await getToken();
+    if (token == null || token.isEmpty) return false;
+    
+    // Verificar que el token sea válido y renovarlo si es necesario
+    return await refreshTokenIfNeeded();
+  }
+    
+    // Cerrar sesión y limpiar UserProvider
+    Future<void> logout({BuildContext? context}) async {
+      await _supabaseService.signOut();
+      await _storage.delete(key: 'auth_token');
+      
+      // Limpiar UserProvider si se proporciona el contexto
+      if (context != null) {
+        Provider.of<UserProvider>(context, listen: false).logout();
+      }
+    }
 }

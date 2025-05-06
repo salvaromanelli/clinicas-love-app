@@ -34,10 +34,10 @@
 	<true/>
 	<key>MLKitGroupIdentifier</key>
 	<string>group.com.clinicaslove.appname.mlkit</string>
-	<key>NSAppTransportSecurity</key>
+		<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Esta app necesita acceso a la cámara para la simulación de tratamientos estéticos y tomar fotos de perfil.</string>

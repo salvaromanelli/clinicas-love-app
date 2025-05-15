@@ -122,6 +122,7 @@ static Future<void> initialize() async {
     required String fullName,
     required String phoneNumber,
     DateTime? birthDate, // Añadir este parámetro
+    Map<String, dynamic>? consent,
   }) async {
     try {
       print("Iniciando registro con email: $email y nombre: $fullName");
@@ -134,6 +135,7 @@ static Future<void> initialize() async {
           'full_name': fullName,
           'phone_number': phoneNumber,
           'birth_date': birthDate?.toIso8601String(), // Añadir fecha de nacimiento
+          'consent': consent,
         },
         emailRedirectTo: 'io.supabase.flutterquickstart://login-callback/'
       );
@@ -219,11 +221,14 @@ static Future<void> initialize() async {
         .eq('id', user.id)
         .single();
         
+    // Añadir verificación de consentimientos
+    if (response != null && response is Map<String, dynamic>) {
+      final consents = response['consents'];
+      print('Consentimientos recuperados: $consents');
+    }
+        
     return response as Map<String, dynamic>?;
   }
-  
-  // Actualizar perfil de usuario
- // Reemplaza el código desde la línea 140 en adelante
 
   Future<void> updateUserProfile({
     required Map<String, dynamic> data,
@@ -241,6 +246,23 @@ static Future<void> initialize() async {
   
   // Escuchar cambios de autenticación
   Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
+
+  // Método específico para actualizar consentimientos
+  Future<void> updateUserConsents(Map<String, dynamic> consents) async {
+    final user = currentUser;
+    if (user == null) throw Exception('Usuario no autenticado');
+    
+    // Añadir timestamp de actualización
+    consents['consent_timestamp'] = DateTime.now().toIso8601String();
+    
+    // Actualizar solo el campo de consentimientos
+    await client
+        .from('profiles')
+        .update({'consents': consents})
+        .eq('id', user.id);
+        
+    print('Consentimientos actualizados para usuario: ${user.id}');
+  }
 
   // CLÍNICAS
   Future<List<Clinica>> getClinicas() async {

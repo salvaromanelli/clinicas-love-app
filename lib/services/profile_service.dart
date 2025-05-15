@@ -5,6 +5,8 @@ import 'supabase.dart';
 
 class ProfileService {
   final _supabaseService = SupabaseService();
+
+  String? get currentUserId => SupabaseService().client.auth.currentUser?.id;
   
   Future<Profile?> getProfile(String? token) async {
     try {
@@ -210,6 +212,217 @@ class ProfileService {
       }
       
       throw e;
+    }
+  }
+
+  // Método para obtener todos los datos del usuario (para descargas GDPR)
+  Future<Map<String, dynamic>> getUserData(String userId) async {
+    try {
+      // Obtener datos básicos del perfil
+      final profileData = await SupabaseService().client
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+      
+      // Obtenemos información adicional - citas
+      final appointments = await SupabaseService().client
+          .from('appointments')
+          .select('*')
+          .eq('user_id', userId);
+      
+      // Obtenemos reseñas del usuario
+      final reviews = await SupabaseService().client
+          .from('reviews')
+          .select('*')
+          .eq('user_id', userId);
+      
+      // Obtenemos consentimientos
+      final consents = profileData['consents'] ?? {};
+      
+      // Combinamos toda la información en una estructura completa
+      final Map<String, dynamic> completeUserData = {
+        'profile': profileData,
+        'appointments': appointments,
+        'reviews': reviews,
+        'consents': consents,
+        'data_request_timestamp': DateTime.now().toIso8601String(),
+      };
+      
+      return completeUserData;
+    } catch (e) {
+      print("Error obteniendo datos del usuario: $e");
+      throw Exception('No se pudieron obtener los datos del usuario: $e');
+    }
+  }
+
+  // Método para actualizar consentimientos
+  Future<void> updateConsents(Map<String, dynamic> consents) async {
+    try {
+      final userId = SupabaseService().client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Usuario no autenticado');
+      }
+      
+      await SupabaseService().client
+          .from('profiles')
+          .update({'consents': consents})
+          .eq('id', userId);
+    } catch (e) {
+      print('Error actualizando consentimientos: $e');
+      throw Exception('Error al actualizar consentimientos: $e');
+    }
+  }
+
+  // Método para eliminar cuenta de usuario 
+  Future<bool> deleteAccount({required String password}) async {
+    try {
+      final user = SupabaseService().client.auth.currentUser;
+      if (user == null || user.email == null) {
+        throw Exception('Usuario no autenticado o sin email');
+      }
+
+      // Verificación de contraseña (sin cambios)
+      try {
+        final response = await SupabaseService().client.auth.signInWithPassword(
+          email: user.email,
+          password: password,
+        );
+        
+        if (response.session == null) {
+          print('Verificación de contraseña falló: No se pudo iniciar sesión');
+          return false;
+        }
+        
+        print('Contraseña verificada correctamente');
+      } catch (e) {
+        print('Error verificando contraseña: $e');
+        return false;
+      }
+
+      try {
+        // 1. Obtener y guardar IDs de todas las citas del usuario
+        final appointmentsBeforeDelete = await SupabaseService().client
+            .from('appointments')
+            .select('id')
+            .eq('patient_id', user.id);
+
+        print('Citas a eliminar: $appointmentsBeforeDelete');
+
+        // Almacenar los IDs para verificación posterior
+        final appointmentIds = appointmentsBeforeDelete.map((appt) => appt['id']).toList();
+
+        // 2. Eliminar cada cita individualmente
+        for (final appointment in appointmentsBeforeDelete) {
+          try {
+            await SupabaseService().client
+                .from('appointments')
+                .delete()
+                .eq('id', appointment['id']);
+            print('Cita eliminada: ${appointment['id']}');
+          } catch (e) {
+            print('Error eliminando cita ${appointment['id']}: $e');
+          }
+        }
+
+        // Add a small delay to allow Supabase to process deletions
+        await Future.delayed(Duration(milliseconds: 500));
+
+        // 3. Verificar cada cita individualmente en lugar de usar filter
+        bool allDeleted = true;
+        List<String> stillExistingIds = [];
+
+        for (final appointmentId in appointmentIds) {
+          final check = await SupabaseService().client
+              .from('appointments')
+              .select('id')
+              .eq('id', appointmentId);
+              
+          if (check.isNotEmpty) {
+            print('La cita aún existe: $appointmentId');
+            allDeleted = false;
+            stillExistingIds.add(appointmentId);
+          }
+        }
+
+        if (!allDeleted) {
+          print('¡ADVERTENCIA! Quedan citas sin eliminar: $stillExistingIds');
+          
+          // Aquí podríamos intentar eliminar de nuevo las citas problemáticas
+          // En lugar de fallar inmediatamente, intentamos una segunda vez
+          for (final id in stillExistingIds) {
+            try {
+              await SupabaseService().client
+                  .from('appointments')
+                  .delete()
+                  .eq('id', id);
+              print('Segundo intento de eliminar cita: $id');
+            } catch (e) {
+              print('Error en segundo intento para cita $id: $e');
+            }
+          }
+          
+          // Verificación final
+          final finalCheck = await SupabaseService().client
+              .from('appointments')
+              .select('count')
+              .eq('patient_id', user.id);
+              
+          if (finalCheck.isNotEmpty && finalCheck[0]['count'] > 0) {
+            throw Exception('No se pudieron eliminar todas las citas después de múltiples intentos');
+          }
+        }
+        
+        // 4. Eliminar reseñas
+        await SupabaseService().client
+            .from('reviews')
+            .delete()
+            .eq('user_id', user.id);
+        
+        // 5. Ahora que no hay referencias, eliminar perfil
+        await SupabaseService().client
+            .from('profiles')
+            .delete()
+            .eq('id', user.id);
+        
+        // 6. Solicitar eliminación de la cuenta de autenticación
+        await SupabaseService().client.from('delete_auth_user_trigger')
+            .insert({
+              'user_id': user.id
+            });
+        
+        print('Solicitud de eliminación de cuenta enviada');
+        
+        // 7. Cerrar sesión
+        await SupabaseService().client.auth.signOut();
+        return true;
+      } catch (e) {
+        print('Error eliminando datos: $e');
+        return false;
+      }
+    } catch (e) {
+      print('Error eliminando cuenta: $e');
+      return false;
+    }
+  }
+
+  // Método para verificar si el usuario tiene un consentimiento específico
+  Future<bool> hasConsent(String consentKey) async {
+    try {
+      final userId = SupabaseService().client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Usuario no autenticado');
+      }
+      
+      final profile = await getProfile(null);
+      if (profile == null || profile.consents == null) {
+        return false;
+      }
+      
+      return profile.consents![consentKey] ?? false;
+    } catch (e) {
+      print('Error verificando consentimiento: $e');
+      return false;
     }
   }
 }

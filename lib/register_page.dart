@@ -26,6 +26,9 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
+  bool _acceptDataProcessing = false;  // Para datos personales generales
+  bool _acceptHealthDataProcessing = false;  // Específico para datos de salud
+  bool _acceptMarketing = false;  // Opcional para comunicaciones de marketing
   String? _errorMessage;
   DateTime? _birthDate;
   bool _acceptTerms = false;
@@ -74,6 +77,30 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    // Después de la verificación de términos y condiciones
+    if (!_acceptTerms) {
+      setState(() {
+        _errorMessage = localizations.get('terms_required');
+      });
+      return;
+    }
+
+    // Validar consentimiento para procesamiento de datos personales
+    if (!_acceptDataProcessing) {
+      setState(() {
+        _errorMessage = localizations.get('personal_data_consent_required');
+      });
+      return;
+    }
+
+    // Validar consentimiento para procesamiento de datos de salud
+    if (!_acceptHealthDataProcessing) {
+      setState(() {
+        _errorMessage = localizations.get('health_data_consent_required');
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -87,6 +114,14 @@ class _RegisterPageState extends State<RegisterPage> {
         fullName: _nameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
         birthDate: _birthDate,
+        consent: {
+          'terms_accepted': _acceptTerms,
+          'data_processing': _acceptDataProcessing,
+          'health_data': _acceptHealthDataProcessing,
+          'marketing': _acceptMarketing,
+          'consent_timestamp': DateTime.now().toIso8601String(),
+          'consent_version': '1.0',
+        }
       );
       
       if (!mounted) return;
@@ -470,6 +505,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                           ),
+
                           // Contraseña
                           TextFormField(
                             controller: _passwordController,
@@ -603,6 +639,129 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           SizedBox(height: 16.h),
+
+                          // Consentimiento para procesamiento de datos personales
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Theme(
+                                data: ThemeData(
+                                  checkboxTheme: CheckboxThemeData(
+                                    fillColor: MaterialStateProperty.resolveWith<Color>(
+                                      (Set<MaterialState> states) {
+                                        if (states.contains(MaterialState.selected)) {
+                                          return Theme.of(context).colorScheme.primary;
+                                        }
+                                        return Colors.white70;
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                child: Transform.scale(
+                                  scale: isSmallScreen ? 0.9 : 1.0,
+                                  child: Checkbox(
+                                    value: _acceptDataProcessing,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _acceptDataProcessing = value ?? false;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 2.h),
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                      ),
+                                      children: [
+                                        TextSpan(
+                                          text: localizations.get('i_consent_personal_data'),
+                                        ),
+                                        TextSpan(
+                                          text: ' ' + localizations.get('more_info'),
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          recognizer: TapGestureRecognizer()
+                                            ..onTap = () {
+                                              _showPersonalDataInfo();
+                                            },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12.h),
+
+                          // Consentimiento para datos de salud
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Theme(
+                                data: ThemeData(
+                                  checkboxTheme: CheckboxThemeData(
+                                    fillColor: MaterialStateProperty.resolveWith<Color>(
+                                      (Set<MaterialState> states) {
+                                        if (states.contains(MaterialState.selected)) {
+                                          return Theme.of(context).colorScheme.primary;
+                                        }
+                                        return Colors.white70;
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                child: Transform.scale(
+                                  scale: isSmallScreen ? 0.9 : 1.0,
+                                  child: Checkbox(
+                                    value: _acceptHealthDataProcessing,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _acceptHealthDataProcessing = value ?? false;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 2.h),
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: isSmallScreen ? 12.sp : 14.sp,
+                                      ),
+                                      children: [
+                                        TextSpan(
+                                          text: localizations.get('i_consent_health_data'),
+                                        ),
+                                        TextSpan(
+                                          text: ' ' + localizations.get('more_info'),
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          recognizer: TapGestureRecognizer()
+                                            ..onTap = () {
+                                              _showHealthDataInfo();
+                                            },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           
                           // Términos y condiciones
                           Row(
@@ -866,6 +1025,175 @@ class _RegisterPageState extends State<RegisterPage> {
       label: Text(label),
     );
   }
+
+  // Añadir estos métodos al final de la clase
+void _showPersonalDataInfo() {
+  AdaptiveSize.initialize(context);
+  final isSmallScreen = AdaptiveSize.screenWidth < 360;
+  
+  showDialog(
+    context: context,
+    builder: (context) {
+      AdaptiveSize.initialize(context);
+      
+      return AlertDialog(
+        backgroundColor: const Color(0xFF1C2126),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.w),
+        ),
+        title: Text(
+          localizations.get('personal_data_processing'),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'INFORMACIÓN SOBRE PROCESAMIENTO DE DATOS PERSONALES',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: isSmallScreen ? 14.sp : 16.sp,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Clínicas Love recopilará y procesará sus datos personales como nombre, correo electrónico, teléfono y fecha de nacimiento con el fin de:',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                '• Crear y gestionar su cuenta de usuario\n• Permitirle agendar citas\n• Comunicarnos con usted sobre nuestros servicios\n• Personalizar su experiencia en la aplicación',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Sus datos personales serán almacenados de forma segura y nunca se compartirán con terceros sin su consentimiento explícito.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+            ],
+          ),
+        ),
+        contentPadding: EdgeInsets.all(16.w),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1980E6),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            ),
+            child: Text(
+              localizations.get('close'),
+              style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+void _showHealthDataInfo() {
+  AdaptiveSize.initialize(context);
+  final isSmallScreen = AdaptiveSize.screenWidth < 360;
+  
+  showDialog(
+    context: context,
+    builder: (context) {
+      AdaptiveSize.initialize(context);
+      
+      return AlertDialog(
+        backgroundColor: const Color(0xFF1C2126),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.w),
+        ),
+        title: Text(
+          localizations.get('health_data_processing'),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: isSmallScreen ? 16.sp : 18.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'INFORMACIÓN SOBRE PROCESAMIENTO DE DATOS DE SALUD',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: isSmallScreen ? 14.sp : 16.sp,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Clínicas Love recopilará y procesará información relacionada con su salud como:',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                '• Fotografías para simulación de tratamientos\n• Historial de tratamientos estéticos\n• Condiciones médicas relevantes para tratamientos\n• Preferencias de tratamientos',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Esta información sensible se utiliza únicamente para:\n• Personalizar recomendaciones de tratamientos\n• Crear simulaciones visuales de resultados\n• Permitir a nuestros especialistas ofrecer un mejor servicio',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                'Sus datos de salud están protegidos con medidas de seguridad adicionales y solo son accesibles para el personal médico autorizado.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: isSmallScreen ? 12.sp : 14.sp,
+                ),
+              ),
+            ],
+          ),
+        ),
+        contentPadding: EdgeInsets.all(16.w),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1980E6),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            ),
+            child: Text(
+              localizations.get('close'),
+              style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   // Diálogo de términos y condiciones adaptativo
   void _showTermsAndConditions() {

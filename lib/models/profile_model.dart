@@ -7,6 +7,7 @@ class Profile {
   String? phone;
   String? avatarUrl;
   String? location;
+  final Map<String, dynamic>? consents;
   final DateTime? createdAt;
   final DateTime? birthDate; 
   DateTime? updatedAt;
@@ -21,6 +22,7 @@ class Profile {
     this.createdAt,
     this.updatedAt,
     this.birthDate,
+    this.consents,
   });
 
 factory Profile.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ factory Profile.fromJson(Map<String, dynamic> json) {
     location: json['location'], 
     createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
     updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+    consents: json['consents'] != null ? Map<String, dynamic>.from(json['consents']) : null,
   );
 }
 
@@ -45,6 +48,7 @@ Map<String, dynamic> toJson() {
     'location': location, 
     'birth_date': birthDate?.toIso8601String(), 
     'updated_at': DateTime.now().toIso8601String(),
+    'consents': consents,
 
   };
 }
@@ -61,6 +65,7 @@ Profile copyWith({
   String? avatarUrl,
   String? location,
   DateTime? birthDate,
+  Map<String, dynamic>? consents,
 }) {
   return Profile(
     id: id,
@@ -72,6 +77,7 @@ Profile copyWith({
     location: location ?? this.location,
     createdAt: createdAt,
     updatedAt: DateTime.now(),
+    consents: consents ?? this.consents,
 
   );
 }

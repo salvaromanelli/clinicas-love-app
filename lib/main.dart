@@ -30,7 +30,6 @@ import 'dart:async';
 import 'services/http_service.dart';
 
 
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   final startTime = DateTime.now();

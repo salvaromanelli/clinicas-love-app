@@ -387,6 +387,7 @@ const Map<String, String> es = {
   "delete_failed": "Fallo al eliminar cuenta. Verifica tu contraseña",
   "please_wait": "Por favor, espera...",
   'account_deleted_success': 'Tu cuenta ha sido eliminada con éxito. Lamentamos verte ir.',
+  'invalid_input': 'El texto contiene caracteres no permitidos',
 
 };
   

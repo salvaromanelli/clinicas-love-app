@@ -6,6 +6,8 @@ import 'services/supabase.dart';
 import 'services/auth_service.dart';
 import 'i18n/app_localizations.dart';
 import 'utils/adaptive_sizing.dart'; 
+import 'utils/security_utils.dart';
+import 'utils/secure_logger.dart';
 
 class LoginPage extends StatefulWidget {
   final Widget child;
@@ -26,6 +28,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _passwordVisible = false;
   String? _errorMessage;
   late AppLocalizations localizations;
+  int _failedLoginAttempts = 0;
+  final int _maxFailedAttempts = 5;
 
   @override
   void didChangeDependencies() {
@@ -35,7 +39,6 @@ class _LoginPageState extends State<LoginPage> {
 
   // Método de login principal
   Future<void> _handleLogin() async {
-    // Validación del formulario
     if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
       return;
     }
@@ -46,9 +49,10 @@ class _LoginPageState extends State<LoginPage> {
     });
     
     try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
-
+      // Sanitizar entradas antes de procesarlas
+      final email = SecurityUtils.sanitizeText(_emailController.text.trim());
+      final password = _passwordController.text; // No sanitizamos password para no alterar su contenido
+      
       final response = await _supabaseService.signIn(
         email: email,
         password: password,
@@ -61,14 +65,12 @@ class _LoginPageState extends State<LoginPage> {
           
           if (!mounted) return;
           
-          print("Inicio de sesión exitoso, token: ${token.substring(0, min(10, token.length))}...");
-          print("Redirigiendo a página de perfil...");
+          SecureLogger.log("Inicio de sesión exitoso", sensitive: true);
+          SecureLogger.log("Redirigiendo a página de perfil...");
           
-          Navigator.pushNamedAndRemoveUntil(
-            context, 
-            '/profile', 
-            (route) => false
-          );
+          SecurityUtils.navigateToSafely(context, '/profile');
+
+
         } else {
           throw Exception(localizations.get('auth_token_error'));
         }
@@ -79,7 +81,26 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _errorMessage = e.message;
       });
-      print("Error de autenticación: ${e.message}");
+      SecureLogger.log("Error de autenticación: ${e.message}", sensitive: true);
+        _failedLoginAttempts++;
+  
+        if (_failedLoginAttempts >= _maxFailedAttempts) {
+          setState(() {
+            _errorMessage = localizations.get('too_many_attempts');
+            _isLoading = true; // Deshabilitar botón
+          });
+          
+          // Bloquear temporalmente
+          Future.delayed(const Duration(minutes: 5), () {
+            if (mounted) {
+              setState(() {
+                _failedLoginAttempts = 0;
+                _isLoading = false;
+              });
+            }
+          });
+          return;
+        }
     } catch (e) {
       String errorMsg;
       
@@ -96,12 +117,33 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _errorMessage = errorMsg;
       });
-      print("Error de login: $errorMsg");
+      SecureLogger.log("Error de login", sensitive: true);
+        _failedLoginAttempts++;
+  
+        if (_failedLoginAttempts >= _maxFailedAttempts) {
+          setState(() {
+            _errorMessage = localizations.get('too_many_attempts');
+            _isLoading = true; // Deshabilitar botón
+          });
+          
+          // Bloquear temporalmente
+          Future.delayed(const Duration(minutes: 5), () {
+            if (mounted) {
+              setState(() {
+                _failedLoginAttempts = 0;
+                _isLoading = false;
+              });
+            }
+          });
+          return;
+        }
+
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+        
       }
     }
   }
@@ -189,11 +231,14 @@ class _LoginPageState extends State<LoginPage> {
       String errorMsg;
       
       if (e.toString().contains('canceled') || e.toString().contains('cancelado')) {
-        errorMsg = localizations.get('auth_cancelled') ?? 'Autenticación cancelada';
+        errorMsg = localizations.get('auth_cancelled');
+        SecureLogger.log('Autenticación cancelada: ${e.toString()}', sensitive: true);
       } else if (e.toString().contains('network')) {
-        errorMsg = localizations.get('network_error') ?? 'Error de red';
+        errorMsg = localizations.get('network_error');
+        SecureLogger.log('Error de red: ${e.toString()}', sensitive: true);
       } else {
-        errorMsg = '${localizations.get('error') ?? 'Error'}: ${e.toString()}';
+        errorMsg = localizations.get('general_error');
+        SecureLogger.log('Error detallado: ${e.toString()}', sensitive: true);
       }
       
       if (mounted) {
@@ -329,7 +374,14 @@ class _LoginPageState extends State<LoginPage> {
                                 if (value == null || value.isEmpty) {
                                   return localizations.get('please_enter_email');
                                 }
-                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                
+                                // Validación más estricta de email con sanitización previa
+                                final sanitizedValue = SecurityUtils.sanitizeText(value);
+                                if (sanitizedValue != value) {
+                                  return localizations.get('invalid_characters_in_email');
+                                }
+                                
+                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(sanitizedValue)) {
                                   return localizations.get('enter_valid_email');
                                 }
                                 return null;
@@ -507,7 +559,7 @@ class _LoginPageState extends State<LoginPage> {
                             Center(
                               child: TextButton(
                                 onPressed: () {
-                                  Navigator.pushReplacementNamed(context, '/register');
+                                 SecurityUtils.navigateToSafely(context, '/register');
                                 },
                                 child: Text(
                                   localizations.get('no_account_register'),
@@ -699,7 +751,9 @@ class _LoginPageState extends State<LoginPage> {
                       });
                       
                       try {
-                        await _supabaseService.resetPassword(emailController.text.trim());
+                        // Sanitizar email antes de enviarlo
+                        final sanitizedEmail = SecurityUtils.sanitizeText(emailController.text.trim());
+                        await _supabaseService.resetPassword(sanitizedEmail);
                         
                         if (context.mounted) {
                           Navigator.of(context).pop();

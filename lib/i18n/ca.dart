@@ -347,6 +347,7 @@ const Map<String, String> ca = {
   "please_wait": "Si us plau, espera",
   "account_deletion_failed": "Error en l'eliminació del compte",
   'account_deleted_success': 'El teu compte ha estat eliminat correctament.',
+  'invalid_input': 'Entrada no vàlida',
 
 
 

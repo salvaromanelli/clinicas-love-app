@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'services/supabase.dart';
 import 'i18n/app_localizations.dart';
 import 'utils/adaptive_sizing.dart'; 
+import 'utils/security_utils.dart';
+import 'utils/secure_logger.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -21,6 +23,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _supabaseService = SupabaseService();
+  int _registerAttempts = 0;
+  final int _maxRegisterAttempts = 5;
 
   
   bool _isLoading = false;
@@ -51,6 +55,13 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _registerWithEmail() async {
+    if (_registerAttempts >= _maxRegisterAttempts) {
+      setState(() {
+        _errorMessage = localizations.get('too_many_attempts');
+      });
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -107,12 +118,19 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      // Registrar usuario con Supabase
+      // Sanitizar todos los inputs antes de enviarlos
+      final sanitizedEmail = SecurityUtils.sanitizeText(_emailController.text.trim());
+      final sanitizedName = SecurityUtils.sanitizeText(_nameController.text.trim());
+      final sanitizedPhone = SecurityUtils.sanitizeText(_phoneController.text.trim());
+      // No sanitizamos la contraseña para no afectar su contenido
+      final password = _passwordController.text;
+
+      // Registrar usuario con datos sanitizados
       final response = await _supabaseService.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        fullName: _nameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
+        email: sanitizedEmail,
+        password: password,
+        fullName: sanitizedName,
+        phoneNumber: sanitizedPhone,
         birthDate: _birthDate,
         consent: {
           'terms_accepted': _acceptTerms,
@@ -139,7 +157,7 @@ class _RegisterPageState extends State<RegisterPage> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pushReplacementNamed(context, '/home');
+          SecurityUtils.navigateToSafely(context, '/home');
         } else {
           // Si requiere confirmación de email
           ScaffoldMessenger.of(context).showSnackBar(
@@ -151,27 +169,39 @@ class _RegisterPageState extends State<RegisterPage> {
               backgroundColor: Colors.blue,
             ),
           );
-          Navigator.pushReplacementNamed(context, '/login');
+          SecurityUtils.navigateToSafely(context, '/login');
         }
       } else {
         setState(() {
           _errorMessage = 'Error al crear la cuenta. Intente nuevamente.';
         });
       }
-    } on AuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
-    } finally {
-      if (mounted) {
+      } on AuthException catch (e) {
+        // Log seguro con detalles completos del error (para depuración)
+        SecureLogger.log("Error de autenticación en registro: ${e.message}", sensitive: true);
+        
         setState(() {
-          _isLoading = false;
+          // Mostrar al usuario solo mensajes controlados, no detalles técnicos
+          if (e.message.contains("already registered")) {
+            _errorMessage = localizations.get('email_already_registered');
+          } else if (e.message.contains("weak password")) {
+            _errorMessage = localizations.get('password_too_weak');
+          } else if (e.message.contains("invalid email")) {
+            _errorMessage = localizations.get('invalid_email_format');
+          } else {
+            _errorMessage = localizations.get('registration_error');
+          }
         });
-      }
+      } catch (e) {
+        _registerAttempts++;
+        
+        // Log seguro con detalles completos del error (para depuración)
+        SecureLogger.log("Error inesperado en registro: ${e.toString()}", sensitive: true);
+        
+        setState(() {
+          // Mensaje genérico para el usuario (nunca mostrar el error real)
+          _errorMessage = localizations.get('registration_error');
+        });
     }
   }
 
@@ -315,6 +345,13 @@ class _RegisterPageState extends State<RegisterPage> {
                               if (value == null || value.isEmpty) {
                                 return localizations.get('please_enter_name');
                               }
+                              
+                              // Sanitizar para detectar intentos de XSS
+                              final sanitizedValue = SecurityUtils.sanitizeText(value);
+                              if (sanitizedValue != value) {
+                                return localizations.get('invalid_characters_in_name');
+                              }
+                              
                               return null;
                             },
                           ),
@@ -367,7 +404,15 @@ class _RegisterPageState extends State<RegisterPage> {
                               if (value == null || value.isEmpty) {
                                 return localizations.get('please_enter_email');
                               }
-                              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                              
+                              // Sanitizar valor para detectar inyecciones
+                              final sanitizedValue = SecurityUtils.sanitizeText(value);
+                              if (sanitizedValue != value) {
+                                return localizations.get('invalid_characters_in_email');
+                              }
+                              
+                              // Validación estricta de formato de email
+                              if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
                                 return localizations.get('enter_valid_email');
                               }
                               return null;
@@ -971,7 +1016,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
-                                      Navigator.pushReplacementNamed(context, '/login');
+                                      SecurityUtils.navigateToSafely(context, '/login');
                                     },
                                 ),
                               ],
@@ -1026,185 +1071,27 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Añadir estos métodos al final de la clase
-void _showPersonalDataInfo() {
-  AdaptiveSize.initialize(context);
-  final isSmallScreen = AdaptiveSize.screenWidth < 360;
-  
-  showDialog(
-    context: context,
-    builder: (context) {
-      AdaptiveSize.initialize(context);
-      
-      return AlertDialog(
-        backgroundColor: const Color(0xFF1C2126),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.w),
-        ),
-        title: Text(
-          localizations.get('personal_data_processing'),
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: isSmallScreen ? 16.sp : 18.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'INFORMACIÓN SOBRE PROCESAMIENTO DE DATOS PERSONALES',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: isSmallScreen ? 14.sp : 16.sp,
-                ),
-              ),
-              SizedBox(height: 16.h),
-              Text(
-                'Clínicas Love recopilará y procesará sus datos personales como nombre, correo electrónico, teléfono y fecha de nacimiento con el fin de:',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                '• Crear y gestionar su cuenta de usuario\n• Permitirle agendar citas\n• Comunicarnos con usted sobre nuestros servicios\n• Personalizar su experiencia en la aplicación',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                'Sus datos personales serán almacenados de forma segura y nunca se compartirán con terceros sin su consentimiento explícito.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-            ],
-          ),
-        ),
-        contentPadding: EdgeInsets.all(16.w),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1980E6),
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-            ),
-            child: Text(
-              localizations.get('close'),
-              style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
-            ),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-void _showHealthDataInfo() {
-  AdaptiveSize.initialize(context);
-  final isSmallScreen = AdaptiveSize.screenWidth < 360;
-  
-  showDialog(
-    context: context,
-    builder: (context) {
-      AdaptiveSize.initialize(context);
-      
-      return AlertDialog(
-        backgroundColor: const Color(0xFF1C2126),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.w),
-        ),
-        title: Text(
-          localizations.get('health_data_processing'),
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: isSmallScreen ? 16.sp : 18.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'INFORMACIÓN SOBRE PROCESAMIENTO DE DATOS DE SALUD',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: isSmallScreen ? 14.sp : 16.sp,
-                ),
-              ),
-              SizedBox(height: 16.h),
-              Text(
-                'Clínicas Love recopilará y procesará información relacionada con su salud como:',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                '• Fotografías para simulación de tratamientos\n• Historial de tratamientos estéticos\n• Condiciones médicas relevantes para tratamientos\n• Preferencias de tratamientos',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                'Esta información sensible se utiliza únicamente para:\n• Personalizar recomendaciones de tratamientos\n• Crear simulaciones visuales de resultados\n• Permitir a nuestros especialistas ofrecer un mejor servicio',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Text(
-                'Sus datos de salud están protegidos con medidas de seguridad adicionales y solo son accesibles para el personal médico autorizado.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isSmallScreen ? 12.sp : 14.sp,
-                ),
-              ),
-            ],
-          ),
-        ),
-        contentPadding: EdgeInsets.all(16.w),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1980E6),
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-            ),
-            child: Text(
-              localizations.get('close'),
-              style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
-            ),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-  // Diálogo de términos y condiciones adaptativo
-  void _showTermsAndConditions() {
-    // Inicializar AdaptiveSize para el diálogo
+  void _showPersonalDataInfo() {
     AdaptiveSize.initialize(context);
     final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
+    // Sanitizar todos los textos
+    final String dialogTitle = SecurityUtils.sanitizeText(localizations.get('personal_data_processing'));
+    final String dataHeader = SecurityUtils.sanitizeText('INFORMACIÓN SOBRE PROCESAMIENTO DE DATOS PERSONALES');
+    final String dataIntro = SecurityUtils.sanitizeText(
+      'Clínicas Love recopilará y procesará sus datos personales como nombre, correo electrónico, teléfono y fecha de nacimiento con el fin de:'
+    );
+    final String dataPurposes = SecurityUtils.sanitizeText(
+      '• Crear y gestionar su cuenta de usuario\n• Permitirle agendar citas\n• Comunicarnos con usted sobre nuestros servicios\n• Personalizar su experiencia en la aplicación'
+    );
+    final String dataStorage = SecurityUtils.sanitizeText(
+      'Sus datos personales serán almacenados de forma segura y nunca se compartirán con terceros sin su consentimiento explícito.'
+    );
+    final String closeButton = SecurityUtils.sanitizeText(localizations.get('close'));
     
     showDialog(
       context: context,
       builder: (context) {
-        // Reinicializar AdaptiveSize dentro del builder del diálogo
         AdaptiveSize.initialize(context);
         
         return AlertDialog(
@@ -1213,7 +1100,7 @@ void _showHealthDataInfo() {
             borderRadius: BorderRadius.circular(16.w),
           ),
           title: Text(
-            localizations.get('terms_title'),
+            dialogTitle,
             style: TextStyle(
               color: Colors.white,
               fontSize: isSmallScreen ? 16.sp : 18.sp,
@@ -1225,7 +1112,7 @@ void _showHealthDataInfo() {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'TÉRMINOS Y CONDICIONES DE USO',
+                  dataHeader,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -1234,23 +1121,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 16.h),
                 Text(
-                  'Al utilizar la aplicación de Clínicas Love, usted acepta estos términos y condiciones en su totalidad. Si no está de acuerdo con estos términos y condiciones o cualquier parte de estos términos y condiciones, no debe utilizar esta aplicación.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: isSmallScreen ? 12.sp : 14.sp,
-                  ),
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  '1. PRIVACIDAD DE LOS DATOS',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: isSmallScreen ? 13.sp : 15.sp,
-                  ),
-                ),
-                Text(
-                  'Nos comprometemos a proteger la privacidad de los usuarios. La información personal recopilada se utilizará únicamente para los fines específicos relacionados con los servicios ofrecidos por Clínicas Love.',
+                  dataIntro,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1258,15 +1129,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  '2. SERVICIOS OFRECIDOS',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: isSmallScreen ? 13.sp : 15.sp,
-                  ),
-                ),
-                Text(
-                  'Nuestra aplicación ofrece servicios de información, comunicación y coordinación con nuestras clínicas estéticas. No ofrecemos diagnósticos médicos ni recomendaciones de tratamiento a través de la aplicación sin una consulta previa presencial.',
+                  dataPurposes,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1274,15 +1137,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  '3. LIMITACIONES DE RESPONSABILIDAD',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: isSmallScreen ? 13.sp : 15.sp,
-                  ),
-                ),
-                Text(
-                  'Clínicas Love no se hace responsable de cualquier daño que pueda resultar del uso incorrecto de la aplicación o de la interpretación incorrecta de la información proporcionada a través de ella.',
+                  dataStorage,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1300,7 +1155,247 @@ void _showHealthDataInfo() {
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               ),
               child: Text(
-                localizations.get('close'),
+                closeButton,
+                style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showHealthDataInfo() {
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
+    // Sanitizar todos los textos
+    final String dialogTitle = SecurityUtils.sanitizeText(localizations.get('health_data_processing'));
+    final String dataHeader = SecurityUtils.sanitizeText('INFORMACIÓN SOBRE PROCESAMIENTO DE DATOS DE SALUD');
+    final String dataIntro = SecurityUtils.sanitizeText(
+      'Clínicas Love recopilará y procesará información relacionada con su salud como:'
+    );
+    final String dataTypes = SecurityUtils.sanitizeText(
+      '• Fotografías para simulación de tratamientos\n• Historial de tratamientos estéticos\n• Condiciones médicas relevantes para tratamientos\n• Preferencias de tratamientos'
+    );
+    final String dataPurposes = SecurityUtils.sanitizeText(
+      'Esta información sensible se utiliza únicamente para:\n• Personalizar recomendaciones de tratamientos\n• Crear simulaciones visuales de resultados\n• Permitir a nuestros especialistas ofrecer un mejor servicio'
+    );
+    final String dataSecurity = SecurityUtils.sanitizeText(
+      'Sus datos de salud están protegidos con medidas de seguridad adicionales y solo son accesibles para el personal médico autorizado.'
+    );
+    final String closeButton = SecurityUtils.sanitizeText(localizations.get('close'));
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        AdaptiveSize.initialize(context);
+        
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C2126),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.w),
+          ),
+          title: Text(
+            dialogTitle,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isSmallScreen ? 16.sp : 18.sp,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dataHeader,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  dataIntro,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  dataTypes,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  dataPurposes,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  dataSecurity,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          contentPadding: EdgeInsets.all(16.w),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1980E6),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              ),
+              child: Text(
+                closeButton,
+                style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Diálogo de términos y condiciones adaptativo
+  void _showTermsAndConditions() {
+    // Inicializar AdaptiveSize para el diálogo
+    AdaptiveSize.initialize(context);
+    final isSmallScreen = AdaptiveSize.screenWidth < 360;
+    
+    // Sanitizar todos los textos estáticos
+    final String termsTitle = SecurityUtils.sanitizeText(localizations.get('terms_title'));
+    final String termsHeader = SecurityUtils.sanitizeText('TÉRMINOS Y CONDICIONES DE USO');
+    final String termsIntro = SecurityUtils.sanitizeText(
+      'Al utilizar la aplicación de Clínicas Love, usted acepta estos términos y condiciones en su totalidad. Si no está de acuerdo con estos términos y condiciones o cualquier parte de estos términos y condiciones, no debe utilizar esta aplicación.'
+    );
+    final String privacyTitle = SecurityUtils.sanitizeText('1. PRIVACIDAD DE LOS DATOS');
+    final String privacyText = SecurityUtils.sanitizeText(
+      'Nos comprometemos a proteger la privacidad de los usuarios. La información personal recopilada se utilizará únicamente para los fines específicos relacionados con los servicios ofrecidos por Clínicas Love.'
+    );
+    final String servicesTitle = SecurityUtils.sanitizeText('2. SERVICIOS OFRECIDOS');
+    final String servicesText = SecurityUtils.sanitizeText(
+      'Nuestra aplicación ofrece servicios de información, comunicación y coordinación con nuestras clínicas estéticas. No ofrecemos diagnósticos médicos ni recomendaciones de tratamiento a través de la aplicación sin una consulta previa presencial.'
+    );
+    final String liabilityTitle = SecurityUtils.sanitizeText('3. LIMITACIONES DE RESPONSABILIDAD');
+    final String liabilityText = SecurityUtils.sanitizeText(
+      'Clínicas Love no se hace responsable de cualquier daño que pueda resultar del uso incorrecto de la aplicación o de la interpretación incorrecta de la información proporcionada a través de ella.'
+    );
+    final String closeButton = SecurityUtils.sanitizeText(localizations.get('close'));
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        // Reinicializar AdaptiveSize dentro del builder del diálogo
+        AdaptiveSize.initialize(context);
+        
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1C2126),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.w),
+          ),
+          title: Text(
+            termsTitle,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isSmallScreen ? 16.sp : 18.sp,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  termsHeader,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 14.sp : 16.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  termsIntro,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  privacyTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  privacyText,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  servicesTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  servicesText,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  liabilityTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: isSmallScreen ? 13.sp : 15.sp,
+                  ),
+                ),
+                Text(
+                  liabilityText,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: isSmallScreen ? 12.sp : 14.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          contentPadding: EdgeInsets.all(16.w),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF1980E6),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              ),
+              child: Text(
+                closeButton,
                 style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
               ),
             ),
@@ -1316,6 +1411,26 @@ void _showHealthDataInfo() {
     AdaptiveSize.initialize(context);
     final isSmallScreen = AdaptiveSize.screenWidth < 360;
     
+    // Sanitizar todos los textos estáticos
+    final String policyTitle = SecurityUtils.sanitizeText(localizations.get('privacy_policy_title'));
+    final String policyHeader = SecurityUtils.sanitizeText('POLÍTICA DE PRIVACIDAD');
+    final String policyIntro = SecurityUtils.sanitizeText(
+      'En Clínicas Love, nos comprometemos a proteger y respetar su privacidad. Esta Política de Privacidad describe cómo recopilamos, utilizamos y compartimos su información personal.'
+    );
+    final String dataTitle = SecurityUtils.sanitizeText('1. INFORMACIÓN QUE RECOPILAMOS');
+    final String dataText = SecurityUtils.sanitizeText(
+      'Recopilamos información personal como su nombre, dirección de correo electrónico, número de teléfono e historial médico relevante para los servicios que ofrecemos.'
+    );
+    final String useTitle = SecurityUtils.sanitizeText('2. CÓMO UTILIZAMOS SU INFORMACIÓN');
+    final String useText = SecurityUtils.sanitizeText(
+      'Utilizamos su información para proporcionar los servicios solicitados, comunicarnos con usted sobre citas y tratamientos, y mejorar nuestros servicios.'
+    );
+    final String shareTitle = SecurityUtils.sanitizeText('3. COMPARTIR INFORMACIÓN');
+    final String shareText = SecurityUtils.sanitizeText(
+      'No compartimos su información con terceros excepto con proveedores de servicios que nos ayudan a operar nuestra aplicación y servicios, o según lo requiera la ley.'
+    );
+    final String closeButton = SecurityUtils.sanitizeText(localizations.get('close'));
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -1328,7 +1443,7 @@ void _showHealthDataInfo() {
             borderRadius: BorderRadius.circular(16.w),
           ),
           title: Text(
-            localizations.get('privacy_policy_title'),
+            policyTitle,
             style: TextStyle(
               color: Colors.white,
               fontSize: isSmallScreen ? 16.sp : 18.sp,
@@ -1340,7 +1455,7 @@ void _showHealthDataInfo() {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'POLÍTICA DE PRIVACIDAD',
+                  policyHeader,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -1349,7 +1464,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 16.h),
                 Text(
-                  'En Clínicas Love, nos comprometemos a proteger y respetar su privacidad. Esta Política de Privacidad describe cómo recopilamos, utilizamos y compartimos su información personal.',
+                  policyIntro,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1357,7 +1472,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 16.h),
                 Text(
-                  '1. INFORMACIÓN QUE RECOPILAMOS',
+                  dataTitle,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -1365,7 +1480,7 @@ void _showHealthDataInfo() {
                   ),
                 ),
                 Text(
-                  'Recopilamos información personal como su nombre, dirección de correo electrónico, número de teléfono e historial médico relevante para los servicios que ofrecemos.',
+                  dataText,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1373,7 +1488,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  '2. CÓMO UTILIZAMOS SU INFORMACIÓN',
+                  useTitle,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -1381,7 +1496,7 @@ void _showHealthDataInfo() {
                   ),
                 ),
                 Text(
-                  'Utilizamos su información para proporcionar los servicios solicitados, comunicarnos con usted sobre citas y tratamientos, y mejorar nuestros servicios.',
+                  useText,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1389,7 +1504,7 @@ void _showHealthDataInfo() {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  '3. COMPARTIR INFORMACIÓN',
+                  shareTitle,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -1397,7 +1512,7 @@ void _showHealthDataInfo() {
                   ),
                 ),
                 Text(
-                  'No compartimos su información con terceros excepto con proveedores de servicios que nos ayudan a operar nuestra aplicación y servicios, o según lo requiera la ley.',
+                  shareText,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: isSmallScreen ? 12.sp : 14.sp,
@@ -1415,7 +1530,7 @@ void _showHealthDataInfo() {
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               ),
               child: Text(
-                localizations.get('close'),
+                closeButton,
                 style: TextStyle(fontSize: isSmallScreen ? 13.sp : 14.sp),
               ),
             ),

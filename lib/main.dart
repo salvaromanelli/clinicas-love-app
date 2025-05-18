@@ -28,6 +28,8 @@ import 'utils/adaptive_sizing.dart';
 import 'services/analytics_service.dart';
 import 'dart:async';
 import 'services/http_service.dart';
+import 'utils/security_utils.dart';
+import 'utils/secure_logger.dart';
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -133,14 +135,14 @@ class MyApp extends StatelessWidget {
             
             // Obtener la ruta actual con depuración
             final String? currentRoute = ModalRoute.of(context)?.settings.name;
-            print('Ruta actual: $currentRoute');
+            SecureLogger.log('Ruta actual: $currentRoute');
             
             // Aseguramos que child no sea null para evitar errores
             final Widget safeChild = child ?? const SizedBox();
             
             // Solo añadir botón asistente a las rutas específicas
             if (currentRoute == '/ofertas-promo' || currentRoute == '/appointments') {
-              print('Añadiendo botón asistente a: $currentRoute');
+              SecureLogger.log('Añadiendo botón asistente a: $currentRoute');
               return Stack(
                 children: [
                   safeChild,
@@ -187,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // Sincronizar UserProvider independiente de dónde navegue
     if (mounted) {
       AuthService.syncUserWithProvider(context);
-      print('🔄 Sincronizando usuario en SplashScreen');
+      SecureLogger.log('🔄 Sincronizando usuario en SplashScreen', sensitive: true);
     }
     
     await Future.delayed(const Duration(seconds: 2));
@@ -199,14 +201,14 @@ class _SplashScreenState extends State<SplashScreen> {
           'user_id': SupabaseService().client.auth.currentUser?.id,
         });
         
-        Navigator.pushReplacementNamed(context, '/home');
+        SecurityUtils.navigateToSafely(context, '/home');
       } else {
         // Registrar redirección a login
         AnalyticsService().logInteraction('redirect_to_login', {
           'from': 'splash_screen',
         });
         
-        Navigator.pushReplacementNamed(context, '/login');
+        SecurityUtils.navigateToSafely(context, '/login');
       }
     }
   }
@@ -355,7 +357,7 @@ class _HomePageState extends State<HomePage> {
                             padding: EdgeInsets.all(AdaptiveSize.w(8)),
                             constraints: const BoxConstraints(),
                             onPressed: () {
-                              Navigator.pushNamed(context, '/language-settings');
+                              SecurityUtils.navigateToSafely(context, '/language-settings');
                             },
                           ),
                         ),
@@ -446,7 +448,7 @@ class _HomePageState extends State<HomePage> {
               'position': 'top_card',
             });
             
-            Navigator.pushNamed(context, '/assistant');
+            SecurityUtils.navigateToSafely(context, '/assistant');
           },
           child: Padding(
             padding: EdgeInsets.all(AdaptiveSize.w(20)),
@@ -513,14 +515,19 @@ class _HomePageState extends State<HomePage> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          // Registrar evento de navegación a servicio
+          // Sanitizar el título antes de enviarlo a analytics
+          final translatedTitle = _getTranslatedTitle(context, title);
+          final sanitizedTitle = SecurityUtils.sanitizeText(translatedTitle);
+          
+          // Registrar evento con datos sanitizados
           AnalyticsService().logInteraction('service_card_clicked', {
-            'service_name': title,
+            'service_name': sanitizedTitle,
             'route': route,
             'source': 'home_page',
           });
           
-          Navigator.pushNamed(context, route);
+          // Usar navegación segura
+          SecurityUtils.navigateToSafely(context, route);
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

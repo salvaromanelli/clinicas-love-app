@@ -6,6 +6,7 @@ import '/services/knowledge_base.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '/services/supabase.dart';
 import 'dart:math' as math;
+import '../utils/input_sanitizer.dart';
 
 
 class ConversationContext {
@@ -25,6 +26,7 @@ class ChatViewModel extends ChangeNotifier {
   List<ChatMessage> messages = [];
   bool isTyping = false;
   bool isBookingFlow = false;
+  String? _currentConversationId;
   
 
   List<String> suggestedReplies = [];
@@ -313,18 +315,25 @@ bool _isAppointmentQuery(String text) {
 
   // Añadir mensaje de usuario directamente
   void addUserMessage(String text) {
-    messages.add(ChatMessage(text: text, isUser: true));
+    final sanitizedText = InputSanitizer.sanitizeUserInput(text);
+    messages.add(ChatMessage(  // Cambiar _messages a messages
+      text: sanitizedText,
+      isUser: true,
+    ));
     notifyListeners();
   }
 
   // Añadir mensaje de asistente directamente
-  void addBotMessage(String text, {String? additionalContext, String userQuery = ""}) {
-    // NO aplicar filtro de precios para mensajes que contienen enlaces de WhatsApp
-    final filteredText = text.contains("wa.me/") ? text : ensurePriceFilter(text, userQuery);
+  void addBotMessage(String text, {String? additionalContext, String? userQuery}) {
+    final sanitizedText = InputSanitizer.sanitizeUserInput(text);
+    final sanitizedUserQuery = InputSanitizer.sanitizeUserInput(userQuery ?? '');
+    
     messages.add(ChatMessage(
-      text: filteredText, // Usar el filteredText
+      text: sanitizedText,
       isUser: false,
       additionalContext: additionalContext,
+      userQuery: sanitizedUserQuery,
+      conversationId: _currentConversationId,
     ));
     notifyListeners();
   }

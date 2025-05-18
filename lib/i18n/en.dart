@@ -349,6 +349,7 @@ const Map<String, String> en = {
   "please_wait": "Please wait",
   "account_deletion_failed": "Account deletion failed",
   'account_deleted_success': 'Your account has been deleted successfully.',
+  'invalid_input': 'The text contains disallowed characters',
 
 
 };

@@ -5,11 +5,37 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../main.dart' show navigatorKey;
 import 'package:uuid/uuid.dart';
+import '../utils/security_utils.dart';
 
 class AnalyticsService {
   static final AnalyticsService _instance = AnalyticsService._internal();
   factory AnalyticsService() => _instance;
   AnalyticsService._internal();
+
+    // Método para sanitizar datos antes de envío
+  Map<String, dynamic> _sanitizeAnalyticsData(Map<String, dynamic> data) {
+    final result = <String, dynamic>{};
+    
+    data.forEach((key, value) {
+      if (value is String) {
+        result[key] = SecurityUtils.sanitizeText(value);
+      } else if (value is num || value is bool) {
+        result[key] = value;
+      } else if (value is Map) {
+        result[key] = _sanitizeAnalyticsData(Map<String, dynamic>.from(value));
+      } else if (value is List) {
+        result[key] = value.map((item) {
+          if (item is String) return SecurityUtils.sanitizeText(item);
+          return item;
+        }).toList();
+      } else {
+        // Valores null o tipos no reconocidos
+        result[key] = value;
+      }
+    });
+    
+    return result;
+  }
   
   // Registrar vista de página
   Future<void> logPageView(String pageName) async {
@@ -162,16 +188,20 @@ class AnalyticsService {
     try {
       final userId = SupabaseService().client.auth.currentUser?.id ?? 'anonymous';
       
+      // Sanitizar datos antes de insertar en la base de datos
+      final sanitizedEventName = SecurityUtils.sanitizeText(eventName);
+      final sanitizedProperties = _sanitizeAnalyticsData(properties);
+      
       await SupabaseService().client.from('analytics_events').insert({
         'user_id': userId,
         'event_type': 'interaction',
-        'event_name': eventName,
-        'properties': properties,
+        'event_name': sanitizedEventName, // Usar el nombre sanitizado
+        'properties': sanitizedProperties, // Usar las propiedades sanitizadas
         'timestamp': DateTime.now().toIso8601String(),
         'device_info': await _getDeviceInfo(),
       });
       
-      debugPrint('✅ Analytics: Interaction logged - $eventName');
+      debugPrint('✅ Analytics: Interaction logged - $sanitizedEventName');
     } catch (e) {
       debugPrint('❌ Error logging interaction: $e');
     }

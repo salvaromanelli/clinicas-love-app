@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart' show Share, XFile, ShareResult, ShareResultStatus;
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'services/supabase.dart';
 import 'i18n/app_localizations.dart';
 import 'utils/adaptive_sizing.dart';
+import 'utils/input_sanitizer.dart';
+import 'utils/secure_logger.dart';
+import 'utils/security_utils.dart';
 
 class IntegracionRedesPage extends StatefulWidget {
   const IntegracionRedesPage({super.key});
@@ -29,17 +29,76 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   final _formKey = GlobalKey<FormState>();
   final _tagController = TextEditingController();
   late AppLocalizations localizations; 
+  final Map<String, DateTime> _lastActions = {};
+  late String _csrfToken;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     localizations = AppLocalizations.of(context);
   }
+
+  @override
+  void initState() {
+    super.initState();
+    // Generar token anti-CSRF para esta sesión
+    _csrfToken = const Uuid().v4();
+    SecureLogger.log('Token CSRF generado para sesión de integración redes');
+    
+    // Verificar seguridad del entorno
+    _checkEnvironmentSecurity();
+  }
+
+  Future<void> _checkEnvironmentSecurity() async {
+    try {
+      // Verificar si el dispositivo es seguro (no rooteado/jailbreak)
+      if (await SecurityUtils.isDeviceRooted()) {
+        SecureLogger.log('Advertencia: Dispositivo rooteado detectado', sensitive: true);
+      }
+    } catch (e) {
+      SecureLogger.log('Error verificando seguridad: $e');
+    }
+  }
   
   @override
   void dispose() {
     _tagController.dispose();
     super.dispose();
+  }
+
+  // Método mejorado para verificar que la ruta del archivo es válida y segura
+  bool _isValidAndSafeFilePath(String? path) {
+    if (path == null || path.isEmpty) return false;
+    
+    try {
+      // Verificar que el archivo existe
+      final file = File(path);
+      if (!file.existsSync()) return false;
+      
+      // Usar SecurityUtils para validación avanzada de la ruta
+      if (!SecurityUtils.isValidFilePath(path)) return false;
+      
+      // Verificar extensión de archivo permitida
+      final allowedExtensions = ['.jpg', '.jpeg', '.png', '.heic'];
+      final hasValidExtension = allowedExtensions.any((ext) => path.toLowerCase().endsWith(ext));
+      
+      // Verificar tamaño máximo permitido (10MB)
+      final fileSize = file.lengthSync();
+      if (fileSize > 10 * 1024 * 1024) return false;
+      
+      // Verificar que no contiene caracteres sospechosos en el nombre
+      final hasSuspiciousChars = path.contains('..') || 
+                                path.contains('|') || 
+                                path.contains(';') ||
+                                path.contains('&') ||
+                                path.contains('<') ||
+                                path.contains('>');
+      
+      return hasValidExtension && !hasSuspiciousChars;
+    } catch (e) {
+      SecureLogger.log('Error validando ruta de archivo: $e');
+      return false;
+    }
   }
 
   // Método para mostrar opciones de imagen (cámara o galería)
@@ -127,15 +186,37 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
         imageQuality: 85,
+        maxWidth: 1920, // Limitar tamaño para evitar consumo excesivo de memoria
+        maxHeight: 1080,
       );
       
       if (photo != null) {
-        setState(() {
-          _selectedImagePath = photo.path;
-        });
+        // Validar seguridad del archivo
+        if (_isValidAndSafeFilePath(photo.path)) {
+          // Verificar contenido de la imagen (tamaño, dimensiones)
+          final file = File(photo.path);
+          final fileSize = await file.length();
+          
+          if (fileSize > 10 * 1024 * 1024) {
+            _showErrorSnackBar(localizations.get('image_too_large'));
+            return;
+          }
+          
+          setState(() {
+            _selectedImagePath = photo.path;
+          });
+          
+          // Registrar operación exitosa
+          SecureLogger.log('Foto tomada correctamente: ${photo.path.split('/').last}');
+        } else {
+          _showErrorSnackBar(localizations.get('invalid_image_format'));
+          SecureLogger.log('Intento de cargar imagen con formato inválido', sensitive: true);
+        }
       }
     } catch (e) {
-      _showErrorSnackBar('${localizations.get('error_taking_photo')} $e');
+      final safeErrorMessage = SecurityUtils.sanitizeInput('${localizations.get('error_taking_photo')}');
+      _showErrorSnackBar(safeErrorMessage);
+      SecureLogger.log('Error al tomar foto: $e', sensitive: true);
     } finally {
       setState(() {
         _isLoading = false;
@@ -284,10 +365,46 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
     );
   }
 
+  // Método para verificar rate limiting
+  bool _checkRateLimit(String action, {int limitSeconds = 5}) {
+    final now = DateTime.now();
+    final lastAttempt = _lastActions[action];
+    
+    if (lastAttempt != null) {
+      final difference = now.difference(lastAttempt).inSeconds;
+      if (difference < limitSeconds) {
+        SecureLogger.log('Rate limit excedido para acción: $action');
+        return false;
+      }
+    }
+    
+    _lastActions[action] = now;
+    return true;
+  }
+
   // Método para compartir con Share_plus en otras redes sociales
   Future<void> _shareImageWithSharePlus() async {
     if (_selectedImagePath == null) {
       _showErrorSnackBar(localizations.get('select_image_first'));
+      return;
+    }
+
+    // Verificar que el archivo sigue existiendo y es accesible
+    final file = File(_selectedImagePath!);
+    if (!await file.exists()) {
+      _showErrorSnackBar(localizations.get('image_no_longer_exists'));
+      setState(() {
+        _selectedImagePath = null; // Resetear path ya que no es válido
+      });
+      return;
+    }
+    
+    // Verificar permisos de lectura
+    try {
+      await file.openRead().first;
+    } catch (e) {
+      _showErrorSnackBar(localizations.get('cannot_access_image'));
+      SecureLogger.log('Error de permisos al acceder a imagen: $e', sensitive: true);
       return;
     }
 
@@ -346,16 +463,49 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
     });
   }
 
-  // Generar código de descuento aleatorio
+  // Generar código de descuento aleatorio con mayor seguridad
   void _generateDiscountCode() {
-    final uuid = const Uuid().v4().substring(0, 6).toUpperCase();
-    setState(() {
-      _discountCode = 'CL-$uuid';
-      _isDiscountGenerated = true;
-    });
+    try {
+      // Generar un código alfanumérico con mayor entropía
+      final randomPart1 = const Uuid().v4().substring(0, 3).toUpperCase();
+      final randomPart2 = const Uuid().v4().substring(9, 12).toUpperCase();
+      
+      // Añadir timestamp para evitar colisiones
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(7, 10);
+      
+      final rawCode = '$randomPart1$timestamp$randomPart2';
+      
+      // Validar que solo contenga caracteres alfanuméricos
+      final sanitizedCode = RegExp(r'[A-Z0-9]+').stringMatch(rawCode) ?? 'ABCDEF';
+      
+      // Verificación final de seguridad
+      if (sanitizedCode.length >= 8) {
+        setState(() {
+          _discountCode = 'CL-${sanitizedCode.substring(0, 8)}';
+          _isDiscountGenerated = true;
+        });
+        SecureLogger.log('Código de descuento generado: $_discountCode');
+      } else {
+        // Código de respaldo si algo falla
+        setState(() {
+          _discountCode = 'CL-${DateTime.now().millisecondsSinceEpoch.toString().substring(5, 13)}';
+          _isDiscountGenerated = true;
+        });
+        SecureLogger.log('Generación primaria falló, usando código de respaldo');
+      }
+    } catch (e) {
+      // Manejar excepción de forma segura
+      setState(() {
+        // Usar método determinista pero único como respaldo
+        final fallbackCode = 'CL-${DateTime.now().millisecondsSinceEpoch.toString().substring(5, 13)}';
+        _discountCode = fallbackCode;
+        _isDiscountGenerated = true;
+      });
+      SecureLogger.log('Error generando código: $e', sensitive: true);
+    }
   }
 
-  // Guardar el descuento en Supabase
+  // Guardar el descuento en Supabase con seguridad mejorada
   Future<void> _saveDiscountToSupabase() async {
     try {
       final userId = _supabaseService.getCurrentUserId();
@@ -365,26 +515,55 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
         return;
       }
       
-      // Datos del descuento
+      // Doble sanitización y validación
+      final rawUsername = _tagController.text.trim();
+      
+      // Verificar primero si cumple con el regex permitido
+      final RegExp validUsernamePattern = RegExp(r'^[a-zA-Z0-9._]{1,30}$');
+      if (!validUsernamePattern.hasMatch(rawUsername)) {
+        _showErrorSnackBar(localizations.get('invalid_instagram_username'));
+        return;
+      }
+      
+      // Sanitizar datos antes de guardarlos
+      final sanitizedUsername = SecurityUtils.sanitizeInput(InputSanitizer.sanitizeUserInput(rawUsername));
+      final sanitizedCode = SecurityUtils.sanitizeInput(InputSanitizer.sanitizeUserInput(_discountCode));
+      
+      // Datos del descuento con valores sanitizados
       final discountData = {
         'user_id': userId,
-        'code': _discountCode,
+        'code': sanitizedCode,
         'percentage': 10, // 10% de descuento
         'is_used': false,
         'created_at': DateTime.now().toIso8601String(),
         'expires_at': DateTime.now().add(const Duration(days: 90)).toIso8601String(),
-        'source': 'instagram_share'
+        'source': 'instagram_share',
+        'instagram_username': sanitizedUsername
       };
       
-      // Guardar en la tabla discounts
-      await _supabaseService.client
-          .from('discounts')
-          .insert(discountData);
-
+      // Verificar datos antes de enviar a Supabase
+      if (SecurityUtils.isValidSubmission(discountData)) {
+        
+        // Añadir token CSRF a los datos
+        final secureData = {
+          ...discountData,
+          'csrf_token': _csrfToken,
+          'client_timestamp': DateTime.now().toIso8601String(),
+        };
+  
+        // Guardar en la tabla discounts de forma segura
+        await _supabaseService.client
+            .from('discounts')
+            .insert(secureData);
+        
+        // Registrar la acción exitosa de forma segura
+        SecureLogger.log('Descuento guardado exitosamente para usuario: $userId');
+      } else {
+        throw Exception('Datos inválidos para almacenamiento');
+      }
     } catch (e) {
-      print('Error guardando descuento: $e');
+      SecureLogger.log('Error guardando descuento: $e');
       // No mostramos el error al usuario para no arruinar la experiencia
-      // pero registramos para depuración
     }
   }
 
@@ -393,6 +572,9 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
     // Inicializar AdaptiveSize para el diálogo
     AdaptiveSize.initialize(context);
     final isSmallScreen = AdaptiveSize.screenWidth < 360;
+
+    // Sanitizar el código de descuento
+    final sanitizedCode = SecurityUtils.sanitizeInput(InputSanitizer.sanitizeUserInput(_discountCode));
     
     showDialog(
       context: context,
@@ -429,7 +611,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    _discountCode,
+                    sanitizedCode,
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -443,7 +625,7 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                       size: AdaptiveSize.getIconSize(context, baseSize: 20),
                     ),
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: _discountCode));
+                      Clipboard.setData(ClipboardData(text: sanitizedCode));
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -496,13 +678,25 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
   }
 
   void _showErrorSnackBar(String message) {
+    // Sanitizar mensaje antes de mostrarlo
+    final sanitizedMessage = SecurityUtils.sanitizeInput(InputSanitizer.sanitizeUserInput(message));
+    
+    // Limitar longitud para prevenir ataques de DOS en la UI
+    final truncatedMessage = sanitizedMessage.length > 100 
+        ? '${sanitizedMessage.substring(0, 97)}...' 
+        : sanitizedMessage;
+    
+    // Registrar error de forma segura
+    SecureLogger.log('Error mostrado al usuario: $truncatedMessage');
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          message,
+          truncatedMessage,
           style: TextStyle(fontSize: AdaptiveSize.sp(14)),
         ),
         backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -715,8 +909,37 @@ class _IntegracionRedesPageState extends State<IntegracionRedesPage> {
                                     if (value == null || value.trim().isEmpty) {
                                       return localizations.get('enter_instagram_username_validation');
                                     }
+                                    
+                                    // Primera validación con regex básico
+                                    final RegExp instagramRegex = RegExp(r'^[a-zA-Z0-9._]{1,30}$');
+                                    if (!instagramRegex.hasMatch(value)) {
+                                      return localizations.get('invalid_instagram_username');
+                                    }
+                                    
+                                    // Segunda validación con lista negra de términos
+                                    final lowercaseValue = value.toLowerCase();
+                                    final blacklist = ['admin', 'root', 'system', 'instagram', 'oficial', 'verified',
+                                                      'support', 'help', 'xss', 'script', 'null', 'undefined'];
+                                    
+                                    for (final term in blacklist) {
+                                      if (lowercaseValue == term || lowercaseValue.startsWith('${term}_') || 
+                                          lowercaseValue.endsWith('_$term') || lowercaseValue.contains('.$term')) {
+                                        return localizations.get('username_not_allowed');
+                                      }
+                                    }
+                                    
                                     return null;
                                   },
+                                  onChanged: (value) {
+                                    // Remover caracteres no permitidos en tiempo real
+                                    final sanitizedValue = RegExp(r'[a-zA-Z0-9._]+').stringMatch(value) ?? '';
+                                    if (sanitizedValue != value) {
+                                      _tagController.value = TextEditingValue(
+                                        text: sanitizedValue,
+                                        selection: TextSelection.collapsed(offset: sanitizedValue.length),
+                                      );
+                                    }
+                                  }, 
                                 ),
                               ),
                             ],

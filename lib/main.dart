@@ -30,6 +30,8 @@ import 'dart:async';
 import 'services/http_service.dart';
 import 'utils/security_utils.dart';
 import 'utils/secure_logger.dart';
+import 'package:app_links/app_links.dart';
+import 'reset_password_page.dart';
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -52,9 +54,6 @@ void main() async {
   HttpService.initialize(); // Inicializa el cliente HTTP
   setupTokenRefreshTimer();
   
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-
   // Registrar tiempo de inicialización
   final initDuration = DateTime.now().difference(startTime).inMilliseconds;
   AnalyticsService().logInteraction('app_initialized', {
@@ -74,8 +73,67 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _appLinks = AppLinks();
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar manejo de deep links
+    _initializeDeepLinks();
+  }
+
+  Future<void> _initializeDeepLinks() async {
+    // Maneja el enlace inicial si la app se abrió con uno
+    final appLink = await _appLinks.getInitialLink();
+    if (appLink != null) {
+      _handleDeepLink(appLink);
+    }
+
+    // Escucha enlaces entrantes mientras la app está abierta
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    }, onError: (error) {
+      SecureLogger.log('Error con deep link: $error', sensitive: false);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    SecureLogger.log('Deep link recibido: $uri', sensitive: false);
+    
+    if (uri.host == 'reset-password') {
+      // Verificar si hay error en la URL
+      if (uri.queryParameters.containsKey('error')) {
+        // Es un error - mostrar la página de reseteo con error
+        final errorCode = uri.queryParameters['error_code'];
+        final errorDescription = uri.queryParameters['error_description'];
+        
+        navigatorKey.currentState?.pushNamed(
+          '/reset-password',
+          arguments: {
+            'isError': true,
+            'errorCode': errorCode,
+            'errorDescription': errorDescription
+          }
+        );
+      } else {
+        // Es un código válido
+        final code = uri.queryParameters['code'];
+        
+        navigatorKey.currentState?.pushNamed(
+          '/reset-password',
+          arguments: code
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +185,8 @@ class MyApp extends StatelessWidget {
         '/book-appointment': (context) => const AppointmentBookingPage(),
         '/reviews': (context) => const ReviewsPage(),
         '/language-settings': (context) => const LanguageSettingsPage(),
+        '/reset-password': (context) => const ResetPasswordPage(),
+
 
         },
           builder: (context, child) {

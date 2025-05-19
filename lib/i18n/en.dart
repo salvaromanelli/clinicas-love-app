@@ -350,6 +350,16 @@ const Map<String, String> en = {
   "account_deletion_failed": "Account deletion failed",
   'account_deleted_success': 'Your account has been deleted successfully.',
   'invalid_input': 'The text contains disallowed characters',
+  'reset_password': 'Reset Password',
+  'create_new_password': 'Create a new password',
+  'new_password': 'New password',
+  'update_password': 'Update password',
+  'password_reset_success': 'Password reset successfully. You can now log in with your new password.',
+  'password_reset_error': 'Error resetting password. Please try again.',
+  'token_expired': 'Token expired',
+  'token_expired_message': 'The recovery code has expired. Would you like to request a new one?',
+  'request_new_code': 'Request new code',
+  'token_expired_error': 'The recovery link has expired. Please request a new one.',
 
 
 };

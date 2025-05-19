@@ -27,7 +27,7 @@
         <category android:name="android.intent.category.BROWSABLE" />
         <data
             android:scheme="io.supabase.flutterquickstart"
-            android:host="login-callback" />
+            android:host="reset-password" />
     </intent-filter>
 </activity>
 </manifest>

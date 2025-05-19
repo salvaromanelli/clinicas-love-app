@@ -121,7 +121,7 @@ static Future<void> initialize() async {
     required String password,
     required String fullName,
     required String phoneNumber,
-    DateTime? birthDate, // Añadir este parámetro
+    DateTime? birthDate,
     Map<String, dynamic>? consent,
   }) async {
     try {
@@ -134,8 +134,6 @@ static Future<void> initialize() async {
         data: {
           'full_name': fullName,
           'phone_number': phoneNumber,
-          'birth_date': birthDate?.toIso8601String(), // Añadir fecha de nacimiento
-          'consent': consent,
         },
         emailRedirectTo: 'io.supabase.flutterquickstart://login-callback/'
       );
@@ -148,11 +146,12 @@ static Future<void> initialize() async {
           await client.from('profiles').update({
             'full_name': fullName,
             'phone_number': phoneNumber,
-            'birth_date': birthDate?.toIso8601String(), // Añadir fecha de nacimiento
+            'birth_date': birthDate?.toIso8601String(), // Fecha de nacimiento
+            'consents': consent, // Guardar el objeto completo de consentimiento en la columna jsonb
             'updated_at': now
           }).eq('id', response.user!.id);
           
-          print("Perfil actualizado correctamente");
+          print("Perfil actualizado correctamente con consentimientos");
         } catch (profileError) {
           print("Error actualizando perfil: $profileError");
         }
@@ -181,7 +180,15 @@ static Future<void> initialize() async {
   
   // Recuperar contraseña
   Future<void> resetPassword(String email) async {
-    await client.auth.resetPasswordForEmail(email);
+    await client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'io.supabase.flutterquickstart://reset-password/',
+    );
+    
+    // Cerrar cualquier sesión parcial que pueda haberse creado
+    if (client.auth.currentSession != null) {
+      await client.auth.signOut();
+    }
   }
   
   // Subir imagen de perfil

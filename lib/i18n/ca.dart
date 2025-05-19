@@ -348,6 +348,16 @@ const Map<String, String> ca = {
   "account_deletion_failed": "Error en l'eliminació del compte",
   'account_deleted_success': 'El teu compte ha estat eliminat correctament.',
   'invalid_input': 'Entrada no vàlida',
+  'reset_password': 'Restablir contrasenya',
+  'create_new_password': 'Crea una nova contrasenya',
+  'new_password': 'Nova contrasenya',
+  'update_password': 'Actualitzar contrasenya',
+  'password_reset_success': 'La teva contrasenya ha estat actualitzada amb èxit.',
+  'password_reset_error': 'Error en restablir la contrasenya. Si us plau, torna-ho a provar.',
+  'token_expired': 'El codi de recuperació ha caducat.',
+  'token_expired_message': 'El codi de recuperació ha caducat. Si us plau, sol·licita un nou codi.',
+  'request_new_code': 'Sol·licitar nou codi',
+  'token_expired_error': 'El codi de recuperació ha caducat. Si us plau, sol·licita un nou codi.',
 
 
 

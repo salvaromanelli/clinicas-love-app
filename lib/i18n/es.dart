@@ -388,6 +388,16 @@ const Map<String, String> es = {
   "please_wait": "Por favor, espera...",
   'account_deleted_success': 'Tu cuenta ha sido eliminada con éxito. Lamentamos verte ir.',
   'invalid_input': 'El texto contiene caracteres no permitidos',
+  'reset_password': 'Restablecer contraseña',
+  'create_new_password': 'Crea una nueva contraseña',
+  'new_password': 'Nueva contraseña',
+  'update_password': 'Actualizar contraseña',
+  'password_reset_success': 'Contraseña restablecida con éxito',
+  'password_reset_error': 'Error al restablecer la contraseña',
+  'token_expired': 'El enlace de recuperación ha expirado.',
+  'token_expired_message': 'El código de recuperación ha expirado. ¿Deseas solicitar uno nuevo?',
+  'request_new_code': 'Solicitar nuevo código.',
+  'token_expired_error': 'El enlace de recuperación ha expirado. Por favor solicita uno nuevo.',
 
 };
   

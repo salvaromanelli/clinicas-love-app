@@ -18,117 +18,117 @@ Análisis contextual de preguntas médicas
 Sistema de seguimiento y análisis de conversaciones
 Almacenamiento persistente de historial de chat
 
-- Simulador de Tratamientos con IA
+- Simulador de Tratamientos con IA:
 Visualización predictiva de resultados de tratamientos
 Recomendaciones personalizadas basadas en análisis facial
 Experiencia interactiva para pacientes potenciales
 
-- Gestión de Citas 📅 
+- Gestión de Citas: 
 Reserva directa de citas desde la aplicación
 Integración con Clinic Cloud by Doctoralia
 Visualización de disponibilidad en tiempo real
 Recordatorios automáticos y notificaciones
 Historial completo de citas anteriores
 
-- Localización de Clínicas 📍 
+- Localización de Clínicas:
 Mapa interactivo para encontrar clínicas cercanas
 Filtrado por servicios disponibles
 Información detallada de cada centro
 Direcciones de navegación integradas
 
-- Centro Educativo 🎓 
+- Centro Educativo (Blog): 
 Contenido informativo sobre tratamientos
 Artículos y vídeos explicativos
 Preguntas frecuentes y consejos para pacientes
 Recursos descargables personalizados
 
-- Perfil y Seguimiento 📊 
+- Perfil y Seguimiento:
 Perfil personal con historial médico
 Seguimiento de tratamientos y progreso
 Recomendaciones personalizadas
 Acceso a documentación y resultados
 
-- Integración con Redes Sociales
+- Integración con Redes Sociales:
 Compartir experiencias en plataformas sociales
 Programa de recomendación para amigos
 Promociones especiales para seguidores
 Galería de antes/después compartible
 
-- Sistema de Reseñas ⭐ 
+- Sistema de Reseñas:
 Calificaciones y comentarios de pacientes
 Testimonios verificados
 Fotos de resultados reales
 Respuestas de profesionales a consultas
 
 
-🛠️ Tecnologías utilizadas
+Tecnologías utilizadas:
 
-Frontend:
+- Frontend:
 
-Framework: Flutter 3.10+
-Lenguaje: Dart 3.0+
-Gestión de estado: Provider
-Localización: Soporte para Español, Inglés y Catalán
-UI/UX: Material Design 3 con adaptación responsiva
-Animaciones: Flutter Animation & Lottie
+  Framework: Flutter 3.10+
+  Lenguaje: Dart 3.0+
+  Gestión de estado: Provider
+  Localización: Soporte para Español, Inglés y Catalán
+  UI/UX: Material Design 3 con adaptación responsiva
+  Animaciones: Flutter Animation & Lottie
 
-Backend:
+- Backend:
 
-Plataforma: Supabase
-Base de datos: PostgreSQL
-Autenticación: Supabase Auth
-Storage: Supabase Storage
-Funciones: Edge Functions (Deno)
-Webhooks: Para integraciones en tiempo real
+  Plataforma: Supabase
+  Base de datos: PostgreSQL
+  Autenticación: Supabase Auth
+  Storage: Supabase Storage
+  Funciones: Edge Functions (Deno)
+  Webhooks: Para integraciones en tiempo real
 
-APIs y Servicios:
+- APIs y Servicios:
 
-IA Conversacional: Claude AI
-Gestión de pacientes: Clinic Cloud by Doctoralia
-Notificaciones: Firebase Cloud Messaging
-Análisis: Supabase Analytics + Custom Analytics
+  IA Conversacional: Claude AI
+  Gestión de pacientes: Clinic Cloud by Doctoralia
+  Notificaciones: Firebase Cloud Messaging
+  Análisis: Supabase Analytics + Custom Analytics
 
-Herramientas de desarrollo:
+- Herramientas de desarrollo:
+  
+  Análisis de rendimiento: Firebase Performance Monitoring
+  Monitoreo de errores: Sentry
+  Testing: Flutter Test Framework
+  CI/CD: GitHub Actions
 
-Análisis de rendimiento: Firebase Performance Monitoring
-Monitoreo de errores: Sentry
-Testing: Flutter Test Framework
-CI/CD: GitHub Actions
 
+- Análisis y seguimiento:
 
-Análisis y seguimiento:
+  La aplicación cuenta con un sistema robusto de análisis para:
+  
+  Seguimiento de conversaciones de chatbot
+  Análisis de patrones de consulta de usuarios
+  Métricas de rendimiento de la aplicación
+  Tasas de conversión para reserva de citas
+  Mapas de calor de interacción
+  Embudos de conversión para optimizar la experiencia
 
-La aplicación cuenta con un sistema robusto de análisis para:
+- Seguridad y privacidad:
 
-Seguimiento de conversaciones de chatbot
-Análisis de patrones de consulta de usuarios
-Métricas de rendimiento de la aplicación
-Tasas de conversión para reserva de citas
-Mapas de calor de interacción
-Embudos de conversión para optimizar la experiencia
+  Cumplimiento con RGPD/GDPR
+  Encriptación end-to-end para datos sensibles
+  Almacenamiento seguro de información médica
+  Políticas de retención de datos
+  Autenticación de dos factores
 
-Seguridad y privacidad:
+- Requisitos del sistema:
+  
+  iOS: iOS 12.0 o superior
+  Android: Android 5.0 (Lollipop) o superior
+  Conexión a Internet: Requerida para la mayoría de funcionalidades
 
-Cumplimiento con RGPD/GDPR
-Encriptación end-to-end para datos sensibles
-Almacenamiento seguro de información médica
-Políticas de retención de datos
-Autenticación de dos factores
+- Integración con Clinic Cloud:
 
-Requisitos del sistema:
-
-iOS: iOS 12.0 o superior
-Android: Android 5.0 (Lollipop) o superior
-Conexión a Internet: Requerida para la mayoría de funcionalidades
-
-Integración con Clinic Cloud:
-
-La aplicación se integra perfectamente con Clinic Cloud by Doctoralia para:
-
-Sincronización bidireccional de citas
-Acceso al historial médico del paciente
-Gestión centralizada de tratamientos
-Comunicación directa con profesionales médicos
+  La aplicación se integra perfectamente con Clinic Cloud by Doctoralia para:
+  
+  Sincronización bidireccional de citas
+  Acceso al historial médico del paciente
+  Gestión centralizada de tratamientos
+  Comunicación directa con profesionales médicos
 
 Instalación y configuración:
 # Clonar repositorio

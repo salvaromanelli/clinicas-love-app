@@ -12,11 +12,11 @@ Clínicas Love App es una aplicación móvil diseñada para mejorar la experienc
 
 ### 🏠 Vista general de la app
 
-<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/main.png" alt="Pantalla principal" width="300"/>
+<img src="https://github.com/salvaromanelli/clinicas-love-app/blob/main/main.png?raw=true" alt="Pantalla principal" width="300"/>
 
 ### 🤖 Asistente virtual inteligente
 
-<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/splash.png" alt="Asistente virtual" width="300"/>
+<img src="https://github.com/salvaromanelli/clinicas-love-app/blob/main/chatbot.png?raw=true" alt="Asistente virtual" width="300"/>
 
 ### ✨ Simulador con IA
 

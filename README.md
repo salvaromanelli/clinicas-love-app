@@ -20,7 +20,7 @@ Clínicas Love App es una aplicación móvil diseñada para mejorar la experienc
 
 ### ✨ Simulador con IA
 
-![Simulador de tratamientos](https://github.com/salvaromanelli/clinicas-love-app/blob/main/cita.png?raw=true)
+<img src="https://github.com/salvaromanelli/clinicas-love-app/blob/main/cita.png?raw=true" alt="Simulador de tratamientos" width="60"/>
 
 ### 📋 Vista de citas
 

@@ -8,6 +8,25 @@ Clínicas Love - Aplicación Móvil de Servicios Médico-Estéticos
 Clínicas Love App es una aplicación móvil diseñada para mejorar la experiencia del paciente en clínicas médico-estéticas. Proporciona una plataforma que conecta a los pacientes con servicios de tratamientos estéticos, facilitando la comunicación, planificación y educación sobre procedimientos.
 
 
+## 📱 Capturas de pantalla y demostración
+
+### Vista general de la app:
+
+![Pantalla principal](./screenshots/home.png)
+
+### Asistente virtual inteligente:
+
+![Asistente virtual](./screenshots/chatbot.png)
+
+### Simulador con IA:
+
+![Simulador de tratamientos](./screenshots/simulator.png)
+
+### Demostración en tiempo real:
+
+![Demo GIF](./screenshots/demo.gif)
+
+---
 
 Características principales:
 
@@ -17,6 +36,7 @@ IA avanzada basada en Claude para respuestas personalizadas
 Análisis contextual de preguntas médicas
 Sistema de seguimiento y análisis de conversaciones
 Almacenamiento persistente de historial de chat
+
 
 - Simulador de Tratamientos con IA:
 Visualización predictiva de resultados de tratamientos

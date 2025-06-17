@@ -24,7 +24,7 @@ Clínicas Love App es una aplicación móvil diseñada para mejorar la experienc
 
 ### Demostración en tiempo real:
 
-![Demo GIF]([Simulator Screen Recording - iPhone 16 Pro Max - 2025-06-17 at 01.46.18.gif](https://github.com/salvaromanelli/clinicas-love-app/blob/c32a3e41caf00c67822ece3dd6157b4c6e685fb4/Simulator%20Screen%20Recording%20-%20iPhone%2016%20Pro%20Max%20-%202025-06-17%20at%2001.46.18.gif))
+![Demo de la app](https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/c32a3e41caf00c67822ece3dd6157b4c6e685fb4/Simulator%20Screen%20Recording%20-%20iPhone%2016%20Pro%20Max%20-%202025-06-17%20at%2001.46.18.gif)
 
 ---
 

@@ -12,11 +12,11 @@ Clínicas Love App es una aplicación móvil diseñada para mejorar la experienc
 
 ### 🏠 Vista general de la app
 
-![Pantalla principal](https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/main.png)
+<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/main.png" alt="Pantalla principal" width="300"/>
 
 ### 🤖 Asistente virtual inteligente
 
-![Asistente virtual](https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/splash.png)
+<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/splash.png" alt="Asistente virtual" width="300"/>
 
 ### ✨ Simulador con IA
 
@@ -24,15 +24,15 @@ Clínicas Love App es una aplicación móvil diseñada para mejorar la experienc
 
 ### 📋 Vista de citas
 
-![Citas](https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/citas2.png)
+<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/citas2.png" alt="Citas" width="300"/>
 
 ### 👤 Perfil del usuario
 
-![Perfil](https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/perfil.png)
+<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/perfil.png" alt="Perfil" width="300"/>
 
 ### 🎥 Demostración en tiempo real
 
-![Demo de la app](https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/demo.gif)
+<img src="https://raw.githubusercontent.com/salvaromanelli/clinicas-love-app/main/demo.gif" alt="Demo de la app" width="300"/>
 
 
 Características principales:

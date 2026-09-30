@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 import '/models/clinicas.dart';
@@ -20,8 +21,8 @@ class SupabaseService {
   
 static Future<void> initialize() async {
   await Supabase.initialize(
-    url: 'https://xlrutqwvlowzntnjgmwa.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscnV0cXd2bG93em50bmpnbXdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5NjM2NDAsImV4cCI6MjA1NjUzOTY0MH0.RpmMKYSYEAXZLzCWgd7AP0pclgvXhVZmo14XXqdpBtE',
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_KEY'] ?? '',
     debug: false,
   );
 }

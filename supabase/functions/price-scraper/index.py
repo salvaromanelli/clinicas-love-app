@@ -4,9 +4,9 @@ from bs4 import BeautifulSoup
 import os
 from supabase import create_client, Client
 
-# Configuración de Supabase
-url: str = os.environ.get("https://xlrutqwvlowzntnjgmwa.supabase.co")
-key: str = os.environ.get("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscnV0cXd2bG93em50bmpnbXdhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MDk2MzY0MCwiZXhwIjoyMDU2NTM5NjQwfQ.cvbeyFrPN5axFksj0frOHIt1q9gFulIKR1DSCPDTVGA")
+# Configuración de Supabase (variables de entorno, ver .env.example)
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
 async def scrape_prices():

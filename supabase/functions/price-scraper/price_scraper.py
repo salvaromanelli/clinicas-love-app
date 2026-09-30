@@ -44,9 +44,7 @@ TARGET_URLS = target_urls_str.split(",") if target_urls_str and "," in target_ur
 
 # Verificar configuración crítica
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("⚠️ Variables de entorno de Supabase no encontradas. Usando valores por defecto.")
-    SUPABASE_URL = "https://xlrutqwvlowzntnjgmwa.supabase.co"
-    SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhscnV0cXd2bG93em50bmpnbXdhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MDk2MzY0MCwiZXhwIjoyMDU2NTM5NjQwfQ.cvbeyFrPN5axFksj0frOHIt1q9gFulIKR1DSCPDTVGA"
+    raise SystemExit("⚠️ Faltan SUPABASE_URL y SUPABASE_KEY en las variables de entorno.")
 
 # Mostrar configuración (sin mostrar la clave completa por seguridad)
 print(f"📌 URL de Supabase: {SUPABASE_URL}")

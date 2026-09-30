@@ -103,6 +103,5 @@ key.properties
 /supabase/.branches
 /supabase/.temp
 
-echo ".env" >> .gitignore
 
 .env
